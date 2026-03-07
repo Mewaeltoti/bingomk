@@ -3,14 +3,9 @@ import PageShell from '@/components/PageShell';
 import BingoCartela from '@/components/BingoCartela';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
-import { useUser } from '@/lib/auth'; // your auth hook
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-);
+import { useUser } from '@/lib/auth';
 
 interface Cartela {
   id: string;
@@ -28,7 +23,6 @@ export default function CartelaSelection() {
   const navigate = useNavigate();
   const user = useUser();
 
-  // Fetch cartelas from Supabase
   useEffect(() => {
     async function fetchCartelas() {
       const { data, error } = await supabase
@@ -43,13 +37,11 @@ export default function CartelaSelection() {
         return;
       }
 
-      setCartelas(data || []);
+      setCartelas((data || []) as unknown as Cartela[]);
     }
-
     fetchCartelas();
   }, []);
 
-  // Pagination
   useEffect(() => {
     const start = (page - 1) * pageSize;
     const end = page * pageSize;
@@ -78,7 +70,6 @@ export default function CartelaSelection() {
       toast.error('You must be logged in!');
       return;
     }
-
     if (selected.size === 0) {
       toast.error('Select at least one cartela!');
       return;
@@ -86,8 +77,8 @@ export default function CartelaSelection() {
 
     const { error } = await supabase
       .from('cartelas')
-      .update({ is_used: true, owner_id: user.id })
-      .in('id', Array.from(selected));
+      .update({ is_used: true, owner_id: user.id } as any)
+      .in('id', Array.from(selected).map(Number));
 
     if (error) {
       toast.error('Failed to purchase cartelas');
@@ -98,8 +89,6 @@ export default function CartelaSelection() {
     setVisibleCartelas((prev) => prev.filter((c) => !selected.has(c.id)));
     setSelected(new Set());
     toast.success('Cartelas purchased!');
-
-    // Go to game page
     navigate('/game');
   };
 
@@ -136,7 +125,7 @@ export default function CartelaSelection() {
         <div className="flex justify-center mb-6">
           <button
             onClick={() => setPage((p) => p + 1)}
-            className="px-5 py-2 rounded-lg bg-blue-600 text-white"
+            className="px-5 py-2 rounded-lg bg-primary text-primary-foreground"
           >
             Load More
           </button>
@@ -151,7 +140,7 @@ export default function CartelaSelection() {
         >
           <button
             onClick={handleBuy}
-            className="w-full py-4 rounded-xl font-bold bg-yellow-500 text-black text-lg"
+            className="w-full py-4 rounded-xl font-bold gradient-gold text-primary-foreground text-lg"
           >
             Buy Selected Cartelas — {selected.size * 20} ETB
           </button>

@@ -14,7 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      cartelas: {
+        Row: {
+          created_at: string
+          id: number
+          is_used: boolean
+          numbers: Json
+          owner_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          is_used?: boolean
+          numbers: Json
+          owner_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          is_used?: boolean
+          numbers?: Json
+          owner_id?: string | null
+        }
+        Relationships: []
+      }
+      game_numbers: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: number
+          number: number
+        }
+        Insert: {
+          created_at?: string
+          game_id?: string
+          id?: number
+          number: number
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: number
+          number?: number
+        }
+        Relationships: []
+      }
+      games: {
+        Row: {
+          created_at: string
+          id: string
+          pattern: string
+          status: string
+          winner_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pattern?: string
+          status?: string
+          winner_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pattern?: string
+          status?: string
+          winner_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
