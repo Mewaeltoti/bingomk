@@ -51,11 +51,11 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        gold: "hsl(var(--gold))",
-        "gold-dim": "hsl(var(--gold-dim))",
-        green: "hsl(var(--green))",
-        "green-dim": "hsl(var(--green-dim))",
-        "red-eth": "hsl(var(--red-eth))",
+        ocean: "hsl(var(--ocean))",
+        "ocean-dim": "hsl(var(--ocean-dim))",
+        teal: "hsl(var(--teal))",
+        "teal-dim": "hsl(var(--teal-dim))",
+        sky: "hsl(var(--sky))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -82,8 +82,8 @@ export default {
           to: { height: "0" },
         },
         "pulse-gold": {
-          "0%, 100%": { boxShadow: "0 0 10px hsl(45 100% 51% / 0.2)" },
-          "50%": { boxShadow: "0 0 25px hsl(45 100% 51% / 0.4)" },
+          "0%, 100%": { boxShadow: "0 0 10px hsl(187 72% 46% / 0.2)" },
+          "50%": { boxShadow: "0 0 25px hsl(187 72% 46% / 0.4)" },
         },
         "number-pop": {
           "0%": { transform: "scale(0)", opacity: "0" },

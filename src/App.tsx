@@ -14,7 +14,7 @@ import Payment from "./pages/Payment";
 import Admin from "./pages/Admin";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import Leaderboard from "./pages/Leaderboard";
+
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,7 +31,7 @@ function AppContent() {
         <Route path="/cartelas" element={<RequireAuth><CartelaSelection /></RequireAuth>} />
         <Route path="/game" element={<RequireAuth><GamePage /></RequireAuth>} />
         <Route path="/payment" element={<RequireAuth><Payment /></RequireAuth>} />
-        <Route path="/leaderboard" element={<RequireAuth><Leaderboard /></RequireAuth>} />
+        
         <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
