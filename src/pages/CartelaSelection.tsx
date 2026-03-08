@@ -131,39 +131,17 @@ export default function CartelaSelection() {
 
     setBuying(true);
 
-    const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'admin')
-      .maybeSingle();
+    const { data, error } = await supabase.functions.invoke('purchase-cartela', {
+      body: { cartela_ids: Array.from(selected).map(Number) },
+    });
 
-    if (roleData) {
-      toast.error('Admins cannot purchase cartelas!');
+    if (error || data?.error) {
+      toast.error(data?.error || 'Purchase failed');
       setBuying(false);
       setShowConfirm(false);
       return;
     }
 
-    const { data: profile } = await supabase.from('profiles').select('balance').eq('id', user.id).single();
-    const balance = (profile as any)?.balance || 0;
-    const cost = selected.size * cartelaPrice;
-
-    if (balance < cost) {
-      toast.error(`Need ${cost} ETB, have ${balance} ETB`);
-      setBuying(false);
-      setShowConfirm(false);
-      return;
-    }
-
-    const { error } = await supabase
-      .from('cartelas')
-      .update({ is_used: true, owner_id: user.id } as any)
-      .in('id', Array.from(selected).map(Number));
-
-    if (error) { toast.error('Purchase failed'); setBuying(false); setShowConfirm(false); return; }
-
-    await supabase.from('profiles').update({ balance: balance - cost } as any).eq('id', user.id);
     setCartelas((prev) => prev.filter((c) => !selected.has(c.id)));
     setSelected(new Set());
     setShowConfirm(false);
