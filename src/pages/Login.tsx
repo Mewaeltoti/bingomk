@@ -15,10 +15,7 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
 
-    // Format phone: ensure it starts with country code
     const formattedPhone = phone.startsWith('+') ? phone : `+251${phone.replace(/^0/, '')}`;
-    
-    // Use phone as email workaround: phone@bingo.local
     const fakeEmail = `${formattedPhone.replace('+', '')}@bingo.local`;
 
     const { data: signInData, error } = await supabase.auth.signInWithPassword({
@@ -33,7 +30,6 @@ export default function Login() {
       return;
     }
 
-    // Check if user is admin → redirect to admin page
     if (signInData.user) {
       const { data: roleData } = await supabase
         .from('user_roles')
@@ -50,7 +46,7 @@ export default function Login() {
     }
 
     toast.success('Welcome back!');
-    navigate('/');
+    navigate('/game');
   };
 
   return (

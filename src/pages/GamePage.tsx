@@ -10,6 +10,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ReactConfetti from 'react-confetti';
 import { cn } from '@/lib/utils';
 import { playDrawSound, playWinSound } from '@/lib/sounds';
+import { Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const PATTERN_CELLS: Record<string, boolean[][]> = {
   'Full House': Array(5).fill(Array(5).fill(true)),
@@ -54,8 +56,8 @@ export default function GamePage() {
   const [hasClaimed, setHasClaimed] = useState(false);
   const [claimCount, setClaimCount] = useState(0);
   const user = useUser();
+  const navigate = useNavigate();
 
-  // Fetch player's cartelas
   useEffect(() => {
     if (!user?.id) return;
     supabase
@@ -66,7 +68,6 @@ export default function GamePage() {
       .then(({ data }) => setPlayerCartelas(data || []));
   }, [user?.id]);
 
-  // Fetch game state
   useEffect(() => {
     async function fetchGameState() {
       const [numbersRes, gameRes, claimsRes] = await Promise.all([
@@ -121,7 +122,6 @@ export default function GamePage() {
     playWinSound();
   };
 
-  // Realtime subscriptions
   useEffect(() => {
     const channel = supabase
       .channel('game-realtime')
@@ -143,7 +143,6 @@ export default function GamePage() {
             setClaimCount(0);
           }
           if (game.status === 'won' || game.status === 'disqualified') {
-            // Refetch claims to determine result
             supabase.from('bingo_claims').select('*').eq('game_id', 'current')
               .then(({ data }) => {
                 const claims = data || [];
@@ -172,7 +171,6 @@ export default function GamePage() {
   const drawnSet = new Set(drawnNumbers);
   const lastNumber = drawnNumbers[drawnNumbers.length - 1];
 
-  // Mark a number on player's card
   const handleMarkNumber = useCallback((num: number) => {
     setPlayerMarked((prev) => {
       const next = new Set(prev);
@@ -181,7 +179,6 @@ export default function GamePage() {
     });
   }, []);
 
-  // Check win using player's own marked numbers (not all drawn)
   const hasWinningCartela = playerCartelas.some((c) =>
     checkWin(c.numbers as number[][], playerMarked, gamePattern as any)
   );
@@ -189,7 +186,6 @@ export default function GamePage() {
   const handleBingo = async () => {
     if (!user?.id) return;
 
-    // Verify the player actually has a valid win with drawn numbers
     const hasValidWin = playerCartelas.some((c) =>
       checkWin(c.numbers as number[][], drawnSet, gamePattern as any)
     );
@@ -322,8 +318,17 @@ export default function GamePage() {
         </p>
       </div>
 
-      {/* Player cartelas */}
-      <h2 className="mb-2 text-sm font-bold text-foreground">Your Cartelas</h2>
+      {/* Player cartelas header with + button */}
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-sm font-bold text-foreground">Your Cartelas</h2>
+        <button
+          onClick={() => navigate('/cartelas')}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium active:scale-95 transition-transform"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Add
+        </button>
+      </div>
       <div className="grid grid-cols-2 gap-3 mb-24">
         {playerCartelas.map((c) => (
           <BingoCartela
@@ -338,7 +343,13 @@ export default function GamePage() {
         ))}
         {playerCartelas.length === 0 && (
           <div className="col-span-2 text-center text-muted-foreground py-8">
-            No cartelas. Buy some from the Cartelas page!
+            <p>No cartelas yet.</p>
+            <button
+              onClick={() => navigate('/cartelas')}
+              className="mt-2 px-4 py-2 rounded-lg gradient-gold text-primary-foreground text-sm font-medium"
+            >
+              Buy Cartelas
+            </button>
           </div>
         )}
       </div>

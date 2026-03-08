@@ -14,7 +14,6 @@ import Payment from "./pages/Payment";
 import Admin from "./pages/Admin";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import Profile from "./pages/Profile";
 import Leaderboard from "./pages/Leaderboard";
 import NotFound from "./pages/NotFound";
 
@@ -32,7 +31,6 @@ function AppContent() {
         <Route path="/cartelas" element={<RequireAuth><CartelaSelection /></RequireAuth>} />
         <Route path="/game" element={<RequireAuth><GamePage /></RequireAuth>} />
         <Route path="/payment" element={<RequireAuth><Payment /></RequireAuth>} />
-        <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
         <Route path="/leaderboard" element={<RequireAuth><Leaderboard /></RequireAuth>} />
         <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
         <Route path="*" element={<NotFound />} />

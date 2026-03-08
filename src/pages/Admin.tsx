@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import PageShell from '@/components/PageShell';
-import { Users, CreditCard, Gamepad2, Check, X, Play, Square, AlertTriangle, Plus, Minus } from 'lucide-react';
+import { Users, CreditCard, Gamepad2, Check, X, Play, Pause, AlertTriangle, Plus, Minus } from 'lucide-react';
 import { PATTERNS, PatternName } from '@/lib/bingo';
 import { getBingoLetter } from '@/lib/bingoEngine';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,10 +27,8 @@ export default function Admin() {
     { key: 'players' as const, label: 'Players', icon: Users },
   ];
 
-  // Keep ref in sync
   useEffect(() => { drawnRef.current = drawnNumbers; }, [drawnNumbers]);
 
-  // Helper: enrich records with profile data
   const enrichWithProfiles = async (records: any[], userIdField = 'user_id') => {
     if (!records.length) return records;
     const userIds = [...new Set(records.map(r => r[userIdField]))];
@@ -39,7 +37,6 @@ export default function Admin() {
     return records.map(r => ({ ...r, profile: profileMap.get(r[userIdField]) || null }));
   };
 
-  // Fetch game state
   useEffect(() => {
     async function fetchState() {
       const [numbersRes, gameRes, claimsRes] = await Promise.all([
@@ -57,7 +54,6 @@ export default function Admin() {
     fetchState();
   }, []);
 
-  // Listen for new claims
   useEffect(() => {
     const channel = supabase
       .channel('admin-claims')
@@ -71,7 +67,6 @@ export default function Admin() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Fetch deposits
   useEffect(() => {
     if (tab !== 'deposits') return;
     supabase.from('deposits').select('*')
@@ -79,14 +74,13 @@ export default function Admin() {
       .then(async ({ data }) => setDeposits(await enrichWithProfiles(data || [])));
   }, [tab]);
 
-  // Fetch players
   useEffect(() => {
     if (tab !== 'players') return;
     supabase.from('profiles').select('*').order('created_at', { ascending: false })
       .then(({ data }) => setPlayers(data || []));
   }, [tab]);
 
-  // Auto-draw
+  // Auto-draw interval
   useEffect(() => {
     if (autoDraw && gameStatus !== 'won' && gameStatus !== 'disqualified') {
       autoDrawRef.current = setInterval(() => drawNumberInternal(), 10000);
@@ -121,10 +115,24 @@ export default function Admin() {
     setDrawnNumbers([]);
     setClaims([]);
     setGameStatus('waiting');
-    toast.success('New game started!');
+    toast.success('New game ready! Press Start to begin drawing.');
   };
 
-  // Resolve claims: 1 = winner, 2 = split, 3+ = disqualify
+  const handleStartDraw = () => {
+    if (gameStatus === 'waiting') {
+      // Update game status to active
+      supabase.from('games').update({ status: 'active' }).eq('id', 'current');
+      setGameStatus('active');
+    }
+    setAutoDraw(true);
+    toast.success('Auto-draw started (every 10s)');
+  };
+
+  const handlePauseDraw = () => {
+    setAutoDraw(false);
+    toast('⏸ Drawing paused');
+  };
+
   const resolveClaims = async () => {
     if (claims.length === 0) {
       toast.error('No claims to resolve');
@@ -132,27 +140,26 @@ export default function Admin() {
     }
 
     if (claims.length >= 3) {
-      // Disqualify - restart game
       await supabase.from('games').update({ status: 'disqualified' }).eq('id', 'current');
       setGameStatus('disqualified');
+      setAutoDraw(false);
       toast('🔄 3+ claims! Game disqualified. Starting new game...');
-      // Auto restart after 5 seconds
       setTimeout(() => startNewGame(), 5000);
       return;
     }
 
     if (claims.length === 2) {
-      // Split prize
       await supabase.from('games').update({ status: 'won', winner_id: claims[0].user_id }).eq('id', 'current');
       setGameStatus('won');
+      setAutoDraw(false);
       toast.success('🤝 Prize split between 2 players!');
       return;
     }
 
-    // Single winner
     const winnerId = claims[0].user_id;
     await supabase.from('games').update({ status: 'won', winner_id: winnerId }).eq('id', 'current');
     setGameStatus('won');
+    setAutoDraw(false);
     toast.success('🏆 Winner confirmed!');
   };
 
@@ -210,27 +217,35 @@ export default function Admin() {
             onClick={startNewGame}
             className="w-full py-4 rounded-xl font-display font-bold bg-secondary text-secondary-foreground text-lg active:scale-95 transition-transform"
           >
-            Start New Game
+            🆕 New Game
           </button>
 
+          {/* Start / Pause drawing */}
           <div className="flex gap-2">
-            <button
-              onClick={() => drawNumberInternal()}
-              className="flex-1 py-4 rounded-2xl font-display font-bold text-lg gradient-gold text-primary-foreground glow-gold active:scale-95 transition-transform"
-            >
-              🎱 Draw ({drawnNumbers.length}/75)
-            </button>
-            <button
-              onClick={() => setAutoDraw(!autoDraw)}
-              className={`px-4 rounded-2xl font-bold text-lg active:scale-95 transition-transform ${
-                autoDraw ? 'bg-destructive text-destructive-foreground' : 'bg-muted text-muted-foreground'
-              }`}
-            >
-              {autoDraw ? <Square className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-            </button>
+            {!autoDraw ? (
+              <button
+                onClick={handleStartDraw}
+                disabled={gameStatus === 'won' || gameStatus === 'disqualified'}
+                className="flex-1 py-4 rounded-2xl font-display font-bold text-lg gradient-gold text-primary-foreground glow-gold active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <Play className="w-5 h-5" />
+                Start Drawing
+              </button>
+            ) : (
+              <button
+                onClick={handlePauseDraw}
+                className="flex-1 py-4 rounded-2xl font-display font-bold text-lg bg-destructive text-destructive-foreground active:scale-95 transition-transform flex items-center justify-center gap-2"
+              >
+                <Pause className="w-5 h-5" />
+                Pause Drawing
+              </button>
+            )}
           </div>
+
           {autoDraw && (
-            <p className="text-xs text-center text-primary animate-pulse">Auto-drawing every 10 seconds...</p>
+            <p className="text-xs text-center text-primary animate-pulse">
+              🔄 Auto-drawing every 10 seconds... ({drawnNumbers.length}/75)
+            </p>
           )}
 
           {/* BINGO Claims */}

@@ -1,18 +1,11 @@
-import { Home, LayoutGrid, Gamepad2, Wallet, User, LogOut, Shield, Trophy } from 'lucide-react';
+import { Gamepad2, Wallet, LogOut, Shield, Trophy, Plus } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
-
-const navItems = [
-  { to: '/', icon: Home, label: 'Home' },
-  { to: '/game', icon: Gamepad2, label: 'Game' },
-  { to: '/leaderboard', icon: Trophy, label: 'Rank', hideOnAdmin: true },
-  { to: '/dashboard', icon: Wallet, label: 'Wallet', hideOnAdmin: true },
-  { to: '/profile', icon: User, label: 'Profile', hideOnAdmin: true },
-];
+import ThemeToggle from './ThemeToggle';
 
 const hiddenRoutes = ['/login', '/signup'];
 
@@ -37,25 +30,31 @@ export default function BottomNav() {
 
   if (hiddenRoutes.includes(pathname)) return null;
 
-  // Admin only sees Home, Game, Admin, Logout
-  const isAdminPage = pathname === '/admin';
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast.success('Logged out');
   };
 
-  const isOnAdmin = pathname === '/admin';
-  const filteredNav = isOnAdmin ? navItems.filter((n) => !(n as any).hideOnAdmin) : navItems;
-  const allItems = [
-    ...filteredNav,
-    ...(isAdmin ? [{ to: '/admin', icon: Shield, label: 'Admin' }] : []),
+  // Admin nav: Game, Admin, Theme, Logout
+  // Player nav: Game, Cartelas, Rank, Wallet, Theme, Logout
+  const adminItems = [
+    { to: '/game', icon: Gamepad2, label: 'Game' },
+    { to: '/admin', icon: Shield, label: 'Admin' },
   ];
+
+  const playerItems = [
+    { to: '/game', icon: Gamepad2, label: 'Game' },
+    { to: '/cartelas', icon: Plus, label: 'Cartelas' },
+    { to: '/leaderboard', icon: Trophy, label: 'Rank' },
+    { to: '/dashboard', icon: Wallet, label: 'Wallet' },
+  ];
+
+  const items = isAdmin ? adminItems : playerItems;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-md safe-area-pb">
       <div className="flex items-center justify-around py-2">
-        {allItems.map(({ to, icon: Icon, label }) => {
+        {items.map(({ to, icon: Icon, label }) => {
           const active = pathname === to;
           return (
             <Link
@@ -71,6 +70,7 @@ export default function BottomNav() {
             </Link>
           );
         })}
+        <ThemeToggle />
         {user && (
           <button
             onClick={handleLogout}
