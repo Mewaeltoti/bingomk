@@ -11,7 +11,7 @@ import { useUser } from '@/lib/auth';
 import { toast } from 'sonner';
 
 export default function Admin() {
-  const [tab, setTab] = useState<'game' | 'deposits' | 'players'>('game');
+  const [tab, setTab] = useState<'game' | 'deposits' | 'withdrawals' | 'players'>('game');
   const [pattern, setPattern] = useState<PatternName>('Full House');
   const [drawnNumbers, setDrawnNumbers] = useState<number[]>([]);
   const [gameStatus, setGameStatus] = useState('waiting');
