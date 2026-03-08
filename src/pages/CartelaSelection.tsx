@@ -208,13 +208,8 @@ export default function CartelaSelection() {
 
       {/* Cartela grid */}
       <div className="grid grid-cols-3 gap-2 mb-6">
-        {visible.map((c, i) => (
-          <motion.div
-            key={c.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: Math.min(i * 0.02, 0.3) }}
-          >
+        {visible.map((c) => (
+          <div key={c.id}>
             <BingoCartela
               numbers={c.numbers}
               size="xs"
@@ -224,7 +219,7 @@ export default function CartelaSelection() {
               isFavorite={favorites.has(c.id)}
               onFavorite={() => toggleFavorite(c.id)}
             />
-          </motion.div>
+          </div>
         ))}
       </div>
 
