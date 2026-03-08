@@ -243,18 +243,13 @@ export default function Admin() {
 
   const startNewGame = async () => {
     setAutoDraw(false);
-    await supabase.from('games').update({ auto_draw: false } as any).eq('id', 'current');
     if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
 
-    await Promise.all([
-      supabase.from('game_numbers').delete().eq('game_id', 'current'),
-      supabase.from('bingo_claims').delete().eq('game_id', 'current'),
-      supabase.from('cartelas').update({ is_used: false, owner_id: null } as any).eq('is_used', true),
-    ]);
-    // Set game to "buying" status — 2 min rest
-    await supabase.from('games').upsert({
-      id: 'current', pattern, status: 'buying', winner_id: null, draw_speed: drawSpeed, prize_amount: 0, cartela_price: cartelaPrice,
-    } as any);
+    const { error } = await supabase.functions.invoke('game-lifecycle', {
+      body: { action: 'new_game', pattern, draw_speed: drawSpeed, cartela_price: cartelaPrice },
+    });
+    if (error) { toast.error('Failed to start new game'); return; }
+
     setBoughtCount(0);
     setDrawnNumbers([]);
     setClaims([]);
@@ -266,7 +261,6 @@ export default function Admin() {
     // Start countdown
     buyingTimerRef.current = setInterval(() => {
       setBuyingCountdown(prev => {
-        // Refresh bought count every 10 seconds
         if (prev % 10 === 0) {
           supabase.from('cartelas').select('id', { count: 'exact', head: true })
             .eq('is_used', true).not('owner_id', 'is', null)
@@ -287,55 +281,44 @@ export default function Admin() {
   };
 
   const startDrawing = async () => {
-    // Auto-calculate prize from bought cartelas
-    const { count } = await supabase
-      .from('cartelas')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_used', true)
-      .not('owner_id', 'is', null);
-    const bought = count || 0;
-    setBoughtCount(bought);
+    const { data, error } = await supabase.functions.invoke('game-lifecycle', {
+      body: { action: 'start_drawing', prize_amount: prizeAmount },
+    });
+    if (error) { toast.error('Failed to start drawing'); return; }
 
-    await supabase.from('games').update({ status: 'active', prize_amount: prizeAmount, auto_draw: true } as any).eq('id', 'current');
+    const bought = data?.bought || 0;
+    setBoughtCount(bought);
     setGameStatus('active');
     setAutoDraw(true);
-    invokeAutoDraw();
     toast.success(`🎲 Game started! ${bought} cartelas sold, prize: ${prizeAmount} ETB`);
   };
 
   const pauseGame = async () => {
-    await supabase.from('games').update({ auto_draw: false } as any).eq('id', 'current');
+    await supabase.functions.invoke('game-lifecycle', { body: { action: 'pause' } });
     setAutoDraw(false);
     toast('⏸️ Drawing paused');
   };
 
   const resumeGame = async () => {
-    await supabase.from('games').update({ auto_draw: true } as any).eq('id', 'current');
+    await supabase.functions.invoke('game-lifecycle', { body: { action: 'resume' } });
     setAutoDraw(true);
-    invokeAutoDraw();
     toast('▶️ Drawing resumed');
   };
 
   const stopGame = async () => {
-    await supabase.from('games').update({ status: 'stopped', auto_draw: false } as any).eq('id', 'current');
+    await supabase.functions.invoke('game-lifecycle', { body: { action: 'stop' } });
     setAutoDraw(false);
     setGameStatus('stopped');
     toast('🛑 Game stopped');
   };
 
   const handleDeposit = async (id: string, action: 'approved' | 'rejected', userId: string, amount: number) => {
-    const { error } = await supabase.from('deposits').update({ status: action }).eq('id', id);
+    const { error } = await supabase.functions.invoke('approve-transaction', {
+      body: { type: 'deposit', id, action, user_id: userId, amount },
+    });
     if (error) { toast.error('Failed'); return; }
 
-    if (action === 'approved') {
-      const { data: profile } = await supabase.from('profiles').select('balance').eq('id', userId).single();
-      const bal = (profile as any)?.balance || 0;
-      await supabase.from('profiles').update({ balance: bal + amount } as any).eq('id', userId);
-      toast.success(`✅ Approved & credited ${amount} ETB`);
-    } else {
-      toast.success('Deposit rejected');
-    }
-
+    toast.success(action === 'approved' ? `✅ Approved & credited ${amount} ETB` : 'Deposit rejected');
     setDeposits((prev) => prev.map((d) => d.id === id ? { ...d, status: action } : d));
   };
 
