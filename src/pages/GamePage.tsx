@@ -293,7 +293,7 @@ export default function GamePage() {
   const showBuyPrompt = gameStatus === 'buying' || gameStatus === 'waiting' || gameStatus === 'stopped' || gameStatus === 'won';
 
   return (
-    <PageShell title="Bingo" whiteBg>
+    <PageShell title="Bingo" whiteBg noPadding>
       {/* Winner overlay - simple confetti + message */}
       {showResult && gameResult && (
         <div
