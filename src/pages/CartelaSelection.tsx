@@ -175,7 +175,19 @@ export default function CartelaSelection() {
 
   return (
     <PageShell title="Choose Cartela">
-      {/* Search & filter */}
+      {/* Block message when game is active */}
+      {!canBuy && (
+        <div className="mb-3 p-4 rounded-xl bg-destructive/10 border border-destructive/30 text-center">
+          <p className="text-sm font-bold text-destructive">🚫 Game in progress!</p>
+          <p className="text-xs text-muted-foreground mt-1">You can only buy cartelas before a game starts.</p>
+          <button
+            onClick={() => navigate('/game')}
+            className="mt-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold"
+          >
+            Go to Game
+          </button>
+        </div>
+      )}
       <div className="flex gap-2 mb-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
