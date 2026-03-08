@@ -26,7 +26,7 @@ export default function Index() {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="gradient-card rounded-2xl p-5 glow-gold mb-6"
+          className="rounded-2xl p-5 bg-card border border-border mb-6"
         >
           <div className="flex items-center gap-2 mb-4">
             <div className="w-2.5 h-2.5 rounded-full bg-secondary animate-pulse" />
