@@ -302,7 +302,6 @@ export default function GamePage() {
         game_id: 'current',
         user_id: user.id,
         cartela_id: cartelaId,
-        strike_count: currentStrikes + 1,
       } as any);
 
     if (error) {
