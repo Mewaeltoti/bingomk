@@ -360,7 +360,6 @@ export default function GamePage() {
         <div className="space-y-3">
           {/* Row 1: Last number + Pattern */}
           <div className="flex items-center gap-3">
-            {/* Last drawn number - prominent */}
             {lastNumber ? (
               <div
                 key={lastNumber}
@@ -374,8 +373,6 @@ export default function GamePage() {
                 --
               </div>
             )}
-
-            {/* Pattern + drawn count */}
             <div className="flex-1 flex items-center gap-2">
               <PatternGrid pattern={gamePattern} />
               <div>
@@ -388,28 +385,46 @@ export default function GamePage() {
             </div>
           </div>
 
-          {/* Row 2: Collapsible 1-75 board with circle numbers */}
-          <div className="rounded-lg border border-border overflow-hidden bg-white dark:bg-card">
+          {/* Drawn marbles — always visible, big and colorful */}
+          {drawnNumbers.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 py-2">
+              {drawnNumbers.map((num) => {
+                const rowIdx = Math.floor((num - 1) / 15);
+                const marbleColor = ['bg-blue-500', 'bg-red-500', 'bg-green-600', 'bg-orange-500', 'bg-purple-600'][rowIdx];
+                return (
+                  <div
+                    key={num}
+                    className={cn('w-8 h-8 flex items-center justify-center text-[10px] font-bold rounded-full text-white shadow-md', marbleColor)}
+                  >
+                    {num}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Collapsible 1-75 board */}
+          <div className="rounded-lg border border-border overflow-hidden bg-white/80 dark:bg-card">
             <button
               onClick={() => setBoardOpen(prev => !prev)}
-              className="w-full flex items-center justify-between px-3 py-1.5 bg-muted/30 text-xs font-medium text-muted-foreground"
+              className="w-full flex items-center justify-between px-3 py-1.5 bg-gradient-to-r from-blue-500 via-green-500 to-purple-500 text-white text-xs font-bold"
             >
-              <span>Drawn Numbers ({drawnNumbers.length}/75)</span>
+              <span>Number Board ({drawnNumbers.length}/75)</span>
               {boardOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
-            {boardOpen ? (
+            {boardOpen && (
               <div className="p-1.5">
                 {['B', 'I', 'N', 'G', 'O'].map((letter, rowIdx) => {
                   const rowColors = [
-                    { bg: 'bg-blue-500', border: 'border-blue-400', text: 'text-blue-600' },
-                    { bg: 'bg-red-500', border: 'border-red-400', text: 'text-red-600' },
-                    { bg: 'bg-green-600', border: 'border-green-400', text: 'text-green-600' },
-                    { bg: 'bg-orange-500', border: 'border-orange-400', text: 'text-orange-600' },
-                    { bg: 'bg-purple-600', border: 'border-purple-400', text: 'text-purple-600' },
+                    { bg: 'bg-blue-500', border: 'border-blue-400', text: 'text-blue-600', headerBg: 'bg-blue-500' },
+                    { bg: 'bg-red-500', border: 'border-red-400', text: 'text-red-600', headerBg: 'bg-red-500' },
+                    { bg: 'bg-green-600', border: 'border-green-400', text: 'text-green-600', headerBg: 'bg-green-600' },
+                    { bg: 'bg-orange-500', border: 'border-orange-400', text: 'text-orange-600', headerBg: 'bg-orange-500' },
+                    { bg: 'bg-purple-600', border: 'border-purple-400', text: 'text-purple-600', headerBg: 'bg-purple-600' },
                   ][rowIdx];
                   return (
                     <div key={letter} className="flex items-center gap-[2px] mb-[3px] last:mb-0">
-                      <div className={cn('w-5 flex-shrink-0 text-center font-display font-bold text-[10px]', rowColors.text)}>
+                      <div className={cn('w-5 h-5 flex-shrink-0 flex items-center justify-center font-display font-bold text-[10px] rounded-full text-white', rowColors.headerBg)}>
                         {letter}
                       </div>
                       <div className="flex flex-1 gap-[2px] justify-between">
@@ -423,7 +438,7 @@ export default function GamePage() {
                                 'w-[20px] h-[20px] flex items-center justify-center text-[7px] font-bold rounded-full border',
                                 isDrawn
                                   ? `${rowColors.bg} text-white ${rowColors.border}`
-                                  : `bg-transparent text-muted-foreground/60 ${rowColors.border}/40`
+                                  : `bg-white/60 dark:bg-transparent text-muted-foreground/60 ${rowColors.border}/30`
                               )}
                             >
                               {num}
@@ -434,26 +449,6 @@ export default function GamePage() {
                     </div>
                   );
                 })}
-              </div>
-            ) : (
-              /* Folded: show drawn numbers as colored marbles */
-              <div className="flex flex-wrap gap-1 p-2 max-h-24 overflow-y-auto">
-                {drawnNumbers.length === 0 ? (
-                  <span className="text-xs text-muted-foreground">No numbers drawn yet</span>
-                ) : (
-                  drawnNumbers.map((num) => {
-                    const rowIdx = Math.floor((num - 1) / 15);
-                    const marbleColor = ['bg-blue-500', 'bg-red-500', 'bg-green-600', 'bg-orange-500', 'bg-purple-600'][rowIdx];
-                    return (
-                      <div
-                        key={num}
-                        className={cn('w-6 h-6 flex items-center justify-center text-[8px] font-bold rounded-full text-white', marbleColor)}
-                      >
-                        {num}
-                      </div>
-                    );
-                  })
-                )}
               </div>
             )}
           </div>
