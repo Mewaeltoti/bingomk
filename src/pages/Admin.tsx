@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import PageShell from '@/components/PageShell';
 import { Users, CreditCard, Gamepad2, Check, X, AlertTriangle, Plus, Minus, Pause, Play, Square } from 'lucide-react';
 import { PATTERNS, PatternName } from '@/lib/bingo';
