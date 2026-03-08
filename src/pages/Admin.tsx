@@ -454,12 +454,19 @@ export default function Admin() {
 
   return (
     <PageShell title="Admin Panel">
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary/10 text-xs">
           <Users className="w-3.5 h-3.5 text-secondary" />
           <span className="font-bold text-secondary">{onlinePlayers.length}</span>
           <span className="text-muted-foreground">players online</span>
         </div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 transition-colors"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          Logout
+        </button>
       </div>
 
       <div className="flex gap-2 mb-6">
