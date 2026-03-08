@@ -72,9 +72,9 @@ export default function Admin() {
   // Fetch deposits
   useEffect(() => {
     if (tab !== 'deposits') return;
-    supabase.from('deposits').select('*, profiles:user_id(phone, display_name)')
+    supabase.from('deposits').select('*')
       .order('created_at', { ascending: false })
-      .then(({ data }) => setDeposits(data || []));
+      .then(async ({ data }) => setDeposits(await enrichWithProfiles(data || [])));
   }, [tab]);
 
   // Fetch players
