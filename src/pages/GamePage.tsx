@@ -79,6 +79,43 @@ export default function GamePage() {
     return () => { supabase.removeChannel(ch); };
   }, [user?.id]);
 
+  // Refresh function for pull-to-refresh
+  const refreshGameData = useCallback(async () => {
+    if (!user?.id) return;
+    const [cartelasRes, numbersRes, gameRes, claimsRes, profileRes] = await Promise.all([
+      supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true).order('id', { ascending: true }),
+      supabase.from('game_numbers').select('number').eq('game_id', 'current').order('id', { ascending: true }),
+      supabase.from('games').select('*').eq('id', 'current').maybeSingle(),
+      supabase.from('bingo_claims').select('*').eq('game_id', 'current'),
+      supabase.from('profiles').select('balance').eq('id', user.id).single(),
+    ]);
+    setPlayerCartelas(cartelasRes.data || []);
+    setIsSpectator(!cartelasRes.data || cartelasRes.data.length === 0);
+    if (numbersRes.data) setDrawnNumbers(numbersRes.data.map((n: any) => n.number));
+    if (gameRes.data) {
+      setGamePattern(gameRes.data.pattern || 'Full House');
+      setGameStatus(gameRes.data.status || 'waiting');
+      setPrizeAmount((gameRes.data as any).prize_amount || 0);
+      if (gameRes.data.status === 'won') {
+        setGameResult({ type: 'winner', message: 'Someone won this round! 🏆' });
+        setShowResult(true);
+        if (gameRes.data.winner_id === user?.id) {
+          setGameResult({ type: 'winner', message: 'You won! 🎉🏆' });
+        }
+      }
+    }
+    if (claimsRes.data) {
+      const userClaims = claimsRes.data.filter((c: any) => c.user_id === user.id);
+      const claimed = new Set<number>();
+      for (const claim of userClaims) {
+        const cid = (claim as any).cartela_id;
+        if (cid && claim.is_valid === null) claimed.add(cid);
+      }
+      setClaimedCartelas(claimed);
+    }
+    if (profileRes.data) setBalance((profileRes.data as any).balance || 0);
+  }, [user?.id]);
+
   // Fetch cartelas
   useEffect(() => {
     if (!user?.id) return;
