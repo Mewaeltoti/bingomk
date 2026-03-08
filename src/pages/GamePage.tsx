@@ -348,7 +348,7 @@ export default function GamePage() {
 
       {/* ACTIVE GAME - Single view layout */}
       {isGameActive && (
-        <div className="space-y-3">
+        <div className="space-y-3 p-3 rounded-2xl bg-card/80 backdrop-blur-sm border border-border">
           {/* Row 1: Last number + Pattern */}
           <div className="flex items-center gap-3">
             {lastNumber ? (
@@ -395,7 +395,7 @@ export default function GamePage() {
           )}
 
           {/* Collapsible 1-75 board */}
-          <div className="rounded-lg border border-border overflow-hidden bg-white/80 dark:bg-card">
+          <div className="rounded-lg border border-border overflow-hidden bg-background/40">
             <button
               onClick={() => setBoardOpen(prev => !prev)}
               className="w-full flex items-center justify-between px-3 py-1.5 bg-gradient-to-r from-blue-500 via-green-500 to-purple-500 text-white text-xs font-bold"
@@ -429,7 +429,7 @@ export default function GamePage() {
                                 'w-[20px] h-[20px] flex items-center justify-center text-[7px] font-bold rounded-full border',
                                 isDrawn
                                   ? `${rowColors.bg} text-white ${rowColors.border}`
-                                  : `bg-white/60 dark:bg-transparent text-muted-foreground/60 ${rowColors.border}/30`
+                                  : `bg-foreground/10 text-foreground/50 ${rowColors.border}/30`
                               )}
                             >
                               {num}
