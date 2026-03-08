@@ -565,15 +565,17 @@ export default function Admin() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => verifyClaimManually(c, true)}
-                        className="flex-1 py-1.5 rounded-lg bg-secondary text-secondary-foreground text-xs font-bold flex items-center justify-center gap-1"
+                        disabled={!!actionLoading}
+                        className="flex-1 py-1.5 rounded-lg bg-secondary text-secondary-foreground text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-50"
                       >
-                        <Check className="w-3.5 h-3.5" /> Valid Winner
+                        {actionLoading === `verify-${c.id}` ? '⏳...' : <><Check className="w-3.5 h-3.5" /> Valid Winner</>}
                       </button>
                       <button
                         onClick={() => verifyClaimManually(c, false)}
-                        className="flex-1 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center gap-1"
+                        disabled={!!actionLoading}
+                        className="flex-1 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-50"
                       >
-                        <X className="w-3.5 h-3.5" /> Invalid
+                        {actionLoading === `verify-${c.id}` ? '⏳...' : <><X className="w-3.5 h-3.5" /> Invalid</>}
                       </button>
                     </div>
                   )}
