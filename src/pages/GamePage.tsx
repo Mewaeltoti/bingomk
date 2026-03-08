@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { playDrawSound, playWinSound, playMarkSound, announceNumber } from '@/lib/sounds';
 import { Users, Eye, Hand, ShoppingCart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import MuteToggle from '@/components/MuteToggle';
 
 const PATTERN_CELLS: Record<string, boolean[][]> = {
   'Full House': Array(5).fill(Array(5).fill(true)),
@@ -330,7 +331,10 @@ export default function GamePage() {
             </span>
           )}
         </div>
-        <div className="text-sm font-display font-bold text-primary">{balance} ETB</div>
+        <div className="flex items-center gap-2">
+          <MuteToggle />
+          <div className="text-sm font-display font-bold text-primary">{balance} ETB</div>
+        </div>
       </div>
 
       {/* Buy/Waiting state */}

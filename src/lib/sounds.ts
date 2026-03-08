@@ -1,6 +1,12 @@
 // Simple sound effects using Web Audio API - no external files needed
 let audioCtx: AudioContext | null = null;
+let _muted = localStorage.getItem('bingo-muted') === 'true';
 
+export function isMuted() { return _muted; }
+export function setMuted(val: boolean) {
+  _muted = val;
+  localStorage.setItem('bingo-muted', String(val));
+}
 function getAudioCtx() {
   if (!audioCtx && typeof window !== 'undefined') {
     audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -9,6 +15,7 @@ function getAudioCtx() {
 }
 
 function playTone(frequency: number, duration: number, type: OscillatorType = 'sine', volume = 0.3) {
+  if (_muted) return;
   const ctx = getAudioCtx();
   if (!ctx) return;
   if (ctx.state === 'suspended') ctx.resume();
@@ -42,6 +49,7 @@ export function playMarkSound() {
 
 /** Announce a bingo number vocally using Web Speech API */
 export function announceNumber(num: number) {
+  if (_muted) return;
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
 
   const letter =
