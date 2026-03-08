@@ -16,24 +16,30 @@ export type Database = {
     Tables: {
       bingo_claims: {
         Row: {
+          cartela_id: number | null
           claimed_at: string
           game_id: string
           id: string
           is_valid: boolean | null
+          strike_count: number
           user_id: string
         }
         Insert: {
+          cartela_id?: number | null
           claimed_at?: string
           game_id?: string
           id?: string
           is_valid?: boolean | null
+          strike_count?: number
           user_id: string
         }
         Update: {
+          cartela_id?: number | null
           claimed_at?: string
           game_id?: string
           id?: string
           is_valid?: boolean | null
+          strike_count?: number
           user_id?: string
         }
         Relationships: []

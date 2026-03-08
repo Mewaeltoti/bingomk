@@ -83,10 +83,14 @@ export default function Admin() {
   }, []);
 
   const validateAndResolveClaim = async (claim: any) => {
-    const { data: cartelas } = await supabase
+    const cartelaId = claim.cartela_id;
+
+    // Fetch only the specific cartela being claimed
+    const { data: cartela } = await supabase
       .from('cartelas')
       .select('numbers')
-      .eq('owner_id', claim.user_id);
+      .eq('id', cartelaId)
+      .single();
 
     const { data: gameData } = await supabase
       .from('games')
@@ -103,15 +107,9 @@ export default function Admin() {
 
     const drawnSet = new Set((nums || []).map((n: any) => n.number));
 
-    let isValid = false;
-    if (cartelas) {
-      for (const c of cartelas) {
-        if (checkWin(c.numbers as number[][], drawnSet, currentPattern as PatternName)) {
-          isValid = true;
-          break;
-        }
-      }
-    }
+    const isValid = cartela
+      ? checkWin(cartela.numbers as number[][], drawnSet, currentPattern as PatternName)
+      : false;
 
     if (isValid) {
       const drawnNumbersList = (nums || []).map((n: any) => n.number);
@@ -121,7 +119,7 @@ export default function Admin() {
         winner_id: claim.user_id,
       }).eq('id', 'current');
 
-      await supabase.from('bingo_claims').update({ is_valid: true }).eq('id', claim.id);
+      await supabase.from('bingo_claims').update({ is_valid: true } as any).eq('id', claim.id);
 
       await supabase.from('game_history').insert({
         game_id: 'current',
@@ -137,8 +135,18 @@ export default function Admin() {
       setGameStatus('won');
       toast.success('🏆 System verified winner! Game over.');
     } else {
-      await supabase.from('bingo_claims').update({ is_valid: false }).eq('id', claim.id);
-      toast.error('❌ Invalid claim — resuming draw');
+      // Invalid claim — update strike count
+      const strikeCount = claim.strike_count || 1;
+      await supabase.from('bingo_claims').update({
+        is_valid: false,
+        strike_count: strikeCount,
+      } as any).eq('id', claim.id);
+
+      if (strikeCount >= 2) {
+        toast.error(`❌ Player struck out on #${cartelaId} — cartela removed`);
+      } else {
+        toast.warning(`❌ Invalid claim on #${cartelaId} — 1 chance left, resuming draw`);
+      }
       // Resume drawing
       setAutoDraw(true);
     }
