@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import BottomNav from "./components/BottomNav";
 import { RequireAuth, RequireAdmin } from "./components/AuthGuard";
 import { useGameNotifications } from "./hooks/useGameNotifications";
+import InstallPrompt from "./components/InstallPrompt";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import CartelaSelection from "./pages/CartelaSelection";
