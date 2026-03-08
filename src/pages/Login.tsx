@@ -50,6 +50,25 @@ export default function Login() {
     toast.success('Welcome back!');
     navigate('/game');
   };
+  const handleForgotPassword = async () => {
+    if (!phone) {
+      toast.error('Enter your phone number first');
+      return;
+    }
+    setLoading(true);
+    const formattedPhone = phone.startsWith('+') ? phone : `+251${phone.replace(/^0/, '')}`;
+    const fakeEmail = `${formattedPhone.replace('+', '')}@bingo.local`;
+    const { error } = await supabase.auth.resetPasswordForEmail(fakeEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (error) {
+      toast.error('Failed to send reset link');
+      return;
+    }
+    setResetSent(true);
+    toast.success('Password reset link sent! Check your email.');
+  };
 
   return (
     <PageShell>
