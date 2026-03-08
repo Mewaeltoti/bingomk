@@ -205,11 +205,15 @@ export default function Admin() {
     } else if (uniqueWinnerCount === 2) {
       // 2 different players — split prize
       const drawnNumbersList = (nums || []).map((n: any) => n.number);
+      const { count: playersCount2 } = await supabase.from('cartelas').select('owner_id', { count: 'exact', head: true }).eq('is_used', true).not('owner_id', 'is', null);
       await supabase.from('games').update({ status: 'won', winner_id: uniqueWinnerIds[0] }).eq('id', 'current');
-      await supabase.from('game_history').insert({
-        game_id: 'current', winner_id: uniqueWinnerIds[0], pattern: currentPattern,
-        players_count: 0, prize: 0, drawn_numbers: drawnNumbersList,
-      } as any);
+      // Insert history for each winner with split prize
+      for (const wId of uniqueWinnerIds) {
+        await supabase.from('game_history').insert({
+          game_id: 'current', winner_id: wId, pattern: currentPattern,
+          players_count: playersCount2 || 0, prize: prizeAmount / 2, drawn_numbers: drawnNumbersList,
+        } as any);
+      }
       await supabase.from('game_numbers').delete().eq('game_id', 'current');
       setGameStatus('won');
       setDrawnNumbers([]);
