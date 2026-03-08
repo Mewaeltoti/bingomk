@@ -8,8 +8,7 @@ import { getBingoLetter } from '@/lib/bingoEngine';
 import { checkWin } from '@/lib/winDetection';
 import { PatternName } from '@/lib/bingo';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
-// react-confetti removed for lightweight build
+// lightweight: no framer-motion
 import { cn } from '@/lib/utils';
 import { playDrawSound, playWinSound, playMarkSound, announceNumber } from '@/lib/sounds';
 import { Users, Eye, Hand, ShoppingCart } from 'lucide-react';
@@ -296,30 +295,21 @@ export default function GamePage() {
   return (
     <PageShell title="Bingo">
       {/* Winner overlay - simple confetti + message */}
-      <AnimatePresence>
-        {showResult && gameResult && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-sm"
-            onClick={() => setShowResult(false)}
-          >
-            {gameResult.type !== 'disqualified' && <div className="text-6xl animate-bounce">🎊</div>}
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="text-center p-6 rounded-2xl bg-card border-2 border-primary max-w-xs mx-4"
-            >
-              <div className="text-5xl mb-3">{gameResult.type === 'winner' ? '🏆' : '🔄'}</div>
-              <h2 className="text-2xl font-display font-bold text-primary mb-1">
-                {gameResult.type === 'disqualified' ? 'RESTART' : 'BINGO!'}
-              </h2>
-              <p className="text-muted-foreground">{gameResult.message}</p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {showResult && gameResult && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-sm animate-in fade-in"
+          onClick={() => setShowResult(false)}
+        >
+          {gameResult.type !== 'disqualified' && <div className="text-6xl animate-bounce">🎊</div>}
+          <div className="text-center p-6 rounded-2xl bg-card border-2 border-primary max-w-xs mx-4">
+            <div className="text-5xl mb-3">{gameResult.type === 'winner' ? '🏆' : '🔄'}</div>
+            <h2 className="text-2xl font-display font-bold text-primary mb-1">
+              {gameResult.type === 'disqualified' ? 'RESTART' : 'BINGO!'}
+            </h2>
+            <p className="text-muted-foreground">{gameResult.message}</p>
+          </div>
+        </div>
+      )}
 
       {/* Compact header: players + balance */}
       <div className="flex items-center justify-between mb-2">
@@ -342,11 +332,7 @@ export default function GamePage() {
 
       {/* Buy/Waiting state */}
       {showBuyPrompt && !isGameActive && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mb-3 p-4 rounded-xl bg-card border border-border text-center"
-        >
+        <div className="mb-3 p-4 rounded-xl bg-card border border-border text-center">
           {gameStatus === 'buying' ? (
             <>
               <div className="text-3xl font-display font-bold text-primary mb-1">
@@ -366,7 +352,7 @@ export default function GamePage() {
             <ShoppingCart className="w-4 h-4" />
             Buy Cartelas
           </button>
-        </motion.div>
+        </div>
       )}
 
       {/* ACTIVE GAME - Single view layout */}
@@ -376,15 +362,13 @@ export default function GamePage() {
           <div className="flex items-center gap-3">
             {/* Last drawn number - prominent */}
             {lastNumber ? (
-              <motion.div
+              <div
                 key={lastNumber}
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
                 className="w-16 h-16 rounded-full gradient-gold flex flex-col items-center justify-center text-primary-foreground shadow-lg flex-shrink-0"
               >
                 <span className="text-[10px] font-medium opacity-80">{getBingoLetter(lastNumber)}</span>
                 <span className="text-2xl font-display font-bold -mt-1">{lastNumber}</span>
-              </motion.div>
+              </div>
             ) : (
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-xs flex-shrink-0">
                 --
@@ -444,9 +428,8 @@ export default function GamePage() {
                 const cellsMarked = markedMap.get(c.id) || new Set<string>();
                 const isClaimed = claimedCartelas.has(c.id);
                 return (
-                  <motion.div
+                  <div
                     key={c.id}
-                    layout
                     className="flex flex-col gap-2"
                   >
                     <BingoCartela
@@ -473,7 +456,7 @@ export default function GamePage() {
                         {isClaimed ? 'Verifying...' : 'BINGO!'}
                       </button>
                     )}
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>

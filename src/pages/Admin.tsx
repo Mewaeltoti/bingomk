@@ -158,6 +158,9 @@ export default function Admin() {
         } else {
           toast.success(`🏆 Winner gets ${prizePerWinner} ETB! Balance credited.`);
         }
+
+        // Auto-reset after 10 seconds
+        setTimeout(startNewGame, 10000);
       }
     } else {
       await supabase.from('bingo_claims').update({ is_valid: false } as any).eq('id', claim.id);
@@ -229,6 +232,7 @@ export default function Admin() {
       setDrawnNumbers([]);
       const winnerName = validClaimers.find((c: any) => c.user_id === winnerId)?.profile?.display_name || 'Player';
       toast.success(`🏆 ${winnerName} wins ${prizeAmount} ETB! Balance credited.`);
+      setTimeout(startNewGame, 10000);
     } else if (uniqueWinnerCount === 2) {
       // 2 different players — split prize
       const splitPrize = prizeAmount / 2;
@@ -254,6 +258,7 @@ export default function Admin() {
         return c?.profile?.display_name || c?.profile?.phone || 'Player';
       });
       toast.success(`🏆 ${splitPrize} ETB each: ${names.join(' & ')}`);
+      setTimeout(startNewGame, 10000);
     } else {
       // 3+ different players — disqualify round
       await supabase.from('games').update({ status: 'disqualified', winner_id: null } as any).eq('id', 'current');
