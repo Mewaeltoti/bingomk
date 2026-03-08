@@ -149,7 +149,8 @@ export default function GamePage() {
         (payload: any) => {
           const game = payload.new;
           setGameStatus(game.status);
-          if (game.status === 'waiting' || game.status === 'active') {
+          if (game.status === 'buying') {
+            // Reset state for new game
             setDrawnNumbers([]);
             setShowResult(false);
             setGameResult(null);
@@ -157,7 +158,7 @@ export default function GamePage() {
             setClaimedCartelas(new Set());
             setRemovedCartelas(new Set());
             setStrikeMap(new Map());
-            // Cartelas were released — re-fetch
+            // Re-fetch cartelas (they were released)
             if (user?.id) {
               supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true)
                 .then(({ data }) => {
@@ -165,9 +166,42 @@ export default function GamePage() {
                   setIsSpectator(!data || data.length === 0);
                 });
             }
-            if (game.status === 'active') {
-              toast('🎲 New game started! Good luck!', { icon: '🔔' });
+            // Start local countdown (approx 120s)
+            setBuyingCountdown(120);
+            if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
+            buyingTimerRef.current = setInterval(() => {
+              setBuyingCountdown(prev => {
+                if (prev <= 1) {
+                  if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
+                  return 0;
+                }
+                return prev - 1;
+              });
+            }, 1000);
+            toast('🛒 New game! Buy your cartelas — 2 minutes!', { icon: '🔔' });
+          }
+          if (game.status === 'active') {
+            setBuyingCountdown(0);
+            if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
+            // Re-fetch cartelas for active game
+            if (user?.id) {
+              supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true)
+                .then(({ data }) => {
+                  setPlayerCartelas(data || []);
+                  setIsSpectator(!data || data.length === 0);
+                });
             }
+            toast('🎲 Game started! Good luck!', { icon: '🔔' });
+          }
+          if (game.status === 'waiting') {
+            setDrawnNumbers([]);
+            setShowResult(false);
+            setGameResult(null);
+            setPlayerMarked(new Set());
+            setClaimedCartelas(new Set());
+            setRemovedCartelas(new Set());
+            setStrikeMap(new Map());
+          }
           }
           if (game.status === 'won') {
             setGameResult({ type: 'winner', message: 'Someone won this round! 🏆' });
