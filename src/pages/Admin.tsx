@@ -22,6 +22,7 @@ export default function Admin() {
   const autoDrawRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const buyingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const drawnRef = useRef<number[]>([]);
+  const drawingStartedRef = useRef(false);
 
   const [deposits, setDeposits] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
@@ -328,6 +329,7 @@ export default function Admin() {
     setClaims([]);
     setGameStatus('buying');
     setBuyingCountdown(120);
+    drawingStartedRef.current = false;
     toast.success('🛒 2-minute buying period started! Players can buy cartelas now.');
 
     // Start countdown
@@ -335,8 +337,12 @@ export default function Admin() {
       setBuyingCountdown(prev => {
         if (prev <= 1) {
           if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
-          // Auto-start drawing
-          startDrawing();
+          buyingTimerRef.current = null;
+          // Prevent calling startDrawing multiple times
+          if (!drawingStartedRef.current) {
+            drawingStartedRef.current = true;
+            startDrawing();
+          }
           return 0;
         }
         return prev - 1;
@@ -517,8 +523,12 @@ export default function Admin() {
               <button
                 onClick={() => {
                   if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
+                  buyingTimerRef.current = null;
                   setBuyingCountdown(0);
-                  startDrawing();
+                  if (!drawingStartedRef.current) {
+                    drawingStartedRef.current = true;
+                    startDrawing();
+                  }
                 }}
                 className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold"
               >
