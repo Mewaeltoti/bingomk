@@ -24,6 +24,7 @@ export default function Admin() {
   const drawnRef = useRef<number[]>([]);
 
   const [deposits, setDeposits] = useState<any[]>([]);
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [players, setPlayers] = useState<any[]>([]);
   const [claims, setClaims] = useState<any[]>([]);
   const [adjustingPlayer, setAdjustingPlayer] = useState<string | null>(null);
