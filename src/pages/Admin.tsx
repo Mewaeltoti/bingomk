@@ -258,6 +258,7 @@ export default function Admin() {
         return c?.profile?.display_name || c?.profile?.phone || 'Player';
       });
       toast.success(`🏆 ${splitPrize} ETB each: ${names.join(' & ')}`);
+      setTimeout(startNewGame, 10000);
     } else {
       // 3+ different players — disqualify round
       await supabase.from('games').update({ status: 'disqualified', winner_id: null } as any).eq('id', 'current');
