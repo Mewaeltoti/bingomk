@@ -637,12 +637,14 @@ export default function Admin() {
               {d.status === 'pending' && (
                 <div className="flex gap-2">
                   <button onClick={() => handleDeposit(d.id, 'approved', d.user_id, d.amount)}
-                    className="flex-1 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium flex items-center justify-center gap-1">
-                    <Check className="w-4 h-4" /> Approve
+                    disabled={actionLoading === `dep-${d.id}`}
+                    className="flex-1 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium flex items-center justify-center gap-1 disabled:opacity-50">
+                    {actionLoading === `dep-${d.id}` ? '⏳...' : <><Check className="w-4 h-4" /> Approve</>}
                   </button>
                   <button onClick={() => handleDeposit(d.id, 'rejected', d.user_id, d.amount)}
-                    className="flex-1 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium flex items-center justify-center gap-1">
-                    <X className="w-4 h-4" /> Decline
+                    disabled={actionLoading === `dep-${d.id}`}
+                    className="flex-1 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium flex items-center justify-center gap-1 disabled:opacity-50">
+                    {actionLoading === `dep-${d.id}` ? '⏳...' : <><X className="w-4 h-4" /> Decline</>}
                   </button>
                 </div>
               )}
