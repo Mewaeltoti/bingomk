@@ -338,10 +338,15 @@ export default function Admin() {
     // Start countdown
     buyingTimerRef.current = setInterval(() => {
       setBuyingCountdown(prev => {
+        // Refresh bought count every 10 seconds
+        if (prev % 10 === 0) {
+          supabase.from('cartelas').select('id', { count: 'exact', head: true })
+            .eq('is_used', true).not('owner_id', 'is', null)
+            .then(({ count }) => setBoughtCount(count || 0));
+        }
         if (prev <= 1) {
           if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
           buyingTimerRef.current = null;
-          // Prevent calling startDrawing multiple times
           if (!drawingStartedRef.current) {
             drawingStartedRef.current = true;
             startDrawing();
