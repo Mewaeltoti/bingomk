@@ -58,31 +58,33 @@ export default function BingoCartela({
         ))}
       </div>
       {/* Grid */}
-      <div className="grid grid-cols-5 gap-0.5">
-        {Array.from({ length: 5 }, (_, row) =>
-          Array.from({ length: 5 }, (_, col) => {
-            const num = numbers[row]?.[col] ?? 0;
-            const isFree = row === 2 && col === 2;
-            const isMarked = isFree || markedNumbers.has(num);
+      <div className="border border-border rounded-md overflow-hidden">
+        {Array.from({ length: 5 }, (_, row) => (
+          <div key={row} className="grid grid-cols-5 border-b border-border last:border-b-0">
+            {Array.from({ length: 5 }, (_, col) => {
+              const num = numbers[row]?.[col] ?? 0;
+              const isFree = row === 2 && col === 2;
+              const isMarked = isFree || markedNumbers.has(num);
 
-            return (
-              <div
-                key={`${row}-${col}`}
-                className={cn(
-                  'bingo-cell',
-                  cellSize,
-                  isFree
-                    ? 'bingo-cell-free'
-                    : isMarked
-                    ? 'bingo-cell-marked'
-                    : 'bingo-cell-default'
-                )}
-              >
-                {isFree ? '★' : num}
-              </div>
-            );
-          })
-        )}
+              return (
+                <div
+                  key={`${row}-${col}`}
+                  className={cn(
+                    'bingo-cell border-r border-border last:border-r-0',
+                    cellSize,
+                    isFree
+                      ? 'bingo-cell-free'
+                      : isMarked
+                      ? 'bingo-cell-marked'
+                      : 'bingo-cell-default'
+                  )}
+                >
+                  {isFree ? '★' : num}
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>
   );

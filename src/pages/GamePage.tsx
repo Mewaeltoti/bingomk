@@ -168,19 +168,36 @@ export default function GamePage() {
         </motion.div>
       )}
 
-      {/* Drawn numbers strip */}
+      {/* Full 1-75 number board */}
       <div className="mb-4">
         <div className="text-xs text-muted-foreground mb-2">
           Drawn: {drawnNumbers.length}/75 · Pattern: {gamePattern}
         </div>
-        <div className="flex flex-wrap gap-1">
-          {drawnNumbers.map((n) => (
-            <span
-              key={n}
-              className="w-7 h-7 text-xs rounded-md bg-primary/20 text-primary flex items-center justify-center font-medium"
-            >
-              {n}
-            </span>
+        <div className="rounded-xl border border-border overflow-hidden bg-card">
+          {['B', 'I', 'N', 'G', 'O'].map((letter, rowIdx) => (
+            <div key={letter} className="flex items-center border-b border-border last:border-b-0">
+              <div className="w-7 flex-shrink-0 text-center font-display font-bold text-primary text-xs py-1 bg-muted/50 border-r border-border">
+                {letter}
+              </div>
+              <div className="flex flex-1 flex-wrap">
+                {Array.from({ length: 15 }, (_, i) => {
+                  const num = rowIdx * 15 + i + 1;
+                  const isDrawn = markedSet.has(num);
+                  return (
+                    <div
+                      key={num}
+                      className={`w-[calc(100%/15)] aspect-square flex items-center justify-center text-[9px] font-medium border-r border-border last:border-r-0 transition-colors ${
+                        isDrawn
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground'
+                      }`}
+                    >
+                      {num}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           ))}
         </div>
       </div>
