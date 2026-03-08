@@ -399,32 +399,41 @@ export default function GamePage() {
             </button>
             {boardOpen && (
               <div className="p-1">
-                {['B', 'I', 'N', 'G', 'O'].map((letter, rowIdx) => (
-                  <div key={letter} className="flex items-center gap-[1px] mb-[2px] last:mb-0">
-                    <div className="w-4 flex-shrink-0 text-center font-display font-bold text-primary text-[9px]">
-                      {letter}
+                {['B', 'I', 'N', 'G', 'O'].map((letter, rowIdx) => {
+                  const rowColors = [
+                    { bg: 'bg-blue-500', border: 'border-blue-400', text: 'text-blue-600' },
+                    { bg: 'bg-red-500', border: 'border-red-400', text: 'text-red-600' },
+                    { bg: 'bg-green-600', border: 'border-green-400', text: 'text-green-600' },
+                    { bg: 'bg-orange-500', border: 'border-orange-400', text: 'text-orange-600' },
+                    { bg: 'bg-purple-600', border: 'border-purple-400', text: 'text-purple-600' },
+                  ][rowIdx];
+                  return (
+                    <div key={letter} className="flex items-center gap-[1px] mb-[2px] last:mb-0">
+                      <div className={cn('w-4 flex-shrink-0 text-center font-display font-bold text-[9px]', rowColors.text)}>
+                        {letter}
+                      </div>
+                      <div className="flex flex-1 gap-[1px] justify-between">
+                        {Array.from({ length: 15 }, (_, i) => {
+                          const num = rowIdx * 15 + i + 1;
+                          const isDrawn = drawnSet.has(num);
+                          return (
+                            <div
+                              key={num}
+                              className={cn(
+                                'w-[18px] h-[18px] flex items-center justify-center text-[6.5px] font-bold rounded-full border',
+                                isDrawn
+                                  ? `${rowColors.bg} text-white ${rowColors.border}`
+                                  : `bg-transparent text-muted-foreground/60 ${rowColors.border}/40`
+                              )}
+                            >
+                              {num}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="flex flex-1 gap-[1px] justify-between">
-                      {Array.from({ length: 15 }, (_, i) => {
-                        const num = rowIdx * 15 + i + 1;
-                        const isDrawn = drawnSet.has(num);
-                        return (
-                          <div
-                            key={num}
-                            className={cn(
-                              'w-[18px] h-[18px] flex items-center justify-center text-[6.5px] font-bold rounded-full border',
-                              isDrawn
-                                ? 'bg-primary text-primary-foreground border-primary'
-                                : 'bg-transparent text-muted-foreground/60 border-border'
-                            )}
-                          >
-                            {num}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
