@@ -48,6 +48,8 @@ export default function GamePage() {
   const [removedCartelas, setRemovedCartelas] = useState<Set<number>>(new Set());
   const [strikeMap, setStrikeMap] = useState<Map<number, number>>(new Map()); // cartelaId -> strikes
   const [gameStatus, setGameStatus] = useState<string>('waiting');
+  const [buyingCountdown, setBuyingCountdown] = useState(0);
+  const buyingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isSpectator, setIsSpectator] = useState(false);
   const [displayName, setDisplayName] = useState<string>('');
   const [balance, setBalance] = useState(0);
