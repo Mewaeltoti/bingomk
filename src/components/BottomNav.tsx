@@ -5,7 +5,6 @@ import { useUser } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
-import ThemeToggle from './ThemeToggle';
 
 const hiddenRoutes = ['/login', '/signup'];
 
@@ -35,10 +34,7 @@ export default function BottomNav() {
     toast.success('Logged out');
   };
 
-  // Admin nav: Game, Admin, Theme, Logout
-  // Player nav: Game, Cartelas, Rank, Wallet, Theme, Logout
   const adminItems = [
-    { to: '/game', icon: Gamepad2, label: 'Game' },
     { to: '/admin', icon: Shield, label: 'Admin' },
   ];
 
@@ -61,7 +57,7 @@ export default function BottomNav() {
               key={to}
               to={to}
               className={cn(
-                'flex flex-col items-center gap-0.5 px-2 py-1 text-xs transition-colors',
+                'flex flex-col items-center gap-0.5 px-3 py-1 text-xs transition-colors',
                 active ? 'text-primary' : 'text-muted-foreground'
               )}
             >
@@ -70,11 +66,10 @@ export default function BottomNav() {
             </Link>
           );
         })}
-        <ThemeToggle />
         {user && (
           <button
             onClick={handleLogout}
-            className="flex flex-col items-center gap-0.5 px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
+            className="flex flex-col items-center gap-0.5 px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
           >
             <LogOut className="w-5 h-5" />
             <span className="font-medium">Logout</span>

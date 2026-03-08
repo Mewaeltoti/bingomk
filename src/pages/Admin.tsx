@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import PageShell from '@/components/PageShell';
-import { Users, CreditCard, Gamepad2, Check, X, Play, Pause, AlertTriangle, Plus, Minus } from 'lucide-react';
+import { Users, CreditCard, Gamepad2, Check, X, AlertTriangle, Plus, Minus } from 'lucide-react';
 import { PATTERNS, PatternName } from '@/lib/bingo';
 import { getBingoLetter } from '@/lib/bingoEngine';
 import { supabase } from '@/integrations/supabase/client';
@@ -103,34 +103,23 @@ export default function Admin() {
     setDrawnNumbers((prev) => [...prev, num]);
   };
 
+  // Start New Game → auto-starts drawing immediately
   const startNewGame = async () => {
     setAutoDraw(false);
+    if (autoDrawRef.current) clearInterval(autoDrawRef.current);
+
     await Promise.all([
       supabase.from('game_numbers').delete().eq('game_id', 'current'),
       supabase.from('bingo_claims').delete().eq('game_id', 'current'),
     ]);
     await supabase.from('games').upsert({
-      id: 'current', pattern, status: 'waiting', winner_id: null,
+      id: 'current', pattern, status: 'active', winner_id: null,
     });
     setDrawnNumbers([]);
     setClaims([]);
-    setGameStatus('waiting');
-    toast.success('New game ready! Press Start to begin drawing.');
-  };
-
-  const handleStartDraw = () => {
-    if (gameStatus === 'waiting') {
-      // Update game status to active
-      supabase.from('games').update({ status: 'active' }).eq('id', 'current');
-      setGameStatus('active');
-    }
+    setGameStatus('active');
     setAutoDraw(true);
-    toast.success('Auto-draw started (every 10s)');
-  };
-
-  const handlePauseDraw = () => {
-    setAutoDraw(false);
-    toast('⏸ Drawing paused');
+    toast.success('🎲 Game started! Drawing every 10 seconds...');
   };
 
   const resolveClaims = async () => {
@@ -139,19 +128,18 @@ export default function Admin() {
       return;
     }
 
+    setAutoDraw(false);
+
     if (claims.length >= 3) {
       await supabase.from('games').update({ status: 'disqualified' }).eq('id', 'current');
       setGameStatus('disqualified');
-      setAutoDraw(false);
-      toast('🔄 3+ claims! Game disqualified. Starting new game...');
-      setTimeout(() => startNewGame(), 5000);
+      toast('🔄 3+ claims! Game disqualified.');
       return;
     }
 
     if (claims.length === 2) {
       await supabase.from('games').update({ status: 'won', winner_id: claims[0].user_id }).eq('id', 'current');
       setGameStatus('won');
-      setAutoDraw(false);
       toast.success('🤝 Prize split between 2 players!');
       return;
     }
@@ -159,7 +147,6 @@ export default function Admin() {
     const winnerId = claims[0].user_id;
     await supabase.from('games').update({ status: 'won', winner_id: winnerId }).eq('id', 'current');
     setGameStatus('won');
-    setAutoDraw(false);
     toast.success('🏆 Winner confirmed!');
   };
 
@@ -203,7 +190,8 @@ export default function Admin() {
                 <button
                   key={p}
                   onClick={() => setPattern(p)}
-                  className={`p-3 rounded-xl text-sm font-medium text-left transition-colors ${
+                  disabled={autoDraw}
+                  className={`p-3 rounded-xl text-sm font-medium text-left transition-colors disabled:opacity-50 ${
                     pattern === p ? 'gradient-gold text-primary-foreground' : 'bg-muted text-muted-foreground'
                   }`}
                 >
@@ -215,37 +203,19 @@ export default function Admin() {
 
           <button
             onClick={startNewGame}
-            className="w-full py-4 rounded-xl font-display font-bold bg-secondary text-secondary-foreground text-lg active:scale-95 transition-transform"
+            disabled={autoDraw}
+            className="w-full py-4 rounded-xl font-display font-bold bg-secondary text-secondary-foreground text-lg active:scale-95 transition-transform disabled:opacity-50"
           >
-            🆕 New Game
+            🎲 Start New Game
           </button>
 
-          {/* Start / Pause drawing */}
-          <div className="flex gap-2">
-            {!autoDraw ? (
-              <button
-                onClick={handleStartDraw}
-                disabled={gameStatus === 'won' || gameStatus === 'disqualified'}
-                className="flex-1 py-4 rounded-2xl font-display font-bold text-lg gradient-gold text-primary-foreground glow-gold active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                <Play className="w-5 h-5" />
-                Start Drawing
-              </button>
-            ) : (
-              <button
-                onClick={handlePauseDraw}
-                className="flex-1 py-4 rounded-2xl font-display font-bold text-lg bg-destructive text-destructive-foreground active:scale-95 transition-transform flex items-center justify-center gap-2"
-              >
-                <Pause className="w-5 h-5" />
-                Pause Drawing
-              </button>
-            )}
-          </div>
-
           {autoDraw && (
-            <p className="text-xs text-center text-primary animate-pulse">
-              🔄 Auto-drawing every 10 seconds... ({drawnNumbers.length}/75)
-            </p>
+            <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-center space-y-1">
+              <p className="text-sm font-display font-bold text-primary animate-pulse">
+                🔄 Drawing every 10 seconds...
+              </p>
+              <p className="text-xs text-muted-foreground">{drawnNumbers.length}/75 numbers drawn</p>
+            </div>
           )}
 
           {/* BINGO Claims */}
