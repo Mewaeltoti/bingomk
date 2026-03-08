@@ -146,8 +146,6 @@ export default function GamePage() {
             setGameResult(null);
             setMarkedMap(new Map());
             setClaimedCartelas(new Set());
-            setRemovedCartelas(new Set());
-            setStrikeMap(new Map());
             if (user?.id) {
               supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true)
                 .then(({ data }) => {
