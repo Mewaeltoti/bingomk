@@ -460,7 +460,7 @@ export default function GamePage() {
                 return (
                   <div
                     key={c.id}
-                    className={cn('flex flex-col gap-2', playerCartelas.length <= 2 && 'min-w-[160px] snap-center flex-shrink-0')}
+                    className="flex flex-col gap-2"
                   >
                     <BingoCartela
                       numbers={c.numbers as number[][]}
