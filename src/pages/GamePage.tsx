@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ReactConfetti from 'react-confetti';
 import { cn } from '@/lib/utils';
 import { playDrawSound, playWinSound } from '@/lib/sounds';
-import { Plus, Users, Eye, Zap } from 'lucide-react';
+import { Plus, Users, Eye, Hand } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const PATTERN_CELLS: Record<string, boolean[][]> = {
@@ -48,7 +48,6 @@ export default function GamePage() {
   const [showResult, setShowResult] = useState(false);
   const [playerMarked, setPlayerMarked] = useState<Set<number>>(new Set());
   const [hasClaimed, setHasClaimed] = useState(false);
-  const [autoMark, setAutoMark] = useState(false);
   const [isSpectator, setIsSpectator] = useState(false);
   const [displayName, setDisplayName] = useState<string>('');
   const [balance, setBalance] = useState(0);
@@ -67,7 +66,6 @@ export default function GamePage() {
         }
       });
 
-    // Realtime balance updates
     const ch = supabase
       .channel('balance-updates')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
@@ -104,10 +102,9 @@ export default function GamePage() {
         if (gameRes.data.status === 'won') {
           setGameResult({ type: 'winner', message: 'Someone won this round! 🏆' });
           setShowResult(true);
-        }
-        if (gameRes.data.status === 'disqualified') {
-          setGameResult({ type: 'disqualified', message: '3+ players claimed! Game restarting...' });
-          setShowResult(true);
+          if (gameRes.data.winner_id === user?.id) {
+            setGameResult({ type: 'winner', message: 'You won! 🎉🏆' });
+          }
         }
       }
       if (claimsRes.data && user?.id) {
@@ -117,27 +114,7 @@ export default function GamePage() {
     fetchGameState();
   }, [user?.id]);
 
-  // Auto-mark: when new numbers drawn & autoMark is on, mark them
   const drawnSet = useMemo(() => new Set(drawnNumbers), [drawnNumbers]);
-
-  useEffect(() => {
-    if (!autoMark) return;
-    const cartelaNumbers = new Set<number>();
-    playerCartelas.forEach((c) => {
-      const nums = c.numbers as number[][];
-      for (let r = 0; r < 5; r++)
-        for (let col = 0; col < 5; col++)
-          if (!(r === 2 && col === 2)) cartelaNumbers.add(nums[r][col]);
-    });
-
-    setPlayerMarked((prev) => {
-      const next = new Set(prev);
-      drawnNumbers.forEach((n) => {
-        if (cartelaNumbers.has(n)) next.add(n);
-      });
-      return next;
-    });
-  }, [drawnNumbers, autoMark, playerCartelas]);
 
   // Realtime subscriptions
   useEffect(() => {
@@ -153,7 +130,7 @@ export default function GamePage() {
         (payload: any) => {
           const game = payload.new;
           if (game.status === 'waiting' || game.status === 'active') {
-            if (game.status === 'waiting') {
+            if (game.status === 'waiting' || game.status === 'active') {
               setDrawnNumbers([]);
               setShowResult(false);
               setGameResult(null);
@@ -166,14 +143,9 @@ export default function GamePage() {
             setShowResult(true);
             playWinSound();
 
-            // Check if I won
             if (game.winner_id === user?.id) {
               setGameResult({ type: 'winner', message: 'You won! 🎉🏆' });
             }
-          }
-          if (game.status === 'disqualified') {
-            setGameResult({ type: 'disqualified', message: '3+ claims! Game restarting...' });
-            setShowResult(true);
           }
           if (game.pattern) setGamePattern(game.pattern);
         }
@@ -185,6 +157,7 @@ export default function GamePage() {
 
   const lastNumber = drawnNumbers[drawnNumbers.length - 1];
 
+  // Manual marking — only allow marking numbers that have been drawn
   const handleMarkNumber = useCallback((num: number) => {
     setPlayerMarked((prev) => {
       const next = new Set(prev);
@@ -193,36 +166,32 @@ export default function GamePage() {
     });
   }, []);
 
-  // System auto-detects win
+  // Manual claim bingo
+  const handleClaimBingo = async () => {
+    if (!user?.id || hasClaimed || isSpectator) return;
+    const { error } = await supabase
+      .from('bingo_claims')
+      .insert({ game_id: 'current', user_id: user.id });
+    if (error) {
+      if (error.code === '23505') toast.info('Already claimed!');
+      else toast.error('Failed to claim');
+      return;
+    }
+    setHasClaimed(true);
+    toast.success('🎯 BINGO claimed! System is verifying...');
+  };
+
+  // Check if player has a potential win (for highlighting only)
   const winData = useMemo(() => {
     for (const c of playerCartelas) {
       const nums = c.numbers as number[][];
       if (checkWin(nums, drawnSet, gamePattern as PatternName)) {
-        // Also verify player has marked them (or autoMark)
         const cells = getWinningCells(nums, drawnSet, gamePattern as PatternName);
         return { cartelaId: c.id, cells };
       }
     }
     return null;
   }, [playerCartelas, drawnSet, gamePattern]);
-
-  // Auto-claim when win detected
-  useEffect(() => {
-    if (!winData || hasClaimed || isSpectator || !user?.id) return;
-    // Auto-claim bingo
-    const claim = async () => {
-      const { error } = await supabase
-        .from('bingo_claims')
-        .insert({ game_id: 'current', user_id: user.id });
-      if (error) {
-        if (error.code !== '23505') toast.error('Failed to claim');
-        return;
-      }
-      setHasClaimed(true);
-      toast.success('🎯 BINGO! System detected your win!');
-    };
-    claim();
-  }, [winData, hasClaimed, isSpectator, user?.id]);
 
   const winCellsSet = useMemo(() => {
     if (!winData) return undefined;
@@ -250,7 +219,7 @@ export default function GamePage() {
               className="text-center p-8 rounded-2xl bg-card border-2 border-primary glow-gold max-w-sm mx-4"
             >
               <div className="text-6xl mb-4">
-                {gameResult.type === 'winner' ? '🏆' : gameResult.type === 'split' ? '🤝' : '🔄'}
+                {gameResult.type === 'winner' ? '🏆' : '🔄'}
               </div>
               <h2 className="text-3xl font-display font-bold text-primary mb-2">
                 {gameResult.type === 'disqualified' ? 'RESTART' : 'BINGO!'}
@@ -267,7 +236,7 @@ export default function GamePage() {
         )}
       </AnimatePresence>
 
-      {/* Top bar: players + balance + spectator */}
+      {/* Top bar */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-muted text-xs text-muted-foreground">
@@ -302,7 +271,7 @@ export default function GamePage() {
         </motion.div>
       )}
 
-      {/* Pattern + auto-mark toggle */}
+      {/* Pattern info */}
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <PatternGrid pattern={gamePattern} />
@@ -311,18 +280,6 @@ export default function GamePage() {
             <div className="text-xs text-muted-foreground">Drawn: {drawnNumbers.length}/75</div>
           </div>
         </div>
-        {!isSpectator && (
-          <button
-            onClick={() => setAutoMark(!autoMark)}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
-              autoMark ? 'bg-secondary text-secondary-foreground' : 'bg-muted text-muted-foreground'
-            )}
-          >
-            <Zap className="w-3.5 h-3.5" />
-            {autoMark ? 'Auto' : 'Manual'}
-          </button>
-        )}
       </div>
 
       {/* Full 1-75 number board */}
@@ -377,12 +334,12 @@ export default function GamePage() {
             key={c.id}
             numbers={c.numbers as number[][]}
             drawnNumbers={drawnSet}
-            playerMarked={autoMark ? drawnSet : playerMarked}
+            playerMarked={playerMarked}
             onMarkNumber={isSpectator ? undefined : handleMarkNumber}
             size="sm"
             label={`#${c.id}`}
             winningCells={winData?.cartelaId === c.id ? winCellsSet : undefined}
-            autoMark={autoMark}
+            autoMark={false}
           />
         ))}
         {playerCartelas.length === 0 && (
@@ -399,11 +356,24 @@ export default function GamePage() {
         )}
       </div>
 
-      {/* Bingo status */}
+      {/* Manual Claim Bingo button */}
+      {!isSpectator && !hasClaimed && drawnNumbers.length > 0 && (
+        <div className="fixed bottom-20 left-4 right-4 z-40">
+          <button
+            onClick={handleClaimBingo}
+            className="w-full py-4 rounded-2xl gradient-gold text-primary-foreground font-display font-bold text-lg active:scale-95 transition-transform flex items-center justify-center gap-2 glow-gold shadow-lg"
+          >
+            <Hand className="w-6 h-6" />
+            BINGO!
+          </button>
+        </div>
+      )}
+
+      {/* Claimed status */}
       {hasClaimed && !showResult && (
         <div className="fixed bottom-20 left-4 right-4 z-40">
           <div className="w-full py-4 rounded-2xl bg-secondary/20 text-center text-secondary font-display font-bold text-lg">
-            ✅ BINGO claimed! Waiting for system...
+            ✅ BINGO claimed! System verifying...
           </div>
         </div>
       )}

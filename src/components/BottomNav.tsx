@@ -37,6 +37,7 @@ export default function BottomNav() {
   };
 
   const adminItems = [
+    { to: '/game', icon: Gamepad2, label: 'Game' },
     { to: '/admin', icon: Shield, label: 'Admin' },
   ];
 
