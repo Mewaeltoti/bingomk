@@ -33,7 +33,6 @@ function AppContent() {
         <Route path="/payment" element={<RequireAuth><Payment /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
         <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
-        <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <BottomNav />
