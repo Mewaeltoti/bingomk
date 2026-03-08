@@ -15,7 +15,6 @@ interface BingoCartelaProps {
   onFavorite?: () => void;
   label?: string;
   winningCells?: Set<string>;
-  autoMark?: boolean;
 }
 
 export default function BingoCartela({
@@ -30,7 +29,6 @@ export default function BingoCartela({
   onFavorite,
   label,
   winningCells,
-  autoMark,
 }: BingoCartelaProps) {
   const cellSize =
     size === 'xs' ? 'text-[9px] w-5 h-5' :
@@ -40,10 +38,9 @@ export default function BingoCartela({
 
   const handleCellClick = (num: number, row: number, col: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (row === 2 && col === 2) return;
+    if (row === 2 && col === 2) return; // free cell
     if (!onMarkNumber) return;
-    if (autoMark) return; // auto-mark mode, no manual tapping
-    if (!drawnNumbers.has(num)) return;
+    // All cells are clickable — no drawn check
     onMarkNumber(num);
     playMarkSound();
   };
@@ -83,10 +80,8 @@ export default function BingoCartela({
             {Array.from({ length: 5 }, (_, col) => {
               const num = numbers[row]?.[col] ?? 0;
               const isFree = row === 2 && col === 2;
-              const isDrawn = drawnNumbers.has(num);
               const isMarked = isFree || playerMarked.has(num);
               const isWinCell = winningCells?.has(`${row}-${col}`);
-              const isWrongMark = !isFree && playerMarked.has(num) && !isDrawn;
 
               return (
                 <div
@@ -95,17 +90,14 @@ export default function BingoCartela({
                   className={cn(
                     'bingo-cell border-r border-border last:border-r-0 transition-all',
                     cellSize,
-                    onMarkNumber && !autoMark && isDrawn && !isMarked && 'cursor-pointer hover:bg-primary/10',
+                    // All non-free, non-marked cells are clickable
+                    onMarkNumber && !isFree && !isMarked && 'cursor-pointer hover:bg-primary/10',
                     isFree
                       ? 'bingo-cell-free'
                       : isWinCell
                       ? 'bg-secondary text-secondary-foreground animate-pulse'
-                      : isWrongMark
-                      ? 'bg-destructive/30 text-destructive'
                       : isMarked
                       ? 'bingo-cell-marked'
-                      : isDrawn
-                      ? 'bg-primary/10 text-primary font-bold'
                       : 'bingo-cell-default'
                   )}
                 >
