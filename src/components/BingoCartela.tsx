@@ -1,10 +1,13 @@
 import { BINGO_LETTERS } from '@/lib/bingo';
 import { cn } from '@/lib/utils';
 import { Heart } from 'lucide-react';
+import { playMarkSound } from '@/lib/sounds';
 
 interface BingoCartelaProps {
   numbers: number[][];
-  markedNumbers?: Set<number>;
+  drawnNumbers?: Set<number>;
+  playerMarked?: Set<number>;
+  onMarkNumber?: (num: number) => void;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   onClick?: () => void;
   selected?: boolean;
@@ -15,7 +18,9 @@ interface BingoCartelaProps {
 
 export default function BingoCartela({
   numbers,
-  markedNumbers = new Set(),
+  drawnNumbers = new Set(),
+  playerMarked = new Set(),
+  onMarkNumber,
   size = 'md',
   onClick,
   selected,
@@ -28,6 +33,15 @@ export default function BingoCartela({
     size === 'sm' ? 'text-xs w-8 h-8' :
     size === 'lg' ? 'text-base w-12 h-12' :
     'text-sm w-10 h-10';
+
+  const handleCellClick = (num: number, row: number, col: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (row === 2 && col === 2) return; // free space
+    if (!onMarkNumber) return;
+    if (!drawnNumbers.has(num)) return; // can only mark drawn numbers
+    onMarkNumber(num);
+    playMarkSound();
+  };
 
   return (
     <div
@@ -64,18 +78,27 @@ export default function BingoCartela({
             {Array.from({ length: 5 }, (_, col) => {
               const num = numbers[row]?.[col] ?? 0;
               const isFree = row === 2 && col === 2;
-              const isMarked = isFree || markedNumbers.has(num);
+              const isDrawn = drawnNumbers.has(num);
+              const isMarked = isFree || playerMarked.has(num);
+              // Wrong mark: player marked but number wasn't drawn
+              const isWrongMark = !isFree && playerMarked.has(num) && !isDrawn;
 
               return (
                 <div
                   key={`${row}-${col}`}
+                  onClick={(e) => handleCellClick(num, row, col, e)}
                   className={cn(
-                    'bingo-cell border-r border-border last:border-r-0',
+                    'bingo-cell border-r border-border last:border-r-0 transition-all',
                     cellSize,
+                    onMarkNumber && isDrawn && !isMarked && 'cursor-pointer hover:bg-primary/10',
                     isFree
                       ? 'bingo-cell-free'
+                      : isWrongMark
+                      ? 'bg-destructive/30 text-destructive'
                       : isMarked
                       ? 'bingo-cell-marked'
+                      : isDrawn
+                      ? 'bg-primary/10 text-primary font-bold'
                       : 'bingo-cell-default'
                   )}
                 >

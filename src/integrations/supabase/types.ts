@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      bingo_claims: {
+        Row: {
+          claimed_at: string
+          game_id: string
+          id: string
+          is_valid: boolean | null
+          user_id: string
+        }
+        Insert: {
+          claimed_at?: string
+          game_id?: string
+          id?: string
+          is_valid?: boolean | null
+          user_id: string
+        }
+        Update: {
+          claimed_at?: string
+          game_id?: string
+          id?: string
+          is_valid?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       cartelas: {
         Row: {
           created_at: string

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import PageShell from '@/components/PageShell';
 import BingoCartela from '@/components/BingoCartela';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,156 +32,228 @@ function PatternGrid({ pattern }: { pattern: string }) {
   return (
     <div className="grid grid-cols-5 gap-px w-10 h-10 rounded-md overflow-hidden border border-border">
       {cells.flat().map((on, i) => (
-        <div
-          key={i}
-          className={cn(
-            'w-full h-full',
-            on ? 'bg-primary' : 'bg-muted/50'
-          )}
-        />
+        <div key={i} className={cn('w-full h-full', on ? 'bg-primary' : 'bg-muted/50')} />
       ))}
     </div>
   );
 }
 
+type GameResult = {
+  type: 'winner' | 'split' | 'disqualified';
+  message: string;
+  winnerId?: string;
+};
+
 export default function GamePage() {
   const [playerCartelas, setPlayerCartelas] = useState<any[]>([]);
   const [drawnNumbers, setDrawnNumbers] = useState<number[]>([]);
   const [gamePattern, setGamePattern] = useState<string>('Full House');
-  const [winner, setWinner] = useState<string | null>(null);
-  const [showWinner, setShowWinner] = useState(false);
+  const [gameResult, setGameResult] = useState<GameResult | null>(null);
+  const [showResult, setShowResult] = useState(false);
+  const [playerMarked, setPlayerMarked] = useState<Set<number>>(new Set());
+  const [hasClaimed, setHasClaimed] = useState(false);
+  const [claimCount, setClaimCount] = useState(0);
   const user = useUser();
 
   // Fetch player's cartelas
   useEffect(() => {
-    async function fetchPlayerCartelas() {
-      if (!user?.id) return;
-      const { data, error } = await supabase
-        .from('cartelas')
-        .select('*')
-        .eq('owner_id', user.id)
-        .order('id', { ascending: true });
-
-      if (error) {
-        console.error(error);
-        return;
-      }
-      setPlayerCartelas(data || []);
-    }
-    fetchPlayerCartelas();
+    if (!user?.id) return;
+    supabase
+      .from('cartelas')
+      .select('*')
+      .eq('owner_id', user.id)
+      .order('id', { ascending: true })
+      .then(({ data }) => setPlayerCartelas(data || []));
   }, [user?.id]);
 
-  // Fetch existing drawn numbers and game state
+  // Fetch game state
   useEffect(() => {
     async function fetchGameState() {
-      const [numbersRes, gameRes] = await Promise.all([
+      const [numbersRes, gameRes, claimsRes] = await Promise.all([
         supabase.from('game_numbers').select('number').eq('game_id', 'current').order('id', { ascending: true }),
-        supabase.from('games').select('*').eq('id', 'current').single(),
+        supabase.from('games').select('*').eq('id', 'current').maybeSingle(),
+        supabase.from('bingo_claims').select('*').eq('game_id', 'current'),
       ]);
 
-      if (numbersRes.data) {
-        setDrawnNumbers(numbersRes.data.map((n: any) => n.number));
-      }
+      if (numbersRes.data) setDrawnNumbers(numbersRes.data.map((n: any) => n.number));
       if (gameRes.data) {
         setGamePattern(gameRes.data.pattern || 'Full House');
         if (gameRes.data.status === 'won') {
-          setShowWinner(true);
+          handleGameEnd(claimsRes.data || [], gameRes.data.winner_id);
+        }
+        if (gameRes.data.status === 'disqualified') {
+          setGameResult({ type: 'disqualified', message: '3+ players claimed BINGO! Game restarting...' });
+          setShowResult(true);
+        }
+      }
+      if (claimsRes.data) {
+        setClaimCount(claimsRes.data.length);
+        if (user?.id && claimsRes.data.some((c: any) => c.user_id === user.id)) {
+          setHasClaimed(true);
         }
       }
     }
     fetchGameState();
-  }, []);
+  }, [user?.id]);
 
-  // Realtime: listen for new drawn numbers
+  const handleGameEnd = (claims: any[], winnerId: string | null) => {
+    const validClaims = claims.filter((c: any) => c.is_valid !== false);
+    if (validClaims.length === 1) {
+      setGameResult({
+        type: 'winner',
+        message: validClaims[0].user_id === user?.id ? 'You won! 🎉' : 'Someone won this round!',
+        winnerId: validClaims[0].user_id,
+      });
+    } else if (validClaims.length === 2) {
+      const isMe = validClaims.some((c: any) => c.user_id === user?.id);
+      setGameResult({
+        type: 'split',
+        message: isMe ? 'You share the prize! 🤝' : 'Two players split the prize!',
+      });
+    } else {
+      setGameResult({
+        type: 'winner',
+        message: winnerId === user?.id ? 'You won! 🎉' : 'Someone won this round!',
+        winnerId: winnerId || undefined,
+      });
+    }
+    setShowResult(true);
+    playWinSound();
+  };
+
+  // Realtime subscriptions
   useEffect(() => {
     const channel = supabase
-      .channel('game-numbers-realtime')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'game_numbers' },
+      .channel('game-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_numbers' },
         (payload: any) => {
-          const newNumber = payload.new.number;
-          setDrawnNumbers((prev) => [...prev, newNumber]);
+          setDrawnNumbers((prev) => [...prev, payload.new.number]);
           playDrawSound();
         }
       )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'games' },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games' },
         (payload: any) => {
           const game = payload.new;
-          if (game.status === 'won') {
-            setWinner(game.winner_id);
-            setShowWinner(true);
-            playWinSound();
-          }
           if (game.status === 'waiting') {
-            // New game reset
             setDrawnNumbers([]);
-            setShowWinner(false);
-            setWinner(null);
+            setShowResult(false);
+            setGameResult(null);
+            setPlayerMarked(new Set());
+            setHasClaimed(false);
+            setClaimCount(0);
           }
-          if (game.pattern) {
-            setGamePattern(game.pattern);
+          if (game.status === 'won' || game.status === 'disqualified') {
+            // Refetch claims to determine result
+            supabase.from('bingo_claims').select('*').eq('game_id', 'current')
+              .then(({ data }) => {
+                const claims = data || [];
+                setClaimCount(claims.length);
+                if (game.status === 'disqualified') {
+                  setGameResult({ type: 'disqualified', message: '3+ players claimed BINGO! Game restarting...' });
+                  setShowResult(true);
+                } else {
+                  handleGameEnd(claims, game.winner_id);
+                }
+              });
           }
+          if (game.pattern) setGamePattern(game.pattern);
+        }
+      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bingo_claims' },
+        () => {
+          setClaimCount((prev) => prev + 1);
         }
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
+
+  const drawnSet = new Set(drawnNumbers);
+  const lastNumber = drawnNumbers[drawnNumbers.length - 1];
+
+  // Mark a number on player's card
+  const handleMarkNumber = useCallback((num: number) => {
+    setPlayerMarked((prev) => {
+      const next = new Set(prev);
+      next.has(num) ? next.delete(num) : next.add(num);
+      return next;
+    });
   }, []);
 
-  const lastNumber = drawnNumbers[drawnNumbers.length - 1];
-  const markedSet = new Set(drawnNumbers);
-
-  // Check if any cartela has won
+  // Check win using player's own marked numbers (not all drawn)
   const hasWinningCartela = playerCartelas.some((c) =>
-    checkWin(c.numbers as number[][], markedSet, gamePattern as any)
+    checkWin(c.numbers as number[][], playerMarked, gamePattern as any)
   );
 
   const handleBingo = async () => {
+    if (!user?.id) return;
+
+    // Verify the player actually has a valid win with drawn numbers
+    const hasValidWin = playerCartelas.some((c) =>
+      checkWin(c.numbers as number[][], drawnSet, gamePattern as any)
+    );
+
+    if (!hasValidWin) {
+      toast.error("Your marks don't match a winning pattern with the drawn numbers!");
+      return;
+    }
+
     if (!hasWinningCartela) {
-      toast.error('You haven\'t won yet! Keep playing.');
+      toast.error("Mark all the winning numbers on your card first!");
       return;
     }
 
     const { error } = await supabase
-      .from('games')
-      .update({ status: 'won', winner_id: user?.id })
-      .eq('id', 'current');
+      .from('bingo_claims')
+      .insert({ game_id: 'current', user_id: user.id });
 
     if (error) {
-      toast.error('Failed to claim win');
+      if (error.code === '23505') {
+        toast.error('You already claimed BINGO!');
+      } else {
+        toast.error('Failed to claim');
+      }
       return;
     }
 
-    toast.success('🎉 BINGO! You won!');
+    setHasClaimed(true);
+    toast.success('🎯 BINGO claimed! Waiting for verification...');
   };
 
   return (
     <PageShell title="Live Game">
-      {/* Winner overlay */}
+      {/* Result overlay */}
       <AnimatePresence>
-        {showWinner && (
+        {showResult && gameResult && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+            onClick={() => setShowResult(false)}
           >
-            <ReactConfetti recycle={false} numberOfPieces={300} />
+            {gameResult.type !== 'disqualified' && (
+              <ReactConfetti recycle={false} numberOfPieces={300} />
+            )}
             <motion.div
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               className="text-center p-8 rounded-2xl gradient-card border-2 border-primary glow-gold max-w-sm mx-4"
             >
-              <div className="text-6xl mb-4">🏆</div>
-              <h2 className="text-3xl font-display font-bold text-primary mb-2">BINGO!</h2>
-              <p className="text-lg text-muted-foreground">
-                {winner === user?.id ? 'You won! 🎉' : 'Someone won this round!'}
-              </p>
+              <div className="text-6xl mb-4">
+                {gameResult.type === 'winner' ? '🏆' : gameResult.type === 'split' ? '🤝' : '🔄'}
+              </div>
+              <h2 className="text-3xl font-display font-bold text-primary mb-2">
+                {gameResult.type === 'winner' ? 'BINGO!' : gameResult.type === 'split' ? 'SPLIT!' : 'RESTART'}
+              </h2>
+              <p className="text-lg text-muted-foreground">{gameResult.message}</p>
+              <button
+                onClick={() => setShowResult(false)}
+                className="mt-4 px-6 py-2 rounded-xl bg-muted text-muted-foreground text-sm"
+              >
+                Close
+              </button>
             </motion.div>
           </motion.div>
         )}
@@ -193,7 +265,7 @@ export default function GamePage() {
           key={lastNumber}
           initial={{ scale: 0, rotate: -180 }}
           animate={{ scale: 1, rotate: 0 }}
-          className="flex flex-col items-center mb-6"
+          className="flex flex-col items-center mb-4"
         >
           <div className="text-xs text-muted-foreground mb-1">Last Number</div>
           <div className="w-16 h-16 rounded-full gradient-gold flex items-center justify-center text-primary-foreground font-display font-bold text-2xl glow-gold">
@@ -206,37 +278,31 @@ export default function GamePage() {
       )}
 
       {/* Pattern indicator */}
-      <div className="mb-4 flex items-center gap-3">
-        <div className="flex-shrink-0">
-          <PatternGrid pattern={gamePattern} />
-        </div>
+      <div className="mb-3 flex items-center gap-3">
+        <PatternGrid pattern={gamePattern} />
         <div>
           <div className="text-sm font-display font-bold text-foreground">{gamePattern}</div>
-          <div className="text-xs text-muted-foreground">
-            Drawn: {drawnNumbers.length}/75
-          </div>
+          <div className="text-xs text-muted-foreground">Drawn: {drawnNumbers.length}/75</div>
         </div>
       </div>
 
       {/* Full 1-75 number board */}
-      <div className="mb-4">
+      <div className="mb-3">
         <div className="rounded-xl border border-border overflow-hidden bg-card">
           {['B', 'I', 'N', 'G', 'O'].map((letter, rowIdx) => (
             <div key={letter} className="flex items-center border-b border-border last:border-b-0">
               <div className="w-7 flex-shrink-0 text-center font-display font-bold text-primary text-xs py-1 bg-muted/50 border-r border-border">
                 {letter}
               </div>
-              <div className="flex flex-1 flex-wrap">
+              <div className="flex flex-1">
                 {Array.from({ length: 15 }, (_, i) => {
                   const num = rowIdx * 15 + i + 1;
-                  const isDrawn = markedSet.has(num);
+                  const isDrawn = drawnSet.has(num);
                   return (
                     <div
                       key={num}
                       className={`w-[calc(100%/15)] aspect-square flex items-center justify-center text-[9px] font-medium border-r border-border last:border-r-0 transition-colors ${
-                        isDrawn
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground'
+                        isDrawn ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
                       }`}
                     >
                       {num}
@@ -249,22 +315,36 @@ export default function GamePage() {
         </div>
       </div>
 
+      {/* Instruction */}
+      <div className="mb-3 p-2 rounded-lg bg-muted/50 text-center">
+        <p className="text-xs text-muted-foreground">
+          👆 Tap drawn numbers on your cards to mark them. Match the pattern and hit BINGO!
+        </p>
+      </div>
+
       {/* Player cartelas */}
-      <h2 className="mb-3 text-sm font-bold text-foreground">Your Cartelas</h2>
+      <h2 className="mb-2 text-sm font-bold text-foreground">Your Cartelas</h2>
       <div className="grid grid-cols-2 gap-3 mb-24">
         {playerCartelas.map((c) => (
           <BingoCartela
             key={c.id}
             numbers={c.numbers as number[][]}
-            markedNumbers={markedSet}
+            drawnNumbers={drawnSet}
+            playerMarked={playerMarked}
+            onMarkNumber={handleMarkNumber}
             size="sm"
             label={`#${c.id}`}
           />
         ))}
+        {playerCartelas.length === 0 && (
+          <div className="col-span-2 text-center text-muted-foreground py-8">
+            No cartelas. Buy some from the Cartelas page!
+          </div>
+        )}
       </div>
 
       {/* Bingo button */}
-      {hasWinningCartela && !showWinner && (
+      {hasWinningCartela && !hasClaimed && !showResult && (
         <motion.div
           initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -277,6 +357,14 @@ export default function GamePage() {
             🎯 BINGO!
           </button>
         </motion.div>
+      )}
+
+      {hasClaimed && !showResult && (
+        <div className="fixed bottom-20 left-4 right-4 z-40">
+          <div className="w-full py-4 rounded-2xl bg-muted text-center text-muted-foreground font-display font-bold text-lg">
+            ⏳ Waiting for verification...
+          </div>
+        </div>
       )}
     </PageShell>
   );
