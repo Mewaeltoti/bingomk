@@ -329,6 +329,7 @@ export default function Admin() {
     setClaims([]);
     setGameStatus('buying');
     setBuyingCountdown(120);
+    drawingStartedRef.current = false;
     toast.success('🛒 2-minute buying period started! Players can buy cartelas now.');
 
     // Start countdown
@@ -336,8 +337,12 @@ export default function Admin() {
       setBuyingCountdown(prev => {
         if (prev <= 1) {
           if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
-          // Auto-start drawing
-          startDrawing();
+          buyingTimerRef.current = null;
+          // Prevent calling startDrawing multiple times
+          if (!drawingStartedRef.current) {
+            drawingStartedRef.current = true;
+            startDrawing();
+          }
           return 0;
         }
         return prev - 1;
