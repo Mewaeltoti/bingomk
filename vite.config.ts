@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "app-icon.png", "icons/*.png"],
+      includeAssets: ["favicon.ico", "app-icon.png", "icons/*.png", "splash.png"],
       manifest: {
         name: "Bingo Ethio - Play & Win",
         short_name: "Bingo Ethio",
@@ -28,6 +28,8 @@ export default defineConfig(({ mode }) => ({
         display: "standalone",
         orientation: "portrait",
         start_url: "/",
+        scope: "/",
+        categories: ["games", "entertainment"],
         icons: [
           { src: "/icons/icon-48.png", sizes: "48x48", type: "image/png" },
           { src: "/icons/icon-72.png", sizes: "72x72", type: "image/png" },
@@ -37,10 +39,30 @@ export default defineConfig(({ mode }) => ({
           { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
           { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
+        screenshots: [],
       },
       workbox: {
         navigateFallbackDenylist: [/^\/~oauth/],
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,json}"],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "api-cache",
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 5 },
+              networkTimeoutSeconds: 10,
+            },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "google-fonts",
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+        ],
       },
     }),
   ].filter(Boolean),
