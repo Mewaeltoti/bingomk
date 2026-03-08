@@ -4,6 +4,7 @@ import BingoCartela from '@/components/BingoCartela';
 // lightweight: no framer-motion
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeWithRetry } from '@/lib/edgeFn';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/lib/auth';
@@ -131,7 +132,7 @@ export default function CartelaSelection() {
 
     setBuying(true);
 
-    const { data, error } = await supabase.functions.invoke('purchase-cartela', {
+    const { data, error } = await invokeWithRetry('purchase-cartela', {
       body: { cartela_ids: Array.from(selected).map(Number) },
     });
 

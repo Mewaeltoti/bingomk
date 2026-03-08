@@ -6,6 +6,7 @@ import { Users, CreditCard, Gamepad2, Check, X, AlertTriangle, Plus, Minus, Paus
 import { PATTERNS, PatternName } from '@/lib/bingo';
 import { getBingoLetter } from '@/lib/bingoEngine';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeWithRetry } from '@/lib/edgeFn';
 import { useGamePresence } from '@/hooks/useGamePresence';
 import { useUser } from '@/lib/auth';
 import { toast } from 'sonner';
@@ -33,6 +34,7 @@ export default function Admin() {
   const [claims, setClaims] = useState<any[]>([]);
   const [adjustingPlayer, setAdjustingPlayer] = useState<string | null>(null);
   const [adjustAmount, setAdjustAmount] = useState('');
+  const [actionLoading, setActionLoading] = useState<string | null>(null); // tracks which action is in progress
 
   const user = useUser();
   const navigate = useNavigate();
@@ -105,17 +107,16 @@ export default function Admin() {
 
   // Manual verification by admin — via edge function
   const verifyClaimManually = async (claim: any, isValid: boolean) => {
-    const { data, error } = await supabase.functions.invoke('verify-claim', {
+    setActionLoading(`verify-${claim.id}`);
+    const { data, error } = await invokeWithRetry('verify-claim', {
       body: { action: 'verify_single', claim_id: claim.id, is_valid: isValid },
     });
+    setActionLoading(null);
 
-    if (error) { toast.error('Verification failed'); return; }
+    if (error) { toast.error(`Verification failed: ${error}`); return; }
 
     if (!isValid) {
       toast.warning(`❌ Invalid claim on #${claim.cartela_id}`);
-      if (data?.result === 'invalid') {
-        // auto-draw resumed server-side if no more pending
-      }
     } else if (data?.result === 'valid_pending_remaining') {
       toast.success(`✅ Claim valid! ${data.remaining} more pending...`);
     } else if (data?.result === 'won') {
@@ -141,11 +142,13 @@ export default function Admin() {
 
   // Verify all pending claims — via edge function
   const verifyAllPendingClaims = async () => {
-    const { data, error } = await supabase.functions.invoke('verify-claim', {
+    setActionLoading('verify-all');
+    const { data, error } = await invokeWithRetry('verify-claim', {
       body: { action: 'verify_all' },
     });
+    setActionLoading(null);
 
-    if (error) { toast.error('Verification failed'); return; }
+    if (error) { toast.error(`Verification failed: ${error}`); return; }
 
     if (data?.result === 'no_pending') {
       toast('No pending claims');
@@ -218,13 +221,15 @@ export default function Admin() {
 
 
   const startNewGame = async () => {
+    setActionLoading('new-game');
     setAutoDraw(false);
     if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
 
-    const { error } = await supabase.functions.invoke('game-lifecycle', {
+    const { error } = await invokeWithRetry('game-lifecycle', {
       body: { action: 'new_game', pattern, draw_speed: drawSpeed, cartela_price: cartelaPrice },
     });
-    if (error) { toast.error('Failed to start new game'); return; }
+    if (error) { toast.error(`Failed: ${error}`); setActionLoading(null); return; }
+    setActionLoading(null);
 
     setBoughtCount(0);
     setDrawnNumbers([]);
@@ -257,10 +262,12 @@ export default function Admin() {
   };
 
   const startDrawing = async () => {
-    const { data, error } = await supabase.functions.invoke('game-lifecycle', {
+    setActionLoading('start-drawing');
+    const { data, error } = await invokeWithRetry('game-lifecycle', {
       body: { action: 'start_drawing', prize_amount: prizeAmount },
     });
-    if (error) { toast.error('Failed to start drawing'); return; }
+    setActionLoading(null);
+    if (error) { toast.error(`Failed: ${error}`); return; }
 
     const bought = data?.bought || 0;
     setBoughtCount(bought);
@@ -270,29 +277,37 @@ export default function Admin() {
   };
 
   const pauseGame = async () => {
-    await supabase.functions.invoke('game-lifecycle', { body: { action: 'pause' } });
+    setActionLoading('pause');
+    await invokeWithRetry('game-lifecycle', { body: { action: 'pause' } });
+    setActionLoading(null);
     setAutoDraw(false);
     toast('⏸️ Drawing paused');
   };
 
   const resumeGame = async () => {
-    await supabase.functions.invoke('game-lifecycle', { body: { action: 'resume' } });
+    setActionLoading('resume');
+    await invokeWithRetry('game-lifecycle', { body: { action: 'resume' } });
+    setActionLoading(null);
     setAutoDraw(true);
     toast('▶️ Drawing resumed');
   };
 
   const stopGame = async () => {
-    await supabase.functions.invoke('game-lifecycle', { body: { action: 'stop' } });
+    setActionLoading('stop');
+    await invokeWithRetry('game-lifecycle', { body: { action: 'stop' } });
+    setActionLoading(null);
     setAutoDraw(false);
     setGameStatus('stopped');
     toast('🛑 Game stopped');
   };
 
   const handleDeposit = async (id: string, action: 'approved' | 'rejected', userId: string, amount: number) => {
-    const { error } = await supabase.functions.invoke('approve-transaction', {
+    setActionLoading(`dep-${id}`);
+    const { error } = await invokeWithRetry('approve-transaction', {
       body: { type: 'deposit', id, action, user_id: userId, amount },
     });
-    if (error) { toast.error('Failed'); return; }
+    setActionLoading(null);
+    if (error) { toast.error(`Failed: ${error}`); return; }
 
     toast.success(action === 'approved' ? `✅ Approved & credited ${amount} ETB` : 'Deposit rejected');
     setDeposits((prev) => prev.map((d) => d.id === id ? { ...d, status: action } : d));
@@ -440,32 +455,34 @@ export default function Admin() {
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={startNewGame}
-              disabled={autoDraw || gameStatus === 'buying'}
+              disabled={autoDraw || gameStatus === 'buying' || actionLoading === 'new-game'}
               className="py-3 rounded-xl font-display font-bold bg-secondary text-secondary-foreground text-sm active:scale-95 transition-transform disabled:opacity-50"
             >
-              🎲 New Game
+              {actionLoading === 'new-game' ? '⏳ Starting...' : '🎲 New Game'}
             </button>
             {autoDraw ? (
               <button
                 onClick={pauseGame}
-                className="py-3 rounded-xl font-display font-bold bg-primary text-primary-foreground text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5"
+                disabled={actionLoading === 'pause'}
+                className="py-3 rounded-xl font-display font-bold bg-primary text-primary-foreground text-sm active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
-                <Pause className="w-4 h-4" /> Pause
+                {actionLoading === 'pause' ? '⏳...' : <><Pause className="w-4 h-4" /> Pause</>}
               </button>
             ) : gameStatus === 'active' ? (
               <button
                 onClick={resumeGame}
-                className="py-3 rounded-xl font-display font-bold bg-primary text-primary-foreground text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5"
+                disabled={actionLoading === 'resume'}
+                className="py-3 rounded-xl font-display font-bold bg-primary text-primary-foreground text-sm active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
-                <Play className="w-4 h-4" /> Resume
+                {actionLoading === 'resume' ? '⏳...' : <><Play className="w-4 h-4" /> Resume</>}
               </button>
             ) : (
               <button
                 onClick={stopGame}
-                disabled={gameStatus !== 'active'}
+                disabled={gameStatus !== 'active' || actionLoading === 'stop'}
                 className="py-3 rounded-xl font-display font-bold bg-destructive text-destructive-foreground text-sm active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
-                <Square className="w-4 h-4" /> Stop
+                {actionLoading === 'stop' ? '⏳...' : <><Square className="w-4 h-4" /> Stop</>}
               </button>
             )}
           </div>
@@ -522,9 +539,10 @@ export default function Admin() {
                 {claims.some((c: any) => c.is_valid === null) && (
                   <button
                     onClick={verifyAllPendingClaims}
-                    className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold"
+                    disabled={actionLoading === 'verify-all'}
+                    className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50"
                   >
-                    Verify All
+                    {actionLoading === 'verify-all' ? '⏳ Verifying...' : 'Verify All'}
                   </button>
                 )}
               </div>
@@ -547,15 +565,17 @@ export default function Admin() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => verifyClaimManually(c, true)}
-                        className="flex-1 py-1.5 rounded-lg bg-secondary text-secondary-foreground text-xs font-bold flex items-center justify-center gap-1"
+                        disabled={!!actionLoading}
+                        className="flex-1 py-1.5 rounded-lg bg-secondary text-secondary-foreground text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-50"
                       >
-                        <Check className="w-3.5 h-3.5" /> Valid Winner
+                        {actionLoading === `verify-${c.id}` ? '⏳...' : <><Check className="w-3.5 h-3.5" /> Valid Winner</>}
                       </button>
                       <button
                         onClick={() => verifyClaimManually(c, false)}
-                        className="flex-1 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center gap-1"
+                        disabled={!!actionLoading}
+                        className="flex-1 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-50"
                       >
-                        <X className="w-3.5 h-3.5" /> Invalid
+                        {actionLoading === `verify-${c.id}` ? '⏳...' : <><X className="w-3.5 h-3.5" /> Invalid</>}
                       </button>
                     </div>
                   )}
@@ -617,12 +637,14 @@ export default function Admin() {
               {d.status === 'pending' && (
                 <div className="flex gap-2">
                   <button onClick={() => handleDeposit(d.id, 'approved', d.user_id, d.amount)}
-                    className="flex-1 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium flex items-center justify-center gap-1">
-                    <Check className="w-4 h-4" /> Approve
+                    disabled={actionLoading === `dep-${d.id}`}
+                    className="flex-1 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium flex items-center justify-center gap-1 disabled:opacity-50">
+                    {actionLoading === `dep-${d.id}` ? '⏳...' : <><Check className="w-4 h-4" /> Approve</>}
                   </button>
                   <button onClick={() => handleDeposit(d.id, 'rejected', d.user_id, d.amount)}
-                    className="flex-1 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium flex items-center justify-center gap-1">
-                    <X className="w-4 h-4" /> Decline
+                    disabled={actionLoading === `dep-${d.id}`}
+                    className="flex-1 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium flex items-center justify-center gap-1 disabled:opacity-50">
+                    {actionLoading === `dep-${d.id}` ? '⏳...' : <><X className="w-4 h-4" /> Decline</>}
                   </button>
                 </div>
               )}
@@ -652,25 +674,31 @@ export default function Admin() {
               {w.status === 'pending' && (
                 <div className="flex gap-2">
                   <button onClick={async () => {
-                    const { data, error } = await supabase.functions.invoke('approve-transaction', {
+                    setActionLoading(`wd-${w.id}`);
+                    const { data, error } = await invokeWithRetry('approve-transaction', {
                       body: { type: 'withdrawal', id: w.id, action: 'approved', user_id: w.user_id, amount: w.amount },
                     });
-                    if (error || data?.error) { toast.error(data?.error || 'Failed'); return; }
+                    setActionLoading(null);
+                    if (error) { toast.error(error); return; }
                     setWithdrawals(prev => prev.map(x => x.id === w.id ? { ...x, status: 'approved' } : x));
                     toast.success(`✅ Approved & deducted ${w.amount} ETB`);
                   }}
-                    className="flex-1 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium flex items-center justify-center gap-1">
-                    <Check className="w-4 h-4" /> Approve
+                    disabled={actionLoading === `wd-${w.id}`}
+                    className="flex-1 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium flex items-center justify-center gap-1 disabled:opacity-50">
+                    {actionLoading === `wd-${w.id}` ? '⏳...' : <><Check className="w-4 h-4" /> Approve</>}
                   </button>
                   <button onClick={async () => {
-                    await supabase.functions.invoke('approve-transaction', {
+                    setActionLoading(`wd-${w.id}`);
+                    await invokeWithRetry('approve-transaction', {
                       body: { type: 'withdrawal', id: w.id, action: 'rejected', user_id: w.user_id, amount: w.amount },
                     });
+                    setActionLoading(null);
                     setWithdrawals(prev => prev.map(x => x.id === w.id ? { ...x, status: 'rejected' } : x));
                     toast.success('Withdrawal rejected');
                   }}
-                    className="flex-1 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium flex items-center justify-center gap-1">
-                    <X className="w-4 h-4" /> Decline
+                    disabled={actionLoading === `wd-${w.id}`}
+                    className="flex-1 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium flex items-center justify-center gap-1 disabled:opacity-50">
+                    {actionLoading === `wd-${w.id}` ? '⏳...' : <><X className="w-4 h-4" /> Decline</>}
                   </button>
                 </div>
               )}
