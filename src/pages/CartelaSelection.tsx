@@ -180,7 +180,7 @@ export default function CartelaSelection() {
       </div>
 
       <p className="text-xs text-muted-foreground mb-3">
-        {filtered.length} available · 20 ETB each · Tap to select
+        {filtered.length} available · {cartelaPrice} ETB each · Tap to select
       </p>
 
       {/* Selected cartelas strip */}
