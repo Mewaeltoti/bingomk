@@ -232,6 +232,7 @@ export default function Admin() {
       setDrawnNumbers([]);
       const winnerName = validClaimers.find((c: any) => c.user_id === winnerId)?.profile?.display_name || 'Player';
       toast.success(`🏆 ${winnerName} wins ${prizeAmount} ETB! Balance credited.`);
+      setTimeout(startNewGame, 10000);
     } else if (uniqueWinnerCount === 2) {
       // 2 different players — split prize
       const splitPrize = prizeAmount / 2;
