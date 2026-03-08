@@ -299,7 +299,7 @@ export default function GamePage() {
             className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-sm"
             onClick={() => setShowResult(false)}
           >
-            {gameResult.type !== 'disqualified' && <ReactConfetti recycle={false} numberOfPieces={200} />}
+            {gameResult.type !== 'disqualified' && <div className="text-6xl animate-bounce">🎊</div>}
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
