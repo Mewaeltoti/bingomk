@@ -352,7 +352,7 @@ export default function GamePage() {
             <ShoppingCart className="w-4 h-4" />
             Buy Cartelas
           </button>
-        </motion.div>
+        </div>
       )}
 
       {/* ACTIVE GAME - Single view layout */}
