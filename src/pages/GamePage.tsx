@@ -8,8 +8,7 @@ import { getBingoLetter } from '@/lib/bingoEngine';
 import { checkWin } from '@/lib/winDetection';
 import { PatternName } from '@/lib/bingo';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
-// react-confetti removed for lightweight build
+// lightweight: no framer-motion
 import { cn } from '@/lib/utils';
 import { playDrawSound, playWinSound, playMarkSound, announceNumber } from '@/lib/sounds';
 import { Users, Eye, Hand, ShoppingCart } from 'lucide-react';
