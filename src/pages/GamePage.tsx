@@ -339,6 +339,28 @@ export default function GamePage() {
         )}
       </AnimatePresence>
 
+      {/* Buying period countdown */}
+      {gameStatus === 'buying' && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-3 p-4 rounded-xl border-2 border-primary/30 bg-primary/5 text-center"
+        >
+          <div className="text-2xl mb-1">🛒</div>
+          <p className="text-sm font-display font-bold text-foreground mb-1">Buy Your Cartelas!</p>
+          <div className="text-3xl font-display font-bold text-primary my-2">
+            {Math.floor(buyingCountdown / 60)}:{String(buyingCountdown % 60).padStart(2, '0')}
+          </div>
+          <p className="text-xs text-muted-foreground mb-2">Game starts when timer ends</p>
+          <button
+            onClick={() => navigate('/cartelas')}
+            className="px-4 py-2 rounded-xl gradient-gold text-primary-foreground text-sm font-bold active:scale-95 transition-transform"
+          >
+            Buy Cartelas
+          </button>
+        </motion.div>
+      )}
+
       {/* New game / waiting banner */}
       {(gameStatus === 'waiting' || gameStatus === 'stopped' || gameStatus === 'won') && (
         <motion.div
