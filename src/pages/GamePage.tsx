@@ -485,12 +485,10 @@ export default function GamePage() {
           <div key={c.id} className="flex flex-col gap-1.5">
             <BingoCartela
               numbers={c.numbers as number[][]}
-              drawnNumbers={drawnSet}
               playerMarked={playerMarked}
               onMarkNumber={isSpectator ? undefined : handleMarkNumber}
               size="sm"
               label={`#${c.id}`}
-              autoMark={false}
             />
             {/* Strike indicator */}
             {strikes > 0 && (
