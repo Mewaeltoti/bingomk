@@ -197,21 +197,42 @@ export default function Admin() {
   const startNewGame = async () => {
     setAutoDraw(false);
     if (autoDrawRef.current) clearInterval(autoDrawRef.current);
+    if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
 
     await Promise.all([
       supabase.from('game_numbers').delete().eq('game_id', 'current'),
       supabase.from('bingo_claims').delete().eq('game_id', 'current'),
-      // Release all cartelas so players must buy new ones
       supabase.from('cartelas').update({ is_used: false, owner_id: null } as any).eq('is_used', true),
     ]);
+    // Set game to "buying" status — 2 min rest
     await supabase.from('games').upsert({
-      id: 'current', pattern, status: 'active', winner_id: null, draw_speed: drawSpeed,
+      id: 'current', pattern, status: 'buying', winner_id: null, draw_speed: drawSpeed,
     } as any);
     setDrawnNumbers([]);
     setClaims([]);
+    setGameStatus('buying');
+    setBuyingCountdown(120);
+    toast.success('🛒 2-minute buying period started! Players can buy cartelas now.');
+
+    // Start countdown
+    buyingTimerRef.current = setInterval(() => {
+      setBuyingCountdown(prev => {
+        if (prev <= 1) {
+          if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
+          // Auto-start drawing
+          startDrawing();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const startDrawing = async () => {
+    await supabase.from('games').update({ status: 'active' } as any).eq('id', 'current');
     setGameStatus('active');
     setAutoDraw(true);
-    toast.success(`🎲 Game started! Cartelas released. Drawing every ${drawSpeed}s`);
+    toast.success(`🎲 Game started! Drawing every ${drawSpeed}s`);
   };
 
   const pauseGame = () => {
