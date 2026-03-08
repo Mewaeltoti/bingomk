@@ -331,7 +331,10 @@ export default function GamePage() {
             </span>
           )}
         </div>
-        <div className="text-sm font-display font-bold text-primary">{balance} ETB</div>
+        <div className="flex items-center gap-2">
+          <MuteToggle />
+          <div className="text-sm font-display font-bold text-primary">{balance} ETB</div>
+        </div>
       </div>
 
       {/* Buy/Waiting state */}
