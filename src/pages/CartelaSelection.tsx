@@ -24,6 +24,7 @@ export default function CartelaSelection() {
   const [page, setPage] = useState(1);
   const [showConfirm, setShowConfirm] = useState(false);
   const [buying, setBuying] = useState(false);
+  const [cartelaPrice, setCartelaPrice] = useState(20);
   const pageSize = 20;
   const navigate = useNavigate();
   const user = useUser();
