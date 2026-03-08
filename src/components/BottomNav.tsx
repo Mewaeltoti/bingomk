@@ -44,8 +44,8 @@ export default function BottomNav() {
   const playerItems = [
     { to: '/game', icon: Gamepad2, label: 'Game' },
     { to: '/cartelas', icon: Plus, label: 'Cartelas' },
-    
     { to: '/payment', icon: Wallet, label: 'Wallet' },
+    { to: '/profile', icon: UserCircle, label: 'Profile' },
   ];
 
   const items = isAdmin ? adminItems : playerItems;
