@@ -36,6 +36,7 @@ export default function Admin() {
   const tabs = [
     { key: 'game' as const, label: 'Game', icon: Gamepad2 },
     { key: 'deposits' as const, label: 'Deposits', icon: CreditCard },
+    { key: 'withdrawals' as const, label: 'Withdrawals', icon: ArrowUpCircle },
     { key: 'players' as const, label: 'Players', icon: Users },
   ];
 
