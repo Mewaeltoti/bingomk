@@ -46,6 +46,7 @@ export default function GamePage() {
   const [playerMarked, setPlayerMarked] = useState<Set<number>>(new Set());
   const [claimedCartelas, setClaimedCartelas] = useState<Set<number>>(new Set());
   const [removedCartelas, setRemovedCartelas] = useState<Set<number>>(new Set());
+  const [strikeMap, setStrikeMap] = useState<Map<number, number>>(new Map()); // cartelaId -> strikes
   const [isSpectator, setIsSpectator] = useState(false);
   const [displayName, setDisplayName] = useState<string>('');
   const [balance, setBalance] = useState(0);
@@ -110,15 +111,19 @@ export default function GamePage() {
         const userClaims = claimsRes.data.filter((c: any) => c.user_id === user.id);
         const claimed = new Set<number>();
         const removed = new Set<number>();
+        const strikes = new Map<number, number>();
         for (const claim of userClaims) {
           const cid = (claim as any).cartela_id;
           if (cid) {
-            claimed.add(cid);
-            if ((claim as any).strike_count >= 2) removed.add(cid);
+            if (claim.is_valid === null) claimed.add(cid); // pending
+            const s = (claim as any).strike_count || 0;
+            strikes.set(cid, Math.max(strikes.get(cid) || 0, s));
+            if (s >= 2) removed.add(cid);
           }
         }
         setClaimedCartelas(claimed);
         setRemovedCartelas(removed);
+        setStrikeMap(strikes);
       }
     }
     fetchGameState();
@@ -146,6 +151,15 @@ export default function GamePage() {
             setPlayerMarked(new Set());
             setClaimedCartelas(new Set());
             setRemovedCartelas(new Set());
+            setStrikeMap(new Map());
+            // Cartelas were released — re-fetch
+            if (user?.id) {
+              supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true)
+                .then(({ data }) => {
+                  setPlayerCartelas(data || []);
+                  setIsSpectator(!data || data.length === 0);
+                });
+            }
           }
           if (game.status === 'won') {
             setGameResult({ type: 'winner', message: 'Someone won this round! 🏆' });
@@ -166,13 +180,14 @@ export default function GamePage() {
           const cid = claim.cartela_id;
           if (claim.is_valid === false) {
             const strikes = claim.strike_count || 0;
+            setStrikeMap(prev => new Map(prev).set(cid, strikes));
             if (strikes >= 2) {
               toast.error(`Cartela #${cid} removed — 2 wrong claims!`);
               setRemovedCartelas(prev => new Set(prev).add(cid));
             } else {
               toast.warning(`Wrong claim on #${cid}! ${2 - strikes} chance(s) left.`);
             }
-            // Allow re-claiming
+            // Allow re-claiming if not removed
             setClaimedCartelas(prev => {
               const next = new Set(prev);
               next.delete(cid);
@@ -376,7 +391,9 @@ export default function GamePage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-24">
-        {activeCartelas.map((c) => (
+        {activeCartelas.map((c) => {
+          const strikes = strikeMap.get(c.id) || 0;
+          return (
           <div key={c.id} className="flex flex-col gap-1.5">
             <BingoCartela
               numbers={c.numbers as number[][]}
@@ -387,6 +404,23 @@ export default function GamePage() {
               label={`#${c.id}`}
               autoMark={false}
             />
+            {/* Strike indicator */}
+            {strikes > 0 && (
+              <div className="flex items-center justify-center gap-1 text-xs">
+                {Array.from({ length: 2 }, (_, i) => (
+                  <span
+                    key={i}
+                    className={cn(
+                      'w-2 h-2 rounded-full',
+                      i < strikes ? 'bg-destructive' : 'bg-muted'
+                    )}
+                  />
+                ))}
+                <span className="text-destructive font-medium ml-1">
+                  {2 - strikes} left
+                </span>
+              </div>
+            )}
             {/* Per-cartela BINGO button */}
             {!isSpectator && drawnNumbers.length > 0 && !removedCartelas.has(c.id) && (
               <button
@@ -404,7 +438,8 @@ export default function GamePage() {
               </button>
             )}
           </div>
-        ))}
+          );
+        })}
         {activeCartelas.length === 0 && (
           <div className="col-span-2 text-center text-muted-foreground py-8">
             <Eye className="w-8 h-8 mx-auto mb-2 opacity-40" />

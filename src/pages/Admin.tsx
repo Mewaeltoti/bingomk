@@ -199,6 +199,8 @@ export default function Admin() {
     await Promise.all([
       supabase.from('game_numbers').delete().eq('game_id', 'current'),
       supabase.from('bingo_claims').delete().eq('game_id', 'current'),
+      // Release all cartelas so players must buy new ones
+      supabase.from('cartelas').update({ is_used: false, owner_id: null } as any).eq('is_used', true),
     ]);
     await supabase.from('games').upsert({
       id: 'current', pattern, status: 'active', winner_id: null, draw_speed: drawSpeed,
@@ -207,7 +209,7 @@ export default function Admin() {
     setClaims([]);
     setGameStatus('active');
     setAutoDraw(true);
-    toast.success(`🎲 Game started! Drawing every ${drawSpeed}s`);
+    toast.success(`🎲 Game started! Cartelas released. Drawing every ${drawSpeed}s`);
   };
 
   const pauseGame = () => {
