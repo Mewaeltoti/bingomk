@@ -406,9 +406,6 @@ export default function Admin() {
       .not('owner_id', 'is', null);
     const bought = count || 0;
     setBoughtCount(bought);
-    const totalSales = bought * cartelaPrice;
-    const prize = Math.floor(totalSales * (1 - houseCutPercent / 100));
-    setPrizeAmount(prize);
 
     await supabase.from('games').update({ status: 'active', prize_amount: prize, auto_draw: true } as any).eq('id', 'current');
     setGameStatus('active');
