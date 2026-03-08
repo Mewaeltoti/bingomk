@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import PageShell from '@/components/PageShell';
-import { Users, CreditCard, Gamepad2, Check, X } from 'lucide-react';
+import { Users, CreditCard, Gamepad2, Check, X, Play, Square } from 'lucide-react';
 import { PATTERNS, PatternName } from '@/lib/bingo';
 import { getBingoLetter } from '@/lib/bingoEngine';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +11,12 @@ export default function Admin() {
   const [pattern, setPattern] = useState<PatternName>('Full House');
   const [drawnNumbers, setDrawnNumbers] = useState<number[]>([]);
   const [gameStatus, setGameStatus] = useState('waiting');
+  const [autoDraw, setAutoDraw] = useState(false);
+  const autoDrawRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Deposits state
+  const [deposits, setDeposits] = useState<any[]>([]);
+  const [players, setPlayers] = useState<any[]>([]);
 
   const tabs = [
     { key: 'deposits' as const, label: 'Deposits', icon: CreditCard },
@@ -34,15 +40,55 @@ export default function Admin() {
     fetchState();
   }, []);
 
-  const drawNumber = async () => {
-    if (drawnNumbers.length >= 75) {
+  // Fetch deposits
+  useEffect(() => {
+    if (tab !== 'deposits') return;
+    async function fetchDeposits() {
+      const { data } = await supabase
+        .from('deposits')
+        .select('*, profiles:user_id(phone, display_name)')
+        .order('created_at', { ascending: false });
+      setDeposits(data || []);
+    }
+    fetchDeposits();
+  }, [tab]);
+
+  // Fetch players
+  useEffect(() => {
+    if (tab !== 'players') return;
+    async function fetchPlayers() {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      setPlayers(data || []);
+    }
+    fetchPlayers();
+  }, [tab]);
+
+  // Auto-draw interval
+  useEffect(() => {
+    if (autoDraw && gameStatus !== 'won') {
+      autoDrawRef.current = setInterval(() => {
+        drawNumberInternal();
+      }, 10000);
+    }
+    return () => {
+      if (autoDrawRef.current) clearInterval(autoDrawRef.current);
+    };
+  }, [autoDraw, drawnNumbers, gameStatus]);
+
+  const drawNumberInternal = async () => {
+    const currentDrawn = drawnNumbers;
+    if (currentDrawn.length >= 75) {
+      setAutoDraw(false);
       toast.error('All numbers drawn!');
       return;
     }
     let num: number;
     do {
       num = Math.floor(Math.random() * 75) + 1;
-    } while (drawnNumbers.includes(num));
+    } while (currentDrawn.includes(num));
 
     const { error } = await supabase.from('game_numbers').insert({ number: num, game_id: 'current' });
     if (error) {
@@ -50,24 +96,54 @@ export default function Admin() {
       return;
     }
     setDrawnNumbers((prev) => [...prev, num]);
-    toast.success(`${getBingoLetter(num)}-${num}`);
+  };
+
+  const drawNumber = async () => {
+    await drawNumberInternal();
   };
 
   const startNewGame = async () => {
-    // Delete old numbers
+    setAutoDraw(false);
     await supabase.from('game_numbers').delete().eq('game_id', 'current');
-    
-    // Upsert game record
     await supabase.from('games').upsert({
       id: 'current',
       pattern,
       status: 'waiting',
       winner_id: null,
     });
-
     setDrawnNumbers([]);
     setGameStatus('waiting');
     toast.success('New game started!');
+  };
+
+  const handleDeposit = async (id: string, action: 'approved' | 'rejected', userId: string, amount: number) => {
+    const { error } = await supabase
+      .from('deposits')
+      .update({ status: action })
+      .eq('id', id);
+
+    if (error) {
+      toast.error('Failed to update deposit');
+      return;
+    }
+
+    // If approved, add balance
+    if (action === 'approved') {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('balance')
+        .eq('id', userId)
+        .single();
+
+      const currentBalance = (profile as any)?.balance || 0;
+      await supabase
+        .from('profiles')
+        .update({ balance: currentBalance + amount } as any)
+        .eq('id', userId);
+    }
+
+    setDeposits((prev) => prev.map((d) => d.id === id ? { ...d, status: action } : d));
+    toast.success(`Deposit ${action}`);
   };
 
   return (
@@ -89,7 +165,6 @@ export default function Admin() {
 
       {tab === 'game' && (
         <div className="space-y-4">
-          {/* Pattern selection */}
           <div>
             <label className="text-sm text-muted-foreground mb-2 block">Winning Pattern</label>
             <div className="grid grid-cols-2 gap-2">
@@ -107,7 +182,6 @@ export default function Admin() {
             </div>
           </div>
 
-          {/* Start new game */}
           <button
             onClick={startNewGame}
             className="w-full py-4 rounded-xl font-display font-bold bg-secondary text-secondary-foreground text-lg active:scale-95 transition-transform"
@@ -115,15 +189,26 @@ export default function Admin() {
             Start New Game
           </button>
 
-          {/* Draw number */}
-          <button
-            onClick={drawNumber}
-            className="w-full py-5 rounded-2xl font-display font-bold text-2xl gradient-gold text-primary-foreground glow-gold active:scale-95 transition-transform"
-          >
-            🎱 Draw Number ({drawnNumbers.length}/75)
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={drawNumber}
+              className="flex-1 py-4 rounded-2xl font-display font-bold text-lg gradient-gold text-primary-foreground glow-gold active:scale-95 transition-transform"
+            >
+              🎱 Draw ({drawnNumbers.length}/75)
+            </button>
+            <button
+              onClick={() => setAutoDraw(!autoDraw)}
+              className={`px-4 rounded-2xl font-bold text-lg active:scale-95 transition-transform ${
+                autoDraw ? 'bg-destructive text-destructive-foreground' : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              {autoDraw ? <Square className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+            </button>
+          </div>
+          {autoDraw && (
+            <p className="text-xs text-center text-primary animate-pulse">Auto-drawing every 10 seconds...</p>
+          )}
 
-          {/* Drawn numbers */}
           {drawnNumbers.length > 0 && (
             <div>
               <div className="text-xs text-muted-foreground mb-2">Drawn Numbers</div>
@@ -149,11 +234,63 @@ export default function Admin() {
       )}
 
       {tab === 'deposits' && (
-        <div className="text-center text-muted-foreground py-8">Deposit management coming soon</div>
+        <div className="space-y-2">
+          {deposits.length === 0 && (
+            <p className="text-center text-muted-foreground py-8">No deposits yet</p>
+          )}
+          {deposits.map((d) => (
+            <div key={d.id} className="p-3 rounded-xl bg-muted/50 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium text-foreground">{d.bank} — {d.amount} ETB</div>
+                  <div className="text-xs text-muted-foreground">
+                    Ref: {d.reference} · {(d.profiles as any)?.phone || 'Unknown'}
+                  </div>
+                </div>
+                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                  d.status === 'approved' ? 'bg-secondary/20 text-secondary' :
+                  d.status === 'pending' ? 'bg-primary/20 text-primary' :
+                  'bg-destructive/20 text-destructive'
+                }`}>
+                  {d.status}
+                </span>
+              </div>
+              {d.status === 'pending' && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleDeposit(d.id, 'approved', d.user_id, d.amount)}
+                    className="flex-1 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium flex items-center justify-center gap-1"
+                  >
+                    <Check className="w-4 h-4" /> Approve
+                  </button>
+                  <button
+                    onClick={() => handleDeposit(d.id, 'rejected', d.user_id, d.amount)}
+                    className="flex-1 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium flex items-center justify-center gap-1"
+                  >
+                    <X className="w-4 h-4" /> Decline
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       )}
 
       {tab === 'players' && (
-        <div className="text-center text-muted-foreground py-8">Player management coming soon</div>
+        <div className="space-y-2">
+          {players.length === 0 && (
+            <p className="text-center text-muted-foreground py-8">No players yet</p>
+          )}
+          {players.map((p) => (
+            <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
+              <div>
+                <div className="text-sm font-medium text-foreground">{p.display_name || p.phone || 'Unknown'}</div>
+                <div className="text-xs text-muted-foreground">{p.phone}</div>
+              </div>
+              <div className="text-sm font-display font-bold text-primary">{p.balance || 0} ETB</div>
+            </div>
+          ))}
+        </div>
       )}
     </PageShell>
   );

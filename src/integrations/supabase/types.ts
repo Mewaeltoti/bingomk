@@ -38,6 +38,42 @@ export type Database = {
         }
         Relationships: []
       }
+      deposits: {
+        Row: {
+          amount: number
+          bank: string
+          created_at: string
+          id: string
+          reference: string
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          bank: string
+          created_at?: string
+          id?: string
+          reference: string
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bank?: string
+          created_at?: string
+          id?: string
+          reference?: string
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       game_numbers: {
         Row: {
           created_at: string
@@ -85,18 +121,21 @@ export type Database = {
       }
       profiles: {
         Row: {
+          balance: number
           created_at: string
           display_name: string | null
           id: string
           phone: string | null
         }
         Insert: {
+          balance?: number
           created_at?: string
           display_name?: string | null
           id: string
           phone?: string | null
         }
         Update: {
+          balance?: number
           created_at?: string
           display_name?: string | null
           id?: string
