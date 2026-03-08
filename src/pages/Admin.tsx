@@ -523,8 +523,13 @@ export default function Admin() {
               <button
                 onClick={() => {
                   if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
+                  buyingTimerRef.current = null;
                   setBuyingCountdown(0);
-                  startDrawing();
+                  if (!drawingStartedRef.current) {
+                    drawingStartedRef.current = true;
+                    startDrawing();
+                  }
+                }}
                 }}
                 className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold"
               >
