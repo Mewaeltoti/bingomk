@@ -8,6 +8,40 @@ import { checkWin } from '@/lib/winDetection';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactConfetti from 'react-confetti';
+import { cn } from '@/lib/utils';
+
+const PATTERN_CELLS: Record<string, boolean[][]> = {
+  'Full House': Array(5).fill(Array(5).fill(true)),
+  'L Shape': Array.from({ length: 5 }, (_, r) =>
+    Array.from({ length: 5 }, (_, c) => c === 0 || r === 4)
+  ),
+  'T Shape': Array.from({ length: 5 }, (_, r) =>
+    Array.from({ length: 5 }, (_, c) => r === 0 || c === 2)
+  ),
+  'U Shape': Array.from({ length: 5 }, (_, r) =>
+    Array.from({ length: 5 }, (_, c) => c === 0 || c === 4 || r === 4)
+  ),
+  'X Shape': Array.from({ length: 5 }, (_, r) =>
+    Array.from({ length: 5 }, (_, c) => r === c || r + c === 4)
+  ),
+};
+
+function PatternGrid({ pattern }: { pattern: string }) {
+  const cells = PATTERN_CELLS[pattern] || PATTERN_CELLS['Full House'];
+  return (
+    <div className="grid grid-cols-5 gap-px w-10 h-10 rounded-md overflow-hidden border border-border">
+      {cells.flat().map((on, i) => (
+        <div
+          key={i}
+          className={cn(
+            'w-full h-full',
+            on ? 'bg-primary' : 'bg-muted/50'
+          )}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function GamePage() {
   const [playerCartelas, setPlayerCartelas] = useState<any[]>([]);
@@ -168,11 +202,21 @@ export default function GamePage() {
         </motion.div>
       )}
 
+      {/* Pattern indicator */}
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex-shrink-0">
+          <PatternGrid pattern={gamePattern} />
+        </div>
+        <div>
+          <div className="text-sm font-display font-bold text-foreground">{gamePattern}</div>
+          <div className="text-xs text-muted-foreground">
+            Drawn: {drawnNumbers.length}/75
+          </div>
+        </div>
+      </div>
+
       {/* Full 1-75 number board */}
       <div className="mb-4">
-        <div className="text-xs text-muted-foreground mb-2">
-          Drawn: {drawnNumbers.length}/75 · Pattern: {gamePattern}
-        </div>
         <div className="rounded-xl border border-border overflow-hidden bg-card">
           {['B', 'I', 'N', 'G', 'O'].map((letter, rowIdx) => (
             <div key={letter} className="flex items-center border-b border-border last:border-b-0">
