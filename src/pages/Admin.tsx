@@ -216,20 +216,6 @@ export default function Admin() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  const drawNumberInternal = async () => {
-    const current = drawnRef.current;
-    if (current.length >= 75) {
-      setAutoDraw(false);
-      toast.error('All 75 numbers drawn!');
-      return;
-    }
-    let num: number;
-    do { num = Math.floor(Math.random() * 75) + 1; } while (current.includes(num));
-
-    const { error } = await supabase.from('game_numbers').insert({ number: num, game_id: 'current' });
-    if (error) { toast.error('Failed to draw'); return; }
-    setDrawnNumbers((prev) => [...prev, num]);
-  };
 
   const startNewGame = async () => {
     setAutoDraw(false);
