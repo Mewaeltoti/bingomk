@@ -94,6 +94,19 @@ export default function CartelaSelection() {
     if (!user?.id) { toast.error('Login required!'); return; }
     if (selected.size === 0) { toast.error('Select at least one cartela!'); return; }
 
+    // Check if admin
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle();
+
+    if (roleData) {
+      toast.error('Admins cannot purchase cartelas!');
+      return;
+    }
+
     const { data: profile } = await supabase.from('profiles').select('balance').eq('id', user.id).single();
     const balance = (profile as any)?.balance || 0;
     const cost = selected.size * 20;
