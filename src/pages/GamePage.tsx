@@ -506,6 +506,7 @@ export default function GamePage() {
               </button>
             </div>
           )}
+          </div>{/* end felt inner */}
         </div>
       )}
     </PageShell>
