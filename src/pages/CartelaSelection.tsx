@@ -240,73 +240,65 @@ export default function CartelaSelection() {
       )}
 
       {/* Confirmation dialog */}
-      <AnimatePresence>
-        {showConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
-            onClick={() => !buying && setShowConfirm(false)}
+      {showConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+          onClick={() => !buying && setShowConfirm(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-card border-2 border-border rounded-2xl p-6 mx-4 max-w-sm w-full shadow-lg"
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-card border-2 border-border rounded-2xl p-6 mx-4 max-w-sm w-full shadow-lg"
-            >
-              <h3 className="text-lg font-display font-bold text-foreground text-center mb-1">
-                Confirm Purchase
-              </h3>
-              <p className="text-sm text-muted-foreground text-center mb-4">
-                Are you sure you want to buy {selected.size} cartela{selected.size > 1 ? 's' : ''}?
-              </p>
+            <h3 className="text-lg font-display font-bold text-foreground text-center mb-1">
+              Confirm Purchase
+            </h3>
+            <p className="text-sm text-muted-foreground text-center mb-4">
+              Are you sure you want to buy {selected.size} cartela{selected.size > 1 ? 's' : ''}?
+            </p>
 
-              <div className="bg-muted/50 rounded-xl p-3 mb-4 space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Cartelas</span>
-                  <span className="text-foreground font-medium">{selected.size}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Price each</span>
-                  <span className="text-foreground font-medium">{cartelaPrice} ETB</span>
-                </div>
-                <div className="border-t border-border my-1" />
-                <div className="flex justify-between text-sm font-bold">
-                  <span className="text-foreground">Total</span>
-                  <span className="text-primary">{cost} ETB</span>
-                </div>
+            <div className="bg-muted/50 rounded-xl p-3 mb-4 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Cartelas</span>
+                <span className="text-foreground font-medium">{selected.size}</span>
               </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Price each</span>
+                <span className="text-foreground font-medium">{cartelaPrice} ETB</span>
+              </div>
+              <div className="border-t border-border my-1" />
+              <div className="flex justify-between text-sm font-bold">
+                <span className="text-foreground">Total</span>
+                <span className="text-primary">{cost} ETB</span>
+              </div>
+            </div>
 
-              <div className="flex flex-wrap gap-1 mb-4 max-h-20 overflow-y-auto">
-                {Array.from(selected).map(id => (
-                  <span key={id} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                    #{id}
-                  </span>
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-1 mb-4 max-h-20 overflow-y-auto">
+              {Array.from(selected).map(id => (
+                <span key={id} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                  #{id}
+                </span>
+              ))}
+            </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowConfirm(false)}
-                  disabled={buying}
-                  className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-medium text-sm disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleBuy}
-                  disabled={buying}
-                  className="flex-1 py-3 rounded-xl gradient-gold text-primary-foreground font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
-                >
-                  {buying ? 'Buying...' : 'Confirm'}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowConfirm(false)}
+                disabled={buying}
+                className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-medium text-sm disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBuy}
+                disabled={buying}
+                className="flex-1 py-3 rounded-xl gradient-gold text-primary-foreground font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
+              >
+                {buying ? 'Buying...' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageShell>
   );
 }
