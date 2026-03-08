@@ -177,7 +177,9 @@ export default function Admin() {
       const remainingPending = claims.filter((c: any) => c.is_valid === null && c.id !== claim.id);
       if (remainingPending.length === 0) {
         toast('▶️ No more pending claims — resuming draw');
+        await supabase.from('games').update({ auto_draw: true } as any).eq('id', 'current');
         setAutoDraw(true);
+        invokeAutoDraw();
       }
     }
 
