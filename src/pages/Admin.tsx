@@ -455,11 +455,13 @@ export default function Admin() {
 
   return (
     <PageShell title="Admin Panel">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary/10 text-xs">
-          <Users className="w-3.5 h-3.5 text-secondary" />
-          <span className="font-bold text-secondary">{onlinePlayers.length}</span>
-          <span className="text-muted-foreground">players online</span>
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <h1 className="font-display text-xl font-bold">
+            <span className="text-secondary">Bingo</span>{' '}
+            <span className="text-primary">Ethio</span>
+          </h1>
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground bg-muted px-2 py-0.5 rounded">Admin</span>
         </div>
         <button
           onClick={handleLogout}
@@ -468,6 +470,11 @@ export default function Admin() {
           <LogOut className="w-3.5 h-3.5" />
           Logout
         </button>
+      </div>
+      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary/10 text-xs w-fit mb-4">
+        <Users className="w-3.5 h-3.5 text-secondary" />
+        <span className="font-bold text-secondary">{onlinePlayers.length}</span>
+        <span className="text-muted-foreground">players online</span>
       </div>
 
       <div className="flex gap-2 mb-6">
