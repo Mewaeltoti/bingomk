@@ -55,7 +55,7 @@ export default function Index() {
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4 }}>
           <Link
             to="/cartelas"
-            className="flex items-center justify-center gap-2 w-full py-4 rounded-xl font-display font-bold text-lg gradient-gold text-primary-foreground transition-transform active:scale-95"
+            className="flex items-center justify-center gap-2 w-full py-4 rounded-xl font-display font-bold text-lg bg-primary text-primary-foreground transition-transform active:scale-95"
           >
             Join Game <ArrowRight className="w-5 h-5" />
           </Link>
