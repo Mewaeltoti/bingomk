@@ -6,6 +6,7 @@ import { Users, CreditCard, Gamepad2, Check, X, AlertTriangle, Plus, Minus, Paus
 import { PATTERNS, PatternName } from '@/lib/bingo';
 import { getBingoLetter } from '@/lib/bingoEngine';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeWithRetry } from '@/lib/edgeFn';
 import { useGamePresence } from '@/hooks/useGamePresence';
 import { useUser } from '@/lib/auth';
 import { toast } from 'sonner';
