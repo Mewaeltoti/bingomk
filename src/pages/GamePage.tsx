@@ -397,8 +397,8 @@ export default function GamePage() {
               <span>Drawn Numbers ({drawnNumbers.length}/75)</span>
               {boardOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
-            {boardOpen && (
-              <div className="p-1">
+            {boardOpen ? (
+              <div className="p-1.5">
                 {['B', 'I', 'N', 'G', 'O'].map((letter, rowIdx) => {
                   const rowColors = [
                     { bg: 'bg-blue-500', border: 'border-blue-400', text: 'text-blue-600' },
@@ -408,11 +408,11 @@ export default function GamePage() {
                     { bg: 'bg-purple-600', border: 'border-purple-400', text: 'text-purple-600' },
                   ][rowIdx];
                   return (
-                    <div key={letter} className="flex items-center gap-[1px] mb-[2px] last:mb-0">
-                      <div className={cn('w-4 flex-shrink-0 text-center font-display font-bold text-[9px]', rowColors.text)}>
+                    <div key={letter} className="flex items-center gap-[2px] mb-[3px] last:mb-0">
+                      <div className={cn('w-5 flex-shrink-0 text-center font-display font-bold text-[10px]', rowColors.text)}>
                         {letter}
                       </div>
-                      <div className="flex flex-1 gap-[1px] justify-between">
+                      <div className="flex flex-1 gap-[2px] justify-between">
                         {Array.from({ length: 15 }, (_, i) => {
                           const num = rowIdx * 15 + i + 1;
                           const isDrawn = drawnSet.has(num);
@@ -420,7 +420,7 @@ export default function GamePage() {
                             <div
                               key={num}
                               className={cn(
-                                'w-[18px] h-[18px] flex items-center justify-center text-[6.5px] font-bold rounded-full border',
+                                'w-[20px] h-[20px] flex items-center justify-center text-[7px] font-bold rounded-full border',
                                 isDrawn
                                   ? `${rowColors.bg} text-white ${rowColors.border}`
                                   : `bg-transparent text-muted-foreground/60 ${rowColors.border}/40`
@@ -434,6 +434,26 @@ export default function GamePage() {
                     </div>
                   );
                 })}
+              </div>
+            ) : (
+              /* Folded: show drawn numbers as colored marbles */
+              <div className="flex flex-wrap gap-1 p-2 max-h-24 overflow-y-auto">
+                {drawnNumbers.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">No numbers drawn yet</span>
+                ) : (
+                  drawnNumbers.map((num) => {
+                    const rowIdx = Math.floor((num - 1) / 15);
+                    const marbleColor = ['bg-blue-500', 'bg-red-500', 'bg-green-600', 'bg-orange-500', 'bg-purple-600'][rowIdx];
+                    return (
+                      <div
+                        key={num}
+                        className={cn('w-6 h-6 flex items-center justify-center text-[8px] font-bold rounded-full text-white', marbleColor)}
+                      >
+                        {num}
+                      </div>
+                    );
+                  })
+                )}
               </div>
             )}
           </div>
