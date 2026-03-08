@@ -11,8 +11,8 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactConfetti from 'react-confetti';
 import { cn } from '@/lib/utils';
-import { playDrawSound, playWinSound } from '@/lib/sounds';
-import { Plus, Users, Eye, Hand } from 'lucide-react';
+import { playDrawSound, playWinSound, playMarkSound } from '@/lib/sounds';
+import { Users, Eye, Hand, ShoppingCart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const PATTERN_CELLS: Record<string, boolean[][]> = {
@@ -26,7 +26,7 @@ const PATTERN_CELLS: Record<string, boolean[][]> = {
 function PatternGrid({ pattern }: { pattern: string }) {
   const cells = PATTERN_CELLS[pattern] || PATTERN_CELLS['Full House'];
   return (
-    <div className="grid grid-cols-5 gap-px w-10 h-10 rounded-md overflow-hidden border border-border">
+    <div className="grid grid-cols-5 gap-px w-8 h-8 rounded overflow-hidden border border-border">
       {cells.flat().map((on, i) => (
         <div key={i} className={cn('w-full h-full', on ? 'bg-primary' : 'bg-muted/50')} />
       ))}
@@ -45,7 +45,6 @@ export default function GamePage() {
   const [gamePattern, setGamePattern] = useState<string>('Full House');
   const [gameResult, setGameResult] = useState<GameResult | null>(null);
   const [showResult, setShowResult] = useState(false);
-  // Per-cartela marked cells: cartelaId -> Set<"row-col">
   const [markedMap, setMarkedMap] = useState<Map<number, Set<string>>>(new Map());
   const [claimedCartelas, setClaimedCartelas] = useState<Set<number>>(new Set());
   const [gameStatus, setGameStatus] = useState<string>('waiting');
@@ -72,9 +71,7 @@ export default function GamePage() {
     const ch = supabase
       .channel('balance-updates')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
-        (payload: any) => {
-          setBalance(payload.new.balance || 0);
-        }
+        (payload: any) => setBalance(payload.new.balance || 0)
       )
       .subscribe();
     return () => { supabase.removeChannel(ch); };
@@ -86,8 +83,7 @@ export default function GamePage() {
     supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true).order('id', { ascending: true })
       .then(({ data }) => {
         setPlayerCartelas(data || []);
-        if (!data || data.length === 0) setIsSpectator(true);
-        else setIsSpectator(false);
+        setIsSpectator(!data || data.length === 0);
       });
   }, [user?.id]);
 
@@ -164,7 +160,7 @@ export default function GamePage() {
                 return prev - 1;
               });
             }, 1000);
-            toast('🛒 New game! Buy your cartelas — 2 minutes!', { icon: '🔔' });
+            toast('🛒 New game starting! Buy cartelas now!');
           }
           if (game.status === 'active') {
             setBuyingCountdown(0);
@@ -176,7 +172,7 @@ export default function GamePage() {
                   setIsSpectator(!data || data.length === 0);
                 });
             }
-            toast('🎲 Game started! Good luck!', { icon: '🔔' });
+            toast('🎲 Game started! Good luck!');
           }
           if (game.status === 'waiting') {
             setDrawnNumbers([]);
@@ -202,7 +198,7 @@ export default function GamePage() {
           if (claim.user_id !== user?.id) return;
           const cid = claim.cartela_id;
           if (claim.is_valid === false) {
-            toast.warning(`Claim on #${cid} was invalid. Try again!`);
+            toast.warning(`Claim on #${cid} invalid. Try again!`);
             setClaimedCartelas(prev => {
               const next = new Set(prev);
               next.delete(cid);
@@ -218,8 +214,9 @@ export default function GamePage() {
 
   const lastNumber = drawnNumbers[drawnNumbers.length - 1];
 
-  // Per-cartela cell marking
+  // Per-cartela cell marking with animation feedback
   const handleMarkCell = useCallback((cartelaId: number, row: number, col: number) => {
+    playMarkSound();
     setMarkedMap(prev => {
       const next = new Map(prev);
       const cells = new Set(next.get(cartelaId) || []);
@@ -234,7 +231,7 @@ export default function GamePage() {
     });
   }, []);
 
-  // Convert marked cells (row-col) to a Set of numbers for win checking
+  // Convert marked cells to numbers for win checking
   const getMarkedNumbersForCartela = useCallback((cartela: any): Set<number> => {
     const cells = markedMap.get(cartela.id) || new Set<string>();
     const nums = new Set<number>();
@@ -247,40 +244,32 @@ export default function GamePage() {
     return nums;
   }, [markedMap]);
 
-  // Per-cartela BINGO claim with local validation first
+  // BINGO claim with local validation
   const handleClaimBingo = async (cartelaId: number, cartela: any) => {
-    if (!user?.id || isSpectator) return;
-    if (claimedCartelas.has(cartelaId)) return;
+    if (!user?.id || isSpectator || claimedCartelas.has(cartelaId)) return;
 
-    // Local validation: check marked numbers match drawn and pattern
     const markedNums = getMarkedNumbersForCartela(cartela);
     const numbers = cartela.numbers as number[][];
 
-    // Verify all marked numbers are actually drawn
+    // Verify marked numbers are drawn
     for (const num of markedNums) {
       if (!drawnSet.has(num)) {
-        toast.error('Invalid claim — you marked a number that hasn\'t been drawn!');
+        toast.error('You marked a number that hasn\'t been drawn!');
         return;
       }
     }
 
     // Check pattern locally
-    const localValid = checkWin(numbers, markedNums, gamePattern as PatternName);
-    if (!localValid) {
-      toast.error('Invalid claim — your marked numbers don\'t match the pattern. Check again!');
+    if (!checkWin(numbers, markedNums, gamePattern as PatternName)) {
+      toast.error('Your marks don\'t match the pattern!');
       return;
     }
 
-    // Passed local check — submit to server
     setClaimedCartelas(prev => new Set(prev).add(cartelaId));
 
     const { error } = await supabase
       .from('bingo_claims')
-      .insert({
-        game_id: 'current',
-        user_id: user.id,
-        cartela_id: cartelaId,
-      } as any);
+      .insert({ game_id: 'current', user_id: user.id, cartela_id: cartelaId } as any);
 
     if (error) {
       toast.error('Failed to claim');
@@ -292,150 +281,122 @@ export default function GamePage() {
       return;
     }
 
-    toast.success(`🎯 BINGO claimed on #${cartelaId}! Verifying...`);
+    toast.success(`🎯 BINGO claimed! Waiting for verification...`);
   };
 
-  // All player cartelas are active (no removal)
-  const activeCartelas = playerCartelas;
+  const isGameActive = gameStatus === 'active';
+  const showBuyPrompt = gameStatus === 'buying' || gameStatus === 'waiting' || gameStatus === 'stopped' || gameStatus === 'won';
 
   return (
-    <PageShell title="Live Game">
-      {/* Result overlay */}
+    <PageShell title="Bingo">
+      {/* Winner overlay - simple confetti + message */}
       <AnimatePresence>
         {showResult && gameResult && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-sm"
             onClick={() => setShowResult(false)}
           >
-            {gameResult.type !== 'disqualified' && <ReactConfetti recycle={false} numberOfPieces={300} />}
+            {gameResult.type !== 'disqualified' && <ReactConfetti recycle={false} numberOfPieces={200} />}
             <motion.div
-              initial={{ scale: 0.5, opacity: 0 }}
+              initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="text-center p-8 rounded-2xl bg-card border-2 border-primary glow-gold max-w-sm mx-4"
+              className="text-center p-6 rounded-2xl bg-card border-2 border-primary max-w-xs mx-4"
             >
-              <div className="text-6xl mb-4">
-                {gameResult.type === 'winner' ? '🏆' : '🔄'}
-              </div>
-              <h2 className="text-3xl font-display font-bold text-primary mb-2">
+              <div className="text-5xl mb-3">{gameResult.type === 'winner' ? '🏆' : '🔄'}</div>
+              <h2 className="text-2xl font-display font-bold text-primary mb-1">
                 {gameResult.type === 'disqualified' ? 'RESTART' : 'BINGO!'}
               </h2>
-              <p className="text-lg text-muted-foreground">{gameResult.message}</p>
-              <button
-                onClick={() => setShowResult(false)}
-                className="mt-4 px-6 py-2 rounded-xl bg-muted text-muted-foreground text-sm"
-              >
-                Close
-              </button>
+              <p className="text-muted-foreground">{gameResult.message}</p>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Buying period countdown */}
-      {gameStatus === 'buying' && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-3 p-4 rounded-xl border-2 border-primary/30 bg-primary/5 text-center"
-        >
-          <div className="text-2xl mb-1">🛒</div>
-          <p className="text-sm font-display font-bold text-foreground mb-1">Buy Your Cartelas!</p>
-          <div className="text-3xl font-display font-bold text-primary my-2">
-            {Math.floor(buyingCountdown / 60)}:{String(buyingCountdown % 60).padStart(2, '0')}
-          </div>
-          <p className="text-xs text-muted-foreground mb-2">Game starts when timer ends</p>
-          <button
-            onClick={() => navigate('/cartelas')}
-            className="px-4 py-2 rounded-xl gradient-gold text-primary-foreground text-sm font-bold active:scale-95 transition-transform"
-          >
-            Buy Cartelas
-          </button>
-        </motion.div>
-      )}
-
-      {/* Waiting banner */}
-      {(gameStatus === 'waiting' || gameStatus === 'stopped' || gameStatus === 'won') && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-3 p-4 rounded-xl border-2 border-primary/30 bg-primary/5 text-center"
-        >
-          <div className="text-2xl mb-1">🎲</div>
-          <p className="text-sm font-display font-bold text-foreground mb-1">
-            {gameStatus === 'won' ? 'Round Over!' : 'Waiting for Next Game'}
-          </p>
-          <p className="text-xs text-muted-foreground mb-2">
-            {gameStatus === 'won'
-              ? 'A new game will start soon. Buy cartelas to play!'
-              : 'The admin will start a new game soon. Get your cartelas ready!'}
-          </p>
-          <button
-            onClick={() => navigate('/cartelas')}
-            className="px-4 py-2 rounded-xl gradient-gold text-primary-foreground text-sm font-bold active:scale-95 transition-transform"
-          >
-            Buy Cartelas
-          </button>
-        </motion.div>
-      )}
-
-      {/* Top bar */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-muted text-xs text-muted-foreground">
+      {/* Compact header: players + balance */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2 text-xs">
+          <span className="flex items-center gap-1 text-muted-foreground">
             <Users className="w-3.5 h-3.5" />
-            <span className="font-bold text-foreground">{players.length}</span> online
-          </div>
+            <span className="font-bold text-foreground">{players.length}</span>
+          </span>
           {isSpectator && (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent/10 text-xs text-accent">
-              <Eye className="w-3.5 h-3.5" />
-              Spectating
-            </div>
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-muted text-muted-foreground">
+              <Eye className="w-3 h-3" /> Spectating
+            </span>
           )}
         </div>
         <div className="text-sm font-display font-bold text-primary">{balance} ETB</div>
       </div>
 
-      {/* Last drawn number */}
-      {lastNumber && gameStatus === 'active' && (
+      {/* Buy/Waiting state */}
+      {showBuyPrompt && !isGameActive && (
         <motion.div
-          key={lastNumber}
-          initial={{ scale: 0, rotate: -180 }}
-          animate={{ scale: 1, rotate: 0 }}
-          className="flex flex-col items-center mb-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mb-3 p-4 rounded-xl bg-card border border-border text-center"
         >
-          <div className="text-xs text-muted-foreground mb-1">Last Number</div>
-          <div className="w-20 h-20 rounded-full gradient-gold flex items-center justify-center text-primary-foreground font-display font-bold text-3xl glow-gold shadow-lg">
-            {lastNumber}
-          </div>
-          <div className="text-base font-display font-bold text-primary mt-1">
-            {getBingoLetter(lastNumber)}-{lastNumber}
-          </div>
+          {gameStatus === 'buying' ? (
+            <>
+              <div className="text-3xl font-display font-bold text-primary mb-1">
+                {Math.floor(buyingCountdown / 60)}:{String(buyingCountdown % 60).padStart(2, '0')}
+              </div>
+              <p className="text-sm text-muted-foreground mb-3">Buy cartelas before game starts!</p>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground mb-3">
+              {gameStatus === 'won' ? 'Round over! New game soon.' : 'Waiting for next game...'}
+            </p>
+          )}
+          <button
+            onClick={() => navigate('/cartelas')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl gradient-gold text-primary-foreground text-sm font-bold active:scale-95 transition-transform"
+          >
+            <ShoppingCart className="w-4 h-4" />
+            Buy Cartelas
+          </button>
         </motion.div>
       )}
 
-      {/* Pattern info */}
-      {gameStatus === 'active' && (
-        <div className="mb-3 flex items-center justify-between">
+      {/* ACTIVE GAME - Single view layout */}
+      {isGameActive && (
+        <div className="space-y-3">
+          {/* Row 1: Last number + Pattern */}
           <div className="flex items-center gap-3">
-            <PatternGrid pattern={gamePattern} />
-            <div>
-              <div className="text-sm font-display font-bold text-foreground">{gamePattern}</div>
-              <div className="text-xs text-muted-foreground">Drawn: {drawnNumbers.length}/75</div>
+            {/* Last drawn number - prominent */}
+            {lastNumber ? (
+              <motion.div
+                key={lastNumber}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="w-16 h-16 rounded-full gradient-gold flex flex-col items-center justify-center text-primary-foreground shadow-lg flex-shrink-0"
+              >
+                <span className="text-[10px] font-medium opacity-80">{getBingoLetter(lastNumber)}</span>
+                <span className="text-2xl font-display font-bold -mt-1">{lastNumber}</span>
+              </motion.div>
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-xs flex-shrink-0">
+                --
+              </div>
+            )}
+
+            {/* Pattern + drawn count */}
+            <div className="flex-1 flex items-center gap-2">
+              <PatternGrid pattern={gamePattern} />
+              <div>
+                <div className="text-sm font-display font-bold text-foreground">{gamePattern}</div>
+                <div className="text-xs text-muted-foreground">{drawnNumbers.length}/75 drawn</div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Full 1-75 number board */}
-      {gameStatus === 'active' && (
-        <div className="mb-3">
-          <div className="rounded-xl border border-border overflow-hidden bg-card">
+          {/* Row 2: Compact 1-75 board */}
+          <div className="rounded-lg border border-border overflow-hidden bg-card">
             {['B', 'I', 'N', 'G', 'O'].map((letter, rowIdx) => (
               <div key={letter} className="flex items-center border-b border-border last:border-b-0">
-                <div className="w-7 flex-shrink-0 text-center font-display font-bold text-primary text-xs py-1 bg-muted/50 border-r border-border">
+                <div className="w-6 flex-shrink-0 text-center font-display font-bold text-primary text-[10px] py-0.5 bg-muted/50">
                   {letter}
                 </div>
                 <div className="flex flex-1">
@@ -446,8 +407,8 @@ export default function GamePage() {
                       <div
                         key={num}
                         className={cn(
-                          'w-[calc(100%/15)] aspect-square flex items-center justify-center text-[9px] font-medium border-r border-border last:border-r-0 transition-colors',
-                          isDrawn ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+                          'flex-1 aspect-square flex items-center justify-center text-[8px] font-medium transition-colors',
+                          isDrawn ? 'bg-primary text-primary-foreground' : 'text-muted-foreground/60'
                         )}
                       >
                         {num}
@@ -458,71 +419,66 @@ export default function GamePage() {
               </div>
             ))}
           </div>
+
+          {/* Row 3: Player's cartelas - responsive grid */}
+          {playerCartelas.length > 0 ? (
+            <div className={cn(
+              'grid gap-3',
+              playerCartelas.length === 1 ? 'grid-cols-1 max-w-[200px] mx-auto' :
+              playerCartelas.length === 2 ? 'grid-cols-2' :
+              'grid-cols-2 lg:grid-cols-3'
+            )}>
+              {playerCartelas.map((c) => {
+                const cellsMarked = markedMap.get(c.id) || new Set<string>();
+                const isClaimed = claimedCartelas.has(c.id);
+                return (
+                  <motion.div
+                    key={c.id}
+                    layout
+                    className="flex flex-col gap-2"
+                  >
+                    <BingoCartela
+                      numbers={c.numbers as number[][]}
+                      drawnNumbers={drawnSet}
+                      markedCells={cellsMarked}
+                      onMarkCell={isSpectator ? undefined : (row, col) => handleMarkCell(c.id, row, col)}
+                      size="sm"
+                      label={`#${c.id}`}
+                    />
+                    {/* One-step claim button */}
+                    {!isSpectator && (
+                      <button
+                        onClick={() => handleClaimBingo(c.id, c)}
+                        disabled={isClaimed}
+                        className={cn(
+                          'w-full py-2.5 rounded-xl font-display font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all',
+                          isClaimed
+                            ? 'bg-muted text-muted-foreground'
+                            : 'gradient-gold text-primary-foreground glow-gold'
+                        )}
+                      >
+                        <Hand className="w-4 h-4" />
+                        {isClaimed ? 'Verifying...' : 'BINGO!'}
+                      </button>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-muted-foreground">
+              <Eye className="w-6 h-6 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">Spectating — no cartelas</p>
+              <button
+                onClick={() => navigate('/cartelas')}
+                className="mt-2 px-4 py-2 rounded-lg gradient-gold text-primary-foreground text-sm font-medium"
+              >
+                Buy Cartelas
+              </button>
+            </div>
+          )}
         </div>
       )}
-
-      {/* Player cartelas header */}
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-bold text-foreground">
-          {isSpectator ? 'Spectator Mode' : 'Your Cartelas'}
-        </h2>
-        {!isSpectator && (
-          <button
-            onClick={() => navigate('/cartelas')}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium active:scale-95 transition-transform"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add
-          </button>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 mb-24">
-        {activeCartelas.map((c) => {
-          const cellsMarked = markedMap.get(c.id) || new Set<string>();
-          return (
-            <div key={c.id} className="flex flex-col gap-1.5">
-              <BingoCartela
-                numbers={c.numbers as number[][]}
-                drawnNumbers={drawnSet}
-                markedCells={cellsMarked}
-                onMarkCell={isSpectator ? undefined : (row, col) => handleMarkCell(c.id, row, col)}
-                size="sm"
-                label={`#${c.id}`}
-                showLegend
-              />
-              {/* Per-cartela Claim Bingo button */}
-              {!isSpectator && gameStatus === 'active' && drawnNumbers.length > 0 && (
-                <button
-                  onClick={() => handleClaimBingo(c.id, c)}
-                  disabled={claimedCartelas.has(c.id)}
-                  className={cn(
-                    'w-full py-2 rounded-xl font-display font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform',
-                    claimedCartelas.has(c.id)
-                      ? 'bg-muted text-muted-foreground'
-                      : 'gradient-gold text-primary-foreground glow-gold'
-                  )}
-                >
-                  <Hand className="w-4 h-4" />
-                  {claimedCartelas.has(c.id) ? 'Verifying...' : 'Claim Bingo'}
-                </button>
-              )}
-            </div>
-          );
-        })}
-        {activeCartelas.length === 0 && (
-          <div className="col-span-2 text-center text-muted-foreground py-8">
-            <Eye className="w-8 h-8 mx-auto mb-2 opacity-40" />
-            <p>No cartelas — watching as spectator</p>
-            <button
-              onClick={() => navigate('/cartelas')}
-              className="mt-2 px-4 py-2 rounded-lg gradient-gold text-primary-foreground text-sm font-medium"
-            >
-              Buy Cartelas
-            </button>
-          </div>
-        )}
-      </div>
     </PageShell>
   );
 }
