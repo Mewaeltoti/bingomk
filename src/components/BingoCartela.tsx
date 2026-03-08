@@ -10,6 +10,14 @@ const HEADER_COLORS = [
   'bg-purple-600 text-white',  // O
 ];
 
+const COL_DRAWN_COLORS = [
+  'bg-blue-100 dark:bg-blue-900/30',
+  'bg-red-100 dark:bg-red-900/30',
+  'bg-green-100 dark:bg-green-900/30',
+  'bg-orange-100 dark:bg-orange-900/30',
+  'bg-purple-100 dark:bg-purple-900/30',
+];
+
 interface BingoCartelaProps {
   numbers: number[][];
   drawnNumbers?: Set<number>;
@@ -90,7 +98,7 @@ export default function BingoCartela({
           </div>
         ))}
       </div>
-      {/* Grid with round cells */}
+      {/* Grid with round cells — column colors match BINGO */}
       <div>
         {Array.from({ length: 5 }, (_, row) => (
           <div key={row} className="grid grid-cols-5 gap-0.5 mb-0.5 last:mb-0">
@@ -114,7 +122,7 @@ export default function BingoCartela({
                       : isMarked
                       ? 'bg-rose-500 text-white shadow-md'
                       : isDrawn
-                      ? 'bg-amber-100 dark:bg-muted text-foreground'
+                      ? cn(COL_DRAWN_COLORS[col], 'text-foreground')
                       : 'bg-muted/60 text-foreground'
                   )}
                 >

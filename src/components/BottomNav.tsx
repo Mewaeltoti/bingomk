@@ -1,11 +1,10 @@
-import { Gamepad2, Wallet, LogOut, Shield, Plus, UserCircle, Volume2, VolumeX } from 'lucide-react';
+import { Gamepad2, Wallet, LogOut, Shield, Plus, UserCircle } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
-import { isMuted, setMuted } from '@/lib/sounds';
 
 const hiddenRoutes = ['/login', '/signup', '/'];
 
@@ -14,7 +13,6 @@ export default function BottomNav() {
   const user = useUser();
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
-  const [muted, setLocalMuted] = useState(isMuted());
 
   useEffect(() => {
     async function checkAdmin() {
@@ -72,22 +70,13 @@ export default function BottomNav() {
           );
         })}
         {user && (
-          <>
-            <button
-              onClick={() => { const next = !muted; setMuted(next); setLocalMuted(next); }}
-              className="flex flex-col items-center gap-0.5 px-3 py-1 text-xs text-muted-foreground transition-colors"
-            >
-              {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-              <span className="font-medium">{muted ? 'Muted' : 'Sound'}</span>
-            </button>
-            <button
-              onClick={handleLogout}
-              className="flex flex-col items-center gap-0.5 px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
-            >
-              <LogOut className="w-5 h-5" />
-              <span className="font-medium">Logout</span>
-            </button>
-          </>
+          <button
+            onClick={handleLogout}
+            className="flex flex-col items-center gap-0.5 px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="font-medium">Logout</span>
+          </button>
         )}
       </div>
     </nav>
