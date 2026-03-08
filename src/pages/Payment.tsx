@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import PageShell from '@/components/PageShell';
+import PullToRefresh from '@/components/PullToRefresh';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,15 +22,19 @@ export default function Payment() {
   const [balance, setBalance] = useState(0);
   const user = useUser();
 
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     if (!user?.id) return;
-    supabase.from('profiles').select('balance').eq('id', user.id).single()
-      .then(({ data }) => { if (data) setBalance((data as any).balance || 0); });
-    supabase.from('deposits').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-      .then(({ data }) => setDeposits(data || []));
-    supabase.from('withdrawals' as any).select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-      .then(({ data }: any) => setWithdrawals(data || []));
+    const [profileRes, depositsRes, withdrawalsRes] = await Promise.all([
+      supabase.from('profiles').select('balance').eq('id', user.id).single(),
+      supabase.from('deposits').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+      (supabase.from('withdrawals' as any) as any).select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+    ]);
+    if (profileRes.data) setBalance((profileRes.data as any).balance || 0);
+    setDeposits(depositsRes.data || []);
+    setWithdrawals(withdrawalsRes.data || []);
   }, [user?.id]);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   const handleDeposit = async (e: React.FormEvent) => {
     e.preventDefault();
