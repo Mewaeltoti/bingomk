@@ -413,6 +413,24 @@ export default function Admin() {
             </div>
           </div>
 
+          {/* Prize Amount */}
+          <div>
+            <label className="text-sm text-muted-foreground mb-2 block">Prize Pot (ETB)</label>
+            <input
+              type="number"
+              min={0}
+              step={10}
+              value={prizeAmount}
+              onChange={(e) => setPrizeAmount(Number(e.target.value) || 0)}
+              disabled={autoDraw}
+              placeholder="Enter prize amount"
+              className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              1 winner = full • 2 winners = {prizeAmount ? (prizeAmount / 2).toFixed(0) : '0'} ETB each
+            </p>
+          </div>
+
           {/* Game controls */}
           <div className="grid grid-cols-2 gap-2">
             <button
