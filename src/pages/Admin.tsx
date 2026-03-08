@@ -116,6 +116,8 @@ export default function Admin() {
       // Stop drawing
       setAutoDraw(false);
 
+      const drawnNumbersList = (nums || []).map((n: any) => n.number);
+
       // Update game as won
       await supabase.from('games').update({
         status: 'won',
@@ -124,6 +126,19 @@ export default function Admin() {
 
       // Update claim as valid
       await supabase.from('bingo_claims').update({ is_valid: true }).eq('id', claim.id);
+
+      // Save to game_history with drawn numbers array
+      await supabase.from('game_history').insert({
+        game_id: 'current',
+        winner_id: claim.user_id,
+        pattern: currentPattern,
+        players_count: 0,
+        prize: 0,
+        drawn_numbers: drawnNumbersList,
+      } as any);
+
+      // Clean up game_numbers
+      await supabase.from('game_numbers').delete().eq('game_id', 'current');
 
       setGameStatus('won');
       toast.success('🏆 System verified winner!');

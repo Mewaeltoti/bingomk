@@ -1,0 +1,1 @@
+ALTER TABLE public.game_history ADD COLUMN IF NOT EXISTS drawn_numbers jsonb NOT NULL DEFAULT '[]'::jsonb;
