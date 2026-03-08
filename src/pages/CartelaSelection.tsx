@@ -32,18 +32,21 @@ export default function CartelaSelection() {
 
   useEffect(() => {
     async function fetchCartelas() {
-      const { data, error } = await supabase
-        .from('cartelas')
-        .select('*')
-        .eq('is_used', false)
-        .order('id', { ascending: true });
+      const [cartelasRes, gameRes] = await Promise.all([
+        supabase.from('cartelas').select('*').eq('is_used', false).order('id', { ascending: true }),
+        supabase.from('games').select('cartela_price').eq('id', 'current').maybeSingle(),
+      ]);
 
-      if (error) {
+      if (cartelasRes.error) {
         toast.error('Failed to fetch cartelas');
         return;
       }
 
-      const list = (data || []) as unknown as Cartela[];
+      if (gameRes.data && (gameRes.data as any).cartela_price) {
+        setCartelaPrice((gameRes.data as any).cartela_price);
+      }
+
+      const list = (cartelasRes.data || []) as unknown as Cartela[];
       setCartelas(list);
       const favs = new Set(list.filter(c => c.is_favorite).map(c => c.id));
       setFavorites(favs);
