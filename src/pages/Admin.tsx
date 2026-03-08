@@ -775,6 +775,36 @@ export default function Admin() {
                     </button>
                   </div>
                 )}
+                {/* Reset Password */}
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => {
+                      setResetPasswordPlayer(resetPasswordPlayer === p.id ? null : p.id);
+                      setNewPassword('');
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium"
+                  >
+                    <KeyRound className="w-3.5 h-3.5" /> Reset Password
+                  </button>
+                </div>
+                {resetPasswordPlayer === p.id && (
+                  <div className="flex gap-2 items-center pt-1">
+                    <input
+                      type="text"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="New password (min 6)"
+                      className="flex-1 px-3 py-2 rounded-lg bg-background text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
+                    />
+                    <button
+                      onClick={() => handleResetPassword(p.id)}
+                      disabled={actionLoading === `reset-${p.id}` || newPassword.length < 6}
+                      className="px-3 py-2 rounded-lg gradient-gold text-primary-foreground text-xs font-bold disabled:opacity-50"
+                    >
+                      {actionLoading === `reset-${p.id}` ? '⏳...' : 'Set'}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
