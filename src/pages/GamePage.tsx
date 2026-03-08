@@ -348,7 +348,7 @@ export default function GamePage() {
 
       {/* ACTIVE GAME - Single view layout */}
       {isGameActive && (
-        <div className="space-y-3">
+        <div className="space-y-3 p-3 rounded-2xl bg-card/80 backdrop-blur-sm border border-border">
           {/* Row 1: Last number + Pattern */}
           <div className="flex items-center gap-3">
             {lastNumber ? (
