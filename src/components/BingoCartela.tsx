@@ -1,7 +1,7 @@
 import { BINGO_LETTERS } from '@/lib/bingo';
 import { cn } from '@/lib/utils';
 import { Heart } from 'lucide-react';
-import { motion } from 'framer-motion';
+// lightweight: no framer-motion
 
 interface BingoCartelaProps {
   numbers: number[][];
