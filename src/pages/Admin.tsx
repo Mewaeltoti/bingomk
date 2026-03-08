@@ -530,7 +530,6 @@ export default function Admin() {
                     startDrawing();
                   }
                 }}
-                }}
                 className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold"
               >
                 {buyingCountdown > 0 ? 'Skip & Start Now' : '▶️ Start Drawing'}
