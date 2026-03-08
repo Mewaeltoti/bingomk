@@ -302,14 +302,28 @@ export default function Admin() {
       .then(({ data }) => setPlayers(data || []));
   }, [tab]);
 
-  // Auto-draw interval
+  // Auto-draw is now server-side — sync UI state from DB
   useEffect(() => {
-    if (autoDrawRef.current) clearInterval(autoDrawRef.current);
-    if (autoDraw && gameStatus === 'active') {
-      autoDrawRef.current = setInterval(() => drawNumberInternal(), drawSpeed * 1000);
-    }
-    return () => { if (autoDrawRef.current) clearInterval(autoDrawRef.current); };
-  }, [autoDraw, gameStatus, drawSpeed]);
+    // Listen for game changes to sync autoDraw state
+    const channel = supabase
+      .channel('admin-game-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: 'id=eq.current' },
+        (payload: any) => {
+          const game = payload.new;
+          setAutoDraw(game.auto_draw || false);
+          setGameStatus(game.status);
+          if (game.draw_speed) setDrawSpeed(game.draw_speed);
+          if (game.prize_amount !== undefined) setPrizeAmount(game.prize_amount);
+        }
+      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_numbers' },
+        (payload: any) => {
+          setDrawnNumbers(prev => [...prev, payload.new.number]);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const drawNumberInternal = async () => {
     const current = drawnRef.current;
