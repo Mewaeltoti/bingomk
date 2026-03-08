@@ -17,7 +17,9 @@ export default function Admin() {
   const [gameStatus, setGameStatus] = useState('waiting');
   const [autoDraw, setAutoDraw] = useState(false);
   const [drawSpeed, setDrawSpeed] = useState(10);
+  const [buyingCountdown, setBuyingCountdown] = useState(0);
   const autoDrawRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const buyingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const drawnRef = useRef<number[]>([]);
 
   const [deposits, setDeposits] = useState<any[]>([]);
