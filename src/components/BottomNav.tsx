@@ -11,7 +11,7 @@ const navItems = [
   { to: '/cartelas', icon: LayoutGrid, label: 'Cartelas' },
   { to: '/game', icon: Gamepad2, label: 'Game' },
   { to: '/dashboard', icon: Wallet, label: 'Wallet' },
-  { to: '/payment', icon: User, label: 'Deposit' },
+  { to: '/profile', icon: User, label: 'Profile' },
 ];
 
 const hiddenRoutes = ['/login', '/signup'];

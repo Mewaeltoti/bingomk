@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactConfetti from 'react-confetti';
 import { cn } from '@/lib/utils';
+import { playDrawSound, playWinSound } from '@/lib/sounds';
 
 const PATTERN_CELLS: Record<string, boolean[][]> = {
   'Full House': Array(5).fill(Array(5).fill(true)),
@@ -101,6 +102,7 @@ export default function GamePage() {
         (payload: any) => {
           const newNumber = payload.new.number;
           setDrawnNumbers((prev) => [...prev, newNumber]);
+          playDrawSound();
         }
       )
       .on(
@@ -111,6 +113,7 @@ export default function GamePage() {
           if (game.status === 'won') {
             setWinner(game.winner_id);
             setShowWinner(true);
+            playWinSound();
           }
           if (game.status === 'waiting') {
             // New game reset
