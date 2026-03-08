@@ -455,32 +455,34 @@ export default function Admin() {
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={startNewGame}
-              disabled={autoDraw || gameStatus === 'buying'}
+              disabled={autoDraw || gameStatus === 'buying' || actionLoading === 'new-game'}
               className="py-3 rounded-xl font-display font-bold bg-secondary text-secondary-foreground text-sm active:scale-95 transition-transform disabled:opacity-50"
             >
-              🎲 New Game
+              {actionLoading === 'new-game' ? '⏳ Starting...' : '🎲 New Game'}
             </button>
             {autoDraw ? (
               <button
                 onClick={pauseGame}
-                className="py-3 rounded-xl font-display font-bold bg-primary text-primary-foreground text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5"
+                disabled={actionLoading === 'pause'}
+                className="py-3 rounded-xl font-display font-bold bg-primary text-primary-foreground text-sm active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
-                <Pause className="w-4 h-4" /> Pause
+                {actionLoading === 'pause' ? '⏳...' : <><Pause className="w-4 h-4" /> Pause</>}
               </button>
             ) : gameStatus === 'active' ? (
               <button
                 onClick={resumeGame}
-                className="py-3 rounded-xl font-display font-bold bg-primary text-primary-foreground text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5"
+                disabled={actionLoading === 'resume'}
+                className="py-3 rounded-xl font-display font-bold bg-primary text-primary-foreground text-sm active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
-                <Play className="w-4 h-4" /> Resume
+                {actionLoading === 'resume' ? '⏳...' : <><Play className="w-4 h-4" /> Resume</>}
               </button>
             ) : (
               <button
                 onClick={stopGame}
-                disabled={gameStatus !== 'active'}
+                disabled={gameStatus !== 'active' || actionLoading === 'stop'}
                 className="py-3 rounded-xl font-display font-bold bg-destructive text-destructive-foreground text-sm active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
-                <Square className="w-4 h-4" /> Stop
+                {actionLoading === 'stop' ? '⏳...' : <><Square className="w-4 h-4" /> Stop</>}
               </button>
             )}
           </div>
