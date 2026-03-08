@@ -1,1 +1,16 @@
 project_id = "yssuyekraqeadqqbwawx"
+
+[functions.auto-draw]
+verify_jwt = false
+
+[functions.verify-claim]
+verify_jwt = false
+
+[functions.approve-transaction]
+verify_jwt = false
+
+[functions.game-lifecycle]
+verify_jwt = false
+
+[functions.purchase-cartela]
+verify_jwt = false
