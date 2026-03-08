@@ -31,7 +31,7 @@ function AppContent() {
         <Route path="/cartelas" element={<RequireAuth><CartelaSelection /></RequireAuth>} />
         <Route path="/game" element={<RequireAuth><GamePage /></RequireAuth>} />
         <Route path="/payment" element={<RequireAuth><Payment /></RequireAuth>} />
-        <Route path="/leaderboard" element={<RequireAuth><Leaderboard /></RequireAuth>} />
+        
         <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
         <Route path="*" element={<NotFound />} />
       </Routes>

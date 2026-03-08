@@ -82,8 +82,8 @@ export default {
           to: { height: "0" },
         },
         "pulse-gold": {
-          "0%, 100%": { boxShadow: "0 0 10px hsl(45 100% 51% / 0.2)" },
-          "50%": { boxShadow: "0 0 25px hsl(45 100% 51% / 0.4)" },
+          "0%, 100%": { boxShadow: "0 0 10px hsl(187 72% 46% / 0.2)" },
+          "50%": { boxShadow: "0 0 25px hsl(187 72% 46% / 0.4)" },
         },
         "number-pop": {
           "0%": { transform: "scale(0)", opacity: "0" },

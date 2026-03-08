@@ -44,7 +44,7 @@ export default function BottomNav() {
   const playerItems = [
     { to: '/game', icon: Gamepad2, label: 'Game' },
     { to: '/cartelas', icon: Plus, label: 'Cartelas' },
-    { to: '/leaderboard', icon: Trophy, label: 'Rank' },
+    
     { to: '/payment', icon: Wallet, label: 'Wallet' },
   ];
 
