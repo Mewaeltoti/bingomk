@@ -79,6 +79,7 @@ export default function Payment() {
 
   return (
     <PageShell title="Wallet">
+      <PullToRefresh onRefresh={loadData}>
       {/* Balance */}
       <div className="text-center mb-4 p-4 rounded-2xl gradient-card glow-gold">
         <div className="text-xs text-muted-foreground uppercase tracking-wider">Your Balance</div>
