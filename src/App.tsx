@@ -37,6 +37,7 @@ function AppContent() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       <BottomNav />
+      <InstallPrompt />
     </>
   );
 }
