@@ -22,7 +22,7 @@ export default function Admin() {
   const [houseCutPercent, setHouseCutPercent] = useState(10);
   const [boughtCount, setBoughtCount] = useState(0);
   const [buyingCountdown, setBuyingCountdown] = useState(0);
-  const autoDrawRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  
   const buyingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const drawnRef = useRef<number[]>([]);
   const drawingStartedRef = useRef(false);
