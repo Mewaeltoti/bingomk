@@ -142,11 +142,13 @@ export default function Admin() {
 
   // Verify all pending claims — via edge function
   const verifyAllPendingClaims = async () => {
-    const { data, error } = await supabase.functions.invoke('verify-claim', {
+    setActionLoading('verify-all');
+    const { data, error } = await invokeWithRetry('verify-claim', {
       body: { action: 'verify_all' },
     });
+    setActionLoading(null);
 
-    if (error) { toast.error('Verification failed'); return; }
+    if (error) { toast.error(`Verification failed: ${error}`); return; }
 
     if (data?.result === 'no_pending') {
       toast('No pending claims');
