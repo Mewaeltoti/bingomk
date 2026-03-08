@@ -722,6 +722,22 @@ export default function Admin() {
           toast.success(`Balance → ${newBalance} ETB`);
         };
 
+        const handleResetPassword = async (playerId: string) => {
+          if (!newPassword || newPassword.length < 6) {
+            toast.error('Password must be at least 6 characters');
+            return;
+          }
+          setActionLoading(`reset-${playerId}`);
+          const { data, error } = await invokeWithRetry('admin-reset-password', {
+            body: { target_user_id: playerId, new_password: newPassword },
+          });
+          setActionLoading(null);
+          if (error) { toast.error(`Reset failed: ${error}`); return; }
+          setResetPasswordPlayer(null);
+          setNewPassword('');
+          toast.success('✅ Password reset successfully!');
+        };
+
         return (
           <div className="space-y-2">
             {players.length === 0 && <p className="text-center text-muted-foreground py-8">No players yet</p>}
