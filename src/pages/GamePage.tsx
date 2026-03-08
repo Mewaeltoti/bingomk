@@ -362,15 +362,13 @@ export default function GamePage() {
           <div className="flex items-center gap-3">
             {/* Last drawn number - prominent */}
             {lastNumber ? (
-              <motion.div
+              <div
                 key={lastNumber}
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
                 className="w-16 h-16 rounded-full gradient-gold flex flex-col items-center justify-center text-primary-foreground shadow-lg flex-shrink-0"
               >
                 <span className="text-[10px] font-medium opacity-80">{getBingoLetter(lastNumber)}</span>
                 <span className="text-2xl font-display font-bold -mt-1">{lastNumber}</span>
-              </motion.div>
+              </div>
             ) : (
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-xs flex-shrink-0">
                 --
