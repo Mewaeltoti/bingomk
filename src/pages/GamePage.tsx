@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import PullToRefresh from '@/components/PullToRefresh';
 import PageShell from '@/components/PageShell';
 import BingoCartela from '@/components/BingoCartela';
 import { supabase } from '@/integrations/supabase/client';
