@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import ThemeToggle from './ThemeToggle';
 
-export default function PageShell({ children, title, whiteBg }: { children: ReactNode; title?: string; whiteBg?: boolean }) {
+export default function PageShell({ children, title, whiteBg, noPadding }: { children: ReactNode; title?: string; whiteBg?: boolean; noPadding?: boolean }) {
   return (
     <div className={`min-h-screen pb-20 ${whiteBg ? 'bg-white dark:bg-background' : ''}`}>
       {title && (
@@ -10,7 +10,7 @@ export default function PageShell({ children, title, whiteBg }: { children: Reac
           <ThemeToggle />
         </header>
       )}
-      <main className="px-4 py-4">{children}</main>
+      <main className={noPadding ? '' : 'px-4 py-4'}>{children}</main>
     </div>
   );
 }
