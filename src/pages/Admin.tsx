@@ -301,20 +301,46 @@ export default function Admin() {
         </div>
       )}
 
-      {tab === 'players' && (
-        <div className="space-y-2">
-          {players.length === 0 && <p className="text-center text-muted-foreground py-8">No players yet</p>}
-          {players.map((p) => (
-            <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
-              <div>
-                <div className="text-sm font-medium text-foreground">{p.display_name || p.phone || 'Unknown'}</div>
-                <div className="text-xs text-muted-foreground">{p.phone}</div>
-              </div>
-              <div className="text-sm font-display font-bold text-primary">{p.balance || 0} ETB</div>
+      {tab === 'players' && (() => {
+        const activePlayers = players.filter((p) => (p.balance || 0) > 0 || p.display_name);
+        const inactivePlayers = players.filter((p) => (p.balance || 0) === 0 && !p.display_name);
+
+        const PlayerCard = ({ p }: { p: any }) => (
+          <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
+            <div>
+              <div className="text-sm font-medium text-foreground">{p.display_name || p.phone || 'Unknown'}</div>
+              <div className="text-xs text-muted-foreground">{p.phone}</div>
             </div>
-          ))}
-        </div>
-      )}
+            <div className="text-sm font-display font-bold text-primary">{p.balance || 0} ETB</div>
+          </div>
+        );
+
+        return (
+          <div className="space-y-4">
+            {players.length === 0 && <p className="text-center text-muted-foreground py-8">No players yet</p>}
+
+            {activePlayers.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-secondary" />
+                  <span className="text-sm font-semibold text-foreground">Active ({activePlayers.length})</span>
+                </div>
+                {activePlayers.map((p) => <PlayerCard key={p.id} p={p} />)}
+              </div>
+            )}
+
+            {inactivePlayers.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-muted-foreground" />
+                  <span className="text-sm font-semibold text-foreground">Inactive ({inactivePlayers.length})</span>
+                </div>
+                {inactivePlayers.map((p) => <PlayerCard key={p.id} p={p} />)}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </PageShell>
   );
 }

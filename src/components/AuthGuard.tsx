@@ -1,23 +1,39 @@
-import { useUser } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
 import { ReactNode, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Loader2 } from 'lucide-react';
+
+function AuthLoading() {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <span className="text-sm text-muted-foreground">Loading...</span>
+      </div>
+    </div>
+  );
+}
 
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const user = useUser();
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(undefined); // undefined = loading
 
   useEffect(() => {
-    supabase.auth.getSession().then(() => setLoading(false));
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => setUser(session?.user ?? null)
+    );
+    return () => subscription.unsubscribe();
   }, []);
 
-  if (loading) return null;
+  if (user === undefined) return <AuthLoading />;
   if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 
 export function RequireAdmin({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<any>(undefined);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -45,7 +61,7 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
     init();
   }, []);
 
-  if (loading) return null;
+  if (loading || user === undefined) return <AuthLoading />;
   if (!user) return <Navigate to="/login" replace />;
   if (!isAdmin) return <Navigate to="/" replace />;
   return <>{children}</>;
