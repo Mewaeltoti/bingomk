@@ -89,75 +89,56 @@ export default function Admin() {
   // Manual verification by admin
   const verifyClaimManually = async (claim: any, isValid: boolean) => {
     const cartelaId = claim.cartela_id;
-    const strikeCount = claim.strike_count || 1;
 
     if (isValid) {
-      // Check for other simultaneous valid claims
-      const pendingClaims = claims.filter((c: any) => c.is_valid === null && c.id !== claim.id);
-      
-      // Mark this claim as valid
       await supabase.from('bingo_claims').update({ is_valid: true } as any).eq('id', claim.id);
       
-      // If admin verifies multiple winners at same time (within the same batch)
-      const validClaims = [claim]; // Start with current
-      
-      // Check if we have other verified winners in current round
+      // Count unique players with valid claims (including this one)
       const alreadyValidClaims = claims.filter((c: any) => c.is_valid === true);
-      const totalWinners = validClaims.length + alreadyValidClaims.length;
+      const allValidUserIds = new Set([claim.user_id, ...alreadyValidClaims.map((c: any) => c.user_id)]);
+      const uniqueWinnerCount = allValidUserIds.size;
 
-      if (totalWinners >= 3 || (pendingClaims.length >= 2 && totalWinners >= 1)) {
-        // 3+ simultaneous claims — disqualify round
+      if (uniqueWinnerCount >= 3) {
+        // 3+ different players — disqualify round
         await supabase.from('games').update({ status: 'disqualified', winner_id: null } as any).eq('id', 'current');
         await supabase.from('game_numbers').delete().eq('game_id', 'current');
         await supabase.from('bingo_claims').delete().eq('game_id', 'current');
         setGameStatus('disqualified');
         setDrawnNumbers([]);
         setClaims([]);
-        toast.error('🔄 3+ winners — Round disqualified! Starting new game...');
+        toast.error('🔄 3+ different winners — Round restart!');
         setTimeout(startNewGame, 3000);
         return;
       }
 
-      // Single winner or exactly 2 winners (split)
-      const { data: nums } = await supabase.from('game_numbers').select('number').eq('game_id', 'current');
-      const drawnNumbersList = (nums || []).map((n: any) => n.number);
-
-      await supabase.from('games').update({
-        status: 'won',
-        winner_id: claim.user_id,
-      }).eq('id', 'current');
-
-      await supabase.from('game_history').insert({
-        game_id: 'current',
-        winner_id: claim.user_id,
-        pattern,
-        players_count: 0,
-        prize: 0,
-        drawn_numbers: drawnNumbersList,
-      } as any);
-
-      await supabase.from('game_numbers').delete().eq('game_id', 'current');
-      setGameStatus('won');
-
-      if (alreadyValidClaims.length === 1) {
-        toast.success('🏆 2 Winners! Prize will be split equally.');
+      // Check if there are still pending claims
+      const pendingClaims = claims.filter((c: any) => c.is_valid === null && c.id !== claim.id);
+      if (pendingClaims.length > 0) {
+        toast.success(`✅ Claim valid! ${pendingClaims.length} more pending...`);
       } else {
-        toast.success('🏆 Winner verified! Game over.');
+        // No more pending — resolve game
+        const { data: nums } = await supabase.from('game_numbers').select('number').eq('game_id', 'current');
+        const drawnNumbersList = (nums || []).map((n: any) => n.number);
+
+        await supabase.from('games').update({ status: 'won', winner_id: claim.user_id }).eq('id', 'current');
+        await supabase.from('game_history').insert({
+          game_id: 'current', winner_id: claim.user_id, pattern,
+          players_count: 0, prize: 0, drawn_numbers: drawnNumbersList,
+        } as any);
+        await supabase.from('game_numbers').delete().eq('game_id', 'current');
+        setGameStatus('won');
+
+        if (uniqueWinnerCount === 2) {
+          toast.success('🏆 2 different players — Prize split!');
+        } else {
+          toast.success('🏆 Winner verified! Game over.');
+        }
       }
     } else {
-      // Invalid claim — update strike count
-      await supabase.from('bingo_claims').update({
-        is_valid: false,
-        strike_count: strikeCount,
-      } as any).eq('id', claim.id);
-
-      if (strikeCount >= 2) {
-        toast.error(`❌ Player struck out on #${cartelaId} — cartela removed`);
-      } else {
-        toast.warning(`❌ Invalid claim on #${cartelaId} — 1 chance left`);
-      }
+      await supabase.from('bingo_claims').update({ is_valid: false } as any).eq('id', claim.id);
+      toast.warning(`❌ Invalid claim on #${cartelaId}`);
       
-      // Check if any pending claims left
+      // Resume if no more pending
       const remainingPending = claims.filter((c: any) => c.is_valid === null && c.id !== claim.id);
       if (remainingPending.length === 0) {
         toast('▶️ No more pending claims — resuming draw');
@@ -169,12 +150,11 @@ export default function Admin() {
     setClaims(await enrichWithProfiles(data || []));
   };
 
-  // Verify all pending claims at once (for simultaneous verification)
+  // Verify all pending claims at once — count unique PLAYERS not claims
   const verifyAllPendingClaims = async () => {
     const pendingClaims = claims.filter((c: any) => c.is_valid === null);
     if (pendingClaims.length === 0) return;
 
-    // Fetch all cartelas and drawn numbers
     const { data: nums } = await supabase.from('game_numbers').select('number').eq('game_id', 'current');
     const drawnSet = new Set((nums || []).map((n: any) => n.number));
     
@@ -191,55 +171,56 @@ export default function Admin() {
         validClaimers.push(claim);
         await supabase.from('bingo_claims').update({ is_valid: true } as any).eq('id', claim.id);
       } else {
-        const strikeCount = claim.strike_count || 1;
-        await supabase.from('bingo_claims').update({ is_valid: false, strike_count: strikeCount } as any).eq('id', claim.id);
+        await supabase.from('bingo_claims').update({ is_valid: false } as any).eq('id', claim.id);
       }
     }
 
-    if (validClaimers.length === 0) {
+    // Count unique winning PLAYERS (same player with multiple cartelas = 1 winner)
+    const uniqueWinnerIds = [...new Set(validClaimers.map((c: any) => c.user_id))];
+    const uniqueWinnerCount = uniqueWinnerIds.length;
+
+    if (uniqueWinnerCount === 0) {
       toast.warning('No valid claims — resuming draw');
       setAutoDraw(true);
-    } else if (validClaimers.length === 1) {
-      // Single winner
+    } else if (uniqueWinnerCount === 1) {
+      // Single player wins (even if multiple cartelas)
       const drawnNumbersList = (nums || []).map((n: any) => n.number);
-      await supabase.from('games').update({ status: 'won', winner_id: validClaimers[0].user_id }).eq('id', 'current');
+      const winnerId = uniqueWinnerIds[0];
+      await supabase.from('games').update({ status: 'won', winner_id: winnerId }).eq('id', 'current');
       await supabase.from('game_history').insert({
-        game_id: 'current',
-        winner_id: validClaimers[0].user_id,
-        pattern: currentPattern,
-        players_count: 0,
-        prize: 0,
-        drawn_numbers: drawnNumbersList,
+        game_id: 'current', winner_id: winnerId, pattern: currentPattern,
+        players_count: 0, prize: 0, drawn_numbers: drawnNumbersList,
       } as any);
       await supabase.from('game_numbers').delete().eq('game_id', 'current');
       setGameStatus('won');
       setDrawnNumbers([]);
-      toast.success('🏆 Winner verified! Game over.');
-    } else if (validClaimers.length === 2) {
-      // Split prize between 2 winners
+      const winnerName = validClaimers.find((c: any) => c.user_id === winnerId)?.profile?.display_name || 'Player';
+      toast.success(`🏆 ${winnerName} wins! (${validClaimers.length} cartela${validClaimers.length > 1 ? 's' : ''})`);
+    } else if (uniqueWinnerCount === 2) {
+      // 2 different players — split prize
       const drawnNumbersList = (nums || []).map((n: any) => n.number);
-      await supabase.from('games').update({ status: 'won', winner_id: validClaimers[0].user_id }).eq('id', 'current');
+      await supabase.from('games').update({ status: 'won', winner_id: uniqueWinnerIds[0] }).eq('id', 'current');
       await supabase.from('game_history').insert({
-        game_id: 'current',
-        winner_id: validClaimers[0].user_id, // Primary winner
-        pattern: currentPattern,
-        players_count: 0,
-        prize: 0,
-        drawn_numbers: drawnNumbersList,
+        game_id: 'current', winner_id: uniqueWinnerIds[0], pattern: currentPattern,
+        players_count: 0, prize: 0, drawn_numbers: drawnNumbersList,
       } as any);
       await supabase.from('game_numbers').delete().eq('game_id', 'current');
       setGameStatus('won');
       setDrawnNumbers([]);
-      toast.success(`🏆 2 Winners! Prize split: ${validClaimers.map((c: any) => c.profile?.display_name || c.profile?.phone || 'Player').join(' & ')}`);
+      const names = uniqueWinnerIds.map(id => {
+        const c = validClaimers.find((cl: any) => cl.user_id === id);
+        return c?.profile?.display_name || c?.profile?.phone || 'Player';
+      });
+      toast.success(`🏆 Prize split: ${names.join(' & ')}`);
     } else {
-      // 3+ winners — disqualify round
+      // 3+ different players — disqualify round
       await supabase.from('games').update({ status: 'disqualified', winner_id: null } as any).eq('id', 'current');
       await supabase.from('game_numbers').delete().eq('game_id', 'current');
       await supabase.from('bingo_claims').delete().eq('game_id', 'current');
       setGameStatus('disqualified');
       setDrawnNumbers([]);
       setClaims([]);
-      toast.error(`🔄 ${validClaimers.length} winners — Round disqualified! Starting new game...`);
+      toast.error(`🔄 ${uniqueWinnerCount} different winners — Round restart!`);
       setTimeout(startNewGame, 3000);
     }
 
