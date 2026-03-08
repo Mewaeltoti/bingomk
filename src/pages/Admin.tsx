@@ -5,7 +5,6 @@ import PageShell from '@/components/PageShell';
 import { Users, CreditCard, Gamepad2, Check, X, AlertTriangle, Plus, Minus, Pause, Play, Square, ArrowUpCircle, LogOut } from 'lucide-react';
 import { PATTERNS, PatternName } from '@/lib/bingo';
 import { getBingoLetter } from '@/lib/bingoEngine';
-import { checkWin } from '@/lib/winDetection';
 import { supabase } from '@/integrations/supabase/client';
 import { useGamePresence } from '@/hooks/useGamePresence';
 import { useUser } from '@/lib/auth';
@@ -86,15 +85,6 @@ export default function Admin() {
     fetchState();
   }, []);
 
-  // Listen for claims → pause drawing → then admin manually verifies
-  // Helper to invoke auto-draw edge function
-  const invokeAutoDraw = async () => {
-    try {
-      await supabase.functions.invoke('auto-draw', { body: {} });
-    } catch (e) {
-      console.error('auto-draw invoke error', e);
-    }
-  };
 
   useEffect(() => {
     const channel = supabase
@@ -113,185 +103,74 @@ export default function Admin() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Manual verification by admin
+  // Manual verification by admin — via edge function
   const verifyClaimManually = async (claim: any, isValid: boolean) => {
-    const cartelaId = claim.cartela_id;
+    const { data, error } = await supabase.functions.invoke('verify-claim', {
+      body: { action: 'verify_single', claim_id: claim.id, is_valid: isValid },
+    });
 
-    if (isValid) {
-      await supabase.from('bingo_claims').update({ is_valid: true } as any).eq('id', claim.id);
-      
-      // Count unique players with valid claims (including this one)
-      const alreadyValidClaims = claims.filter((c: any) => c.is_valid === true);
-      const allValidUserIds = new Set([claim.user_id, ...alreadyValidClaims.map((c: any) => c.user_id)]);
-      const uniqueWinnerCount = allValidUserIds.size;
+    if (error) { toast.error('Verification failed'); return; }
 
-      if (uniqueWinnerCount >= 3) {
-        // 3+ different players — disqualify round
-        await supabase.from('games').update({ status: 'disqualified', winner_id: null } as any).eq('id', 'current');
-        await supabase.from('game_numbers').delete().eq('game_id', 'current');
-        await supabase.from('bingo_claims').delete().eq('game_id', 'current');
-        setGameStatus('disqualified');
-        setDrawnNumbers([]);
-        setClaims([]);
-        toast.error('🔄 3+ different winners — Round restart!');
-        setTimeout(startNewGame, 3000);
-        return;
+    if (!isValid) {
+      toast.warning(`❌ Invalid claim on #${claim.cartela_id}`);
+      if (data?.result === 'invalid') {
+        // auto-draw resumed server-side if no more pending
       }
-
-      // Check if there are still pending claims
-      const pendingClaims = claims.filter((c: any) => c.is_valid === null && c.id !== claim.id);
-      if (pendingClaims.length > 0) {
-        toast.success(`✅ Claim valid! ${pendingClaims.length} more pending...`);
-      } else {
-        // No more pending — resolve game
-        const { data: nums } = await supabase.from('game_numbers').select('number').eq('game_id', 'current');
-        const drawnNumbersList = (nums || []).map((n: any) => n.number);
-        
-        // Count players (cartelas with owners)
-        const { count: playersCount } = await supabase.from('cartelas').select('owner_id', { count: 'exact', head: true }).eq('is_used', true).not('owner_id', 'is', null);
-
-        const prizePerWinner = uniqueWinnerCount === 2 ? prizeAmount / 2 : prizeAmount;
-        await supabase.from('games').update({ status: 'won', winner_id: claim.user_id }).eq('id', 'current');
-        await supabase.from('game_history').insert({
-          game_id: 'current', winner_id: claim.user_id, pattern,
-          players_count: playersCount || 0, prize: prizePerWinner, drawn_numbers: drawnNumbersList,
-        } as any);
-        await supabase.from('game_numbers').delete().eq('game_id', 'current');
-
-        // Credit winner balances
-        for (const wId of Array.from(allValidUserIds)) {
-          const { data: wp } = await supabase.from('profiles').select('balance').eq('id', wId).single();
-          if (wp) {
-            await supabase.from('profiles').update({ balance: (wp as any).balance + prizePerWinner } as any).eq('id', wId);
-          }
-        }
-
-        setGameStatus('won');
-
-        if (uniqueWinnerCount === 2) {
-          toast.success(`🏆 2 winners — ${prizePerWinner} ETB each credited!`);
-        } else {
-          toast.success(`🏆 Winner gets ${prizePerWinner} ETB! Balance credited.`);
-        }
-
-        // Auto-reset after 10 seconds
-        setTimeout(startNewGame, 10000);
-      }
-    } else {
-      await supabase.from('bingo_claims').update({ is_valid: false } as any).eq('id', claim.id);
-      toast.warning(`❌ Invalid claim on #${cartelaId}`);
-      
-      // Resume if no more pending
-      const remainingPending = claims.filter((c: any) => c.is_valid === null && c.id !== claim.id);
-      if (remainingPending.length === 0) {
-        toast('▶️ No more pending claims — resuming draw');
-        await supabase.from('games').update({ auto_draw: true } as any).eq('id', 'current');
-        setAutoDraw(true);
-        invokeAutoDraw();
-      }
-    }
-
-    const { data } = await supabase.from('bingo_claims').select('*').eq('game_id', 'current');
-    setClaims(await enrichWithProfiles(data || []));
-  };
-
-  // Verify all pending claims at once — count unique PLAYERS not claims
-  const verifyAllPendingClaims = async () => {
-    const pendingClaims = claims.filter((c: any) => c.is_valid === null);
-    if (pendingClaims.length === 0) return;
-
-    const { data: nums } = await supabase.from('game_numbers').select('number').eq('game_id', 'current');
-    const drawnSet = new Set((nums || []).map((n: any) => n.number));
-    
-    const { data: gameData } = await supabase.from('games').select('pattern').eq('id', 'current').single();
-    const currentPattern = (gameData as any)?.pattern || 'Full House';
-
-    const validClaimers: any[] = [];
-
-    for (const claim of pendingClaims) {
-      const { data: cartela } = await supabase.from('cartelas').select('numbers').eq('id', claim.cartela_id).single();
-      const isValid = cartela ? checkWin(cartela.numbers as number[][], drawnSet, currentPattern as PatternName) : false;
-      
-      if (isValid) {
-        validClaimers.push(claim);
-        await supabase.from('bingo_claims').update({ is_valid: true } as any).eq('id', claim.id);
-      } else {
-        await supabase.from('bingo_claims').update({ is_valid: false } as any).eq('id', claim.id);
-      }
-    }
-
-    // Count unique winning PLAYERS (same player with multiple cartelas = 1 winner)
-    const uniqueWinnerIds = [...new Set(validClaimers.map((c: any) => c.user_id))];
-    const uniqueWinnerCount = uniqueWinnerIds.length;
-
-    if (uniqueWinnerCount === 0) {
-      toast.warning('No valid claims — resuming draw');
-      await supabase.from('games').update({ auto_draw: true } as any).eq('id', 'current');
-      setAutoDraw(true);
-      invokeAutoDraw();
-    } else if (uniqueWinnerCount === 1) {
-      // Single player wins (even if multiple cartelas)
-      const drawnNumbersList = (nums || []).map((n: any) => n.number);
-      const winnerId = uniqueWinnerIds[0];
-      const { count: playersCount } = await supabase.from('cartelas').select('owner_id', { count: 'exact', head: true }).eq('is_used', true).not('owner_id', 'is', null);
-      await supabase.from('games').update({ status: 'won', winner_id: winnerId }).eq('id', 'current');
-      await supabase.from('game_history').insert({
-        game_id: 'current', winner_id: winnerId, pattern: currentPattern,
-        players_count: playersCount || 0, prize: prizeAmount, drawn_numbers: drawnNumbersList,
-      } as any);
-      await supabase.from('game_numbers').delete().eq('game_id', 'current');
-
-      // Credit winner balance
-      const { data: wp } = await supabase.from('profiles').select('balance').eq('id', winnerId).single();
-      if (wp) {
-        await supabase.from('profiles').update({ balance: (wp as any).balance + prizeAmount } as any).eq('id', winnerId);
-      }
-
+    } else if (data?.result === 'valid_pending_remaining') {
+      toast.success(`✅ Claim valid! ${data.remaining} more pending...`);
+    } else if (data?.result === 'won') {
       setGameStatus('won');
       setDrawnNumbers([]);
-      const winnerName = validClaimers.find((c: any) => c.user_id === winnerId)?.profile?.display_name || 'Player';
-      toast.success(`🏆 ${winnerName} wins ${prizeAmount} ETB! Balance credited.`);
-      setTimeout(startNewGame, 10000);
-    } else if (uniqueWinnerCount === 2) {
-      // 2 different players — split prize
-      const splitPrize = prizeAmount / 2;
-      const drawnNumbersList = (nums || []).map((n: any) => n.number);
-      const { count: playersCount2 } = await supabase.from('cartelas').select('owner_id', { count: 'exact', head: true }).eq('is_used', true).not('owner_id', 'is', null);
-      await supabase.from('games').update({ status: 'won', winner_id: uniqueWinnerIds[0] }).eq('id', 'current');
-      for (const wId of uniqueWinnerIds) {
-        await supabase.from('game_history').insert({
-          game_id: 'current', winner_id: wId, pattern: currentPattern,
-          players_count: playersCount2 || 0, prize: splitPrize, drawn_numbers: drawnNumbersList,
-        } as any);
-        // Credit each winner
-        const { data: wp } = await supabase.from('profiles').select('balance').eq('id', wId).single();
-        if (wp) {
-          await supabase.from('profiles').update({ balance: (wp as any).balance + splitPrize } as any).eq('id', wId);
-        }
+      if (data.winner_count === 2) {
+        toast.success(`🏆 2 winners — ${data.prize_per_winner} ETB each credited!`);
+      } else {
+        toast.success(`🏆 Winner gets ${data.prize_per_winner} ETB! Balance credited.`);
       }
-      await supabase.from('game_numbers').delete().eq('game_id', 'current');
-      setGameStatus('won');
-      setDrawnNumbers([]);
-      const names = uniqueWinnerIds.map(id => {
-        const c = validClaimers.find((cl: any) => cl.user_id === id);
-        return c?.profile?.display_name || c?.profile?.phone || 'Player';
-      });
-      toast.success(`🏆 ${splitPrize} ETB each: ${names.join(' & ')}`);
       setTimeout(startNewGame, 10000);
-    } else {
-      // 3+ different players — disqualify round
-      await supabase.from('games').update({ status: 'disqualified', winner_id: null } as any).eq('id', 'current');
-      await supabase.from('game_numbers').delete().eq('game_id', 'current');
-      await supabase.from('bingo_claims').delete().eq('game_id', 'current');
+    } else if (data?.result === 'disqualified') {
       setGameStatus('disqualified');
       setDrawnNumbers([]);
       setClaims([]);
-      toast.error(`🔄 ${uniqueWinnerCount} different winners — Round restart!`);
+      toast.error(`🔄 ${data.winner_count} different winners — Round restart!`);
       setTimeout(startNewGame, 3000);
     }
 
-    const { data } = await supabase.from('bingo_claims').select('*').eq('game_id', 'current');
-    setClaims(await enrichWithProfiles(data || []));
+    const { data: claimsRefresh } = await supabase.from('bingo_claims').select('*').eq('game_id', 'current');
+    setClaims(await enrichWithProfiles(claimsRefresh || []));
+  };
+
+  // Verify all pending claims — via edge function
+  const verifyAllPendingClaims = async () => {
+    const { data, error } = await supabase.functions.invoke('verify-claim', {
+      body: { action: 'verify_all' },
+    });
+
+    if (error) { toast.error('Verification failed'); return; }
+
+    if (data?.result === 'no_pending') {
+      toast('No pending claims');
+    } else if (data?.result === 'no_winners_resume') {
+      toast.warning('No valid claims — resuming draw');
+      setAutoDraw(true);
+    } else if (data?.result === 'won') {
+      setGameStatus('won');
+      setDrawnNumbers([]);
+      if (data.winner_count === 2) {
+        toast.success(`🏆 2 winners — ${data.prize_per_winner} ETB each!`);
+      } else {
+        toast.success(`🏆 Winner gets ${data.prize_per_winner} ETB! Balance credited.`);
+      }
+      setTimeout(startNewGame, 10000);
+    } else if (data?.result === 'disqualified') {
+      setGameStatus('disqualified');
+      setDrawnNumbers([]);
+      setClaims([]);
+      toast.error(`🔄 ${data.winner_count} different winners — Round restart!`);
+      setTimeout(startNewGame, 3000);
+    }
+
+    const { data: claimsRefresh } = await supabase.from('bingo_claims').select('*').eq('game_id', 'current');
+    setClaims(await enrichWithProfiles(claimsRefresh || []));
   };
 
   useEffect(() => {
@@ -337,35 +216,16 @@ export default function Admin() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  const drawNumberInternal = async () => {
-    const current = drawnRef.current;
-    if (current.length >= 75) {
-      setAutoDraw(false);
-      toast.error('All 75 numbers drawn!');
-      return;
-    }
-    let num: number;
-    do { num = Math.floor(Math.random() * 75) + 1; } while (current.includes(num));
-
-    const { error } = await supabase.from('game_numbers').insert({ number: num, game_id: 'current' });
-    if (error) { toast.error('Failed to draw'); return; }
-    setDrawnNumbers((prev) => [...prev, num]);
-  };
 
   const startNewGame = async () => {
     setAutoDraw(false);
-    await supabase.from('games').update({ auto_draw: false } as any).eq('id', 'current');
     if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
 
-    await Promise.all([
-      supabase.from('game_numbers').delete().eq('game_id', 'current'),
-      supabase.from('bingo_claims').delete().eq('game_id', 'current'),
-      supabase.from('cartelas').update({ is_used: false, owner_id: null } as any).eq('is_used', true),
-    ]);
-    // Set game to "buying" status — 2 min rest
-    await supabase.from('games').upsert({
-      id: 'current', pattern, status: 'buying', winner_id: null, draw_speed: drawSpeed, prize_amount: 0, cartela_price: cartelaPrice,
-    } as any);
+    const { error } = await supabase.functions.invoke('game-lifecycle', {
+      body: { action: 'new_game', pattern, draw_speed: drawSpeed, cartela_price: cartelaPrice },
+    });
+    if (error) { toast.error('Failed to start new game'); return; }
+
     setBoughtCount(0);
     setDrawnNumbers([]);
     setClaims([]);
@@ -377,7 +237,6 @@ export default function Admin() {
     // Start countdown
     buyingTimerRef.current = setInterval(() => {
       setBuyingCountdown(prev => {
-        // Refresh bought count every 10 seconds
         if (prev % 10 === 0) {
           supabase.from('cartelas').select('id', { count: 'exact', head: true })
             .eq('is_used', true).not('owner_id', 'is', null)
@@ -398,55 +257,44 @@ export default function Admin() {
   };
 
   const startDrawing = async () => {
-    // Auto-calculate prize from bought cartelas
-    const { count } = await supabase
-      .from('cartelas')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_used', true)
-      .not('owner_id', 'is', null);
-    const bought = count || 0;
-    setBoughtCount(bought);
+    const { data, error } = await supabase.functions.invoke('game-lifecycle', {
+      body: { action: 'start_drawing', prize_amount: prizeAmount },
+    });
+    if (error) { toast.error('Failed to start drawing'); return; }
 
-    await supabase.from('games').update({ status: 'active', prize_amount: prizeAmount, auto_draw: true } as any).eq('id', 'current');
+    const bought = data?.bought || 0;
+    setBoughtCount(bought);
     setGameStatus('active');
     setAutoDraw(true);
-    invokeAutoDraw();
     toast.success(`🎲 Game started! ${bought} cartelas sold, prize: ${prizeAmount} ETB`);
   };
 
   const pauseGame = async () => {
-    await supabase.from('games').update({ auto_draw: false } as any).eq('id', 'current');
+    await supabase.functions.invoke('game-lifecycle', { body: { action: 'pause' } });
     setAutoDraw(false);
     toast('⏸️ Drawing paused');
   };
 
   const resumeGame = async () => {
-    await supabase.from('games').update({ auto_draw: true } as any).eq('id', 'current');
+    await supabase.functions.invoke('game-lifecycle', { body: { action: 'resume' } });
     setAutoDraw(true);
-    invokeAutoDraw();
     toast('▶️ Drawing resumed');
   };
 
   const stopGame = async () => {
-    await supabase.from('games').update({ status: 'stopped', auto_draw: false } as any).eq('id', 'current');
+    await supabase.functions.invoke('game-lifecycle', { body: { action: 'stop' } });
     setAutoDraw(false);
     setGameStatus('stopped');
     toast('🛑 Game stopped');
   };
 
   const handleDeposit = async (id: string, action: 'approved' | 'rejected', userId: string, amount: number) => {
-    const { error } = await supabase.from('deposits').update({ status: action }).eq('id', id);
+    const { error } = await supabase.functions.invoke('approve-transaction', {
+      body: { type: 'deposit', id, action, user_id: userId, amount },
+    });
     if (error) { toast.error('Failed'); return; }
 
-    if (action === 'approved') {
-      const { data: profile } = await supabase.from('profiles').select('balance').eq('id', userId).single();
-      const bal = (profile as any)?.balance || 0;
-      await supabase.from('profiles').update({ balance: bal + amount } as any).eq('id', userId);
-      toast.success(`✅ Approved & credited ${amount} ETB`);
-    } else {
-      toast.success('Deposit rejected');
-    }
-
+    toast.success(action === 'approved' ? `✅ Approved & credited ${amount} ETB` : 'Deposit rejected');
     setDeposits((prev) => prev.map((d) => d.id === id ? { ...d, status: action } : d));
   };
 
@@ -804,12 +652,10 @@ export default function Admin() {
               {w.status === 'pending' && (
                 <div className="flex gap-2">
                   <button onClick={async () => {
-                    // Deduct balance then approve
-                    const { data: profile } = await supabase.from('profiles').select('balance').eq('id', w.user_id).single();
-                    const bal = (profile as any)?.balance || 0;
-                    if (bal < w.amount) { toast.error('User has insufficient balance'); return; }
-                    await supabase.from('profiles').update({ balance: bal - w.amount } as any).eq('id', w.user_id);
-                    await (supabase.from('withdrawals' as any) as any).update({ status: 'approved' }).eq('id', w.id);
+                    const { data, error } = await supabase.functions.invoke('approve-transaction', {
+                      body: { type: 'withdrawal', id: w.id, action: 'approved', user_id: w.user_id, amount: w.amount },
+                    });
+                    if (error || data?.error) { toast.error(data?.error || 'Failed'); return; }
                     setWithdrawals(prev => prev.map(x => x.id === w.id ? { ...x, status: 'approved' } : x));
                     toast.success(`✅ Approved & deducted ${w.amount} ETB`);
                   }}
@@ -817,7 +663,9 @@ export default function Admin() {
                     <Check className="w-4 h-4" /> Approve
                   </button>
                   <button onClick={async () => {
-                    await (supabase.from('withdrawals' as any) as any).update({ status: 'rejected' }).eq('id', w.id);
+                    await supabase.functions.invoke('approve-transaction', {
+                      body: { type: 'withdrawal', id: w.id, action: 'rejected', user_id: w.user_id, amount: w.amount },
+                    });
                     setWithdrawals(prev => prev.map(x => x.id === w.id ? { ...x, status: 'rejected' } : x));
                     toast.success('Withdrawal rejected');
                   }}
