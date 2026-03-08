@@ -131,6 +131,7 @@ export type Database = {
       game_history: {
         Row: {
           created_at: string
+          drawn_numbers: Json
           game_id: string
           id: string
           pattern: string
@@ -140,6 +141,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          drawn_numbers?: Json
           game_id: string
           id?: string
           pattern?: string
@@ -149,6 +151,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          drawn_numbers?: Json
           game_id?: string
           id?: string
           pattern?: string
