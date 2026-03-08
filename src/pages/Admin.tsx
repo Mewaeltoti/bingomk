@@ -221,13 +221,15 @@ export default function Admin() {
 
 
   const startNewGame = async () => {
+    setActionLoading('new-game');
     setAutoDraw(false);
     if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
 
-    const { error } = await supabase.functions.invoke('game-lifecycle', {
+    const { error } = await invokeWithRetry('game-lifecycle', {
       body: { action: 'new_game', pattern, draw_speed: drawSpeed, cartela_price: cartelaPrice },
     });
-    if (error) { toast.error('Failed to start new game'); return; }
+    if (error) { toast.error(`Failed: ${error}`); setActionLoading(null); return; }
+    setActionLoading(null);
 
     setBoughtCount(0);
     setDrawnNumbers([]);
