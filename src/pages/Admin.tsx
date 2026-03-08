@@ -22,6 +22,7 @@ export default function Admin() {
   const autoDrawRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const buyingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const drawnRef = useRef<number[]>([]);
+  const drawingStartedRef = useRef(false);
 
   const [deposits, setDeposits] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
