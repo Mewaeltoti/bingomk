@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import PageShell from '@/components/PageShell';
-import { Users, CreditCard, Gamepad2, Check, X, Play, Square, AlertTriangle } from 'lucide-react';
+import { Users, CreditCard, Gamepad2, Check, X, Play, Square, AlertTriangle, Plus, Minus } from 'lucide-react';
 import { PATTERNS, PatternName } from '@/lib/bingo';
 import { getBingoLetter } from '@/lib/bingoEngine';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,6 +18,8 @@ export default function Admin() {
   const [deposits, setDeposits] = useState<any[]>([]);
   const [players, setPlayers] = useState<any[]>([]);
   const [claims, setClaims] = useState<any[]>([]);
+  const [adjustingPlayer, setAdjustingPlayer] = useState<string | null>(null);
+  const [adjustAmount, setAdjustAmount] = useState('');
 
   const tabs = [
     { key: 'deposits' as const, label: 'Deposits', icon: CreditCard },
@@ -314,13 +316,52 @@ export default function Admin() {
         const activePlayers = players.filter((p) => (p.balance || 0) > 0 || p.display_name);
         const inactivePlayers = players.filter((p) => (p.balance || 0) === 0 && !p.display_name);
 
+        const handleAdjust = async (playerId: string, amount: number) => {
+          const player = players.find(p => p.id === playerId);
+          if (!player) return;
+          const newBalance = Math.max(0, (player.balance || 0) + amount);
+          const { error } = await supabase.from('profiles').update({ balance: newBalance }).eq('id', playerId);
+          if (error) { toast.error('Failed to update balance'); return; }
+          setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, balance: newBalance } : p));
+          setAdjustingPlayer(null);
+          setAdjustAmount('');
+          toast.success(`Balance updated to ${newBalance} ETB`);
+        };
+
         const PlayerCard = ({ p }: { p: any }) => (
-          <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
-            <div>
-              <div className="text-sm font-medium text-foreground">{p.display_name || p.phone || 'Unknown'}</div>
-              <div className="text-xs text-muted-foreground">{p.phone}</div>
+          <div className="p-3 rounded-xl bg-muted/50 space-y-2">
+            <div className="flex items-center justify-between" onClick={() => setAdjustingPlayer(adjustingPlayer === p.id ? null : p.id)}>
+              <div>
+                <div className="text-sm font-medium text-foreground">{p.display_name || p.phone || 'Unknown'}</div>
+                <div className="text-xs text-muted-foreground">{p.phone}</div>
+              </div>
+              <div className="text-sm font-display font-bold text-primary">{p.balance || 0} ETB</div>
             </div>
-            <div className="text-sm font-display font-bold text-primary">{p.balance || 0} ETB</div>
+            {adjustingPlayer === p.id && (
+              <div className="flex gap-2 items-center pt-1">
+                <input
+                  type="number"
+                  value={adjustAmount}
+                  onChange={(e) => setAdjustAmount(e.target.value)}
+                  placeholder="Amount"
+                  className="flex-1 px-3 py-2 rounded-lg bg-background text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
+                />
+                <button
+                  onClick={() => handleAdjust(p.id, Math.abs(Number(adjustAmount)))}
+                  disabled={!adjustAmount || Number(adjustAmount) <= 0}
+                  className="p-2 rounded-lg bg-secondary text-secondary-foreground disabled:opacity-50"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleAdjust(p.id, -Math.abs(Number(adjustAmount)))}
+                  disabled={!adjustAmount || Number(adjustAmount) <= 0}
+                  className="p-2 rounded-lg bg-destructive text-destructive-foreground disabled:opacity-50"
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         );
 

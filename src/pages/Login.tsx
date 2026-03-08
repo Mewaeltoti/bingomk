@@ -21,7 +21,7 @@ export default function Login() {
     // Use phone as email workaround: phone@bingo.local
     const fakeEmail = `${formattedPhone.replace('+', '')}@bingo.local`;
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: signInData, error } = await supabase.auth.signInWithPassword({
       email: fakeEmail,
       password,
     });
@@ -31,6 +31,22 @@ export default function Login() {
     if (error) {
       toast.error('Invalid phone or password');
       return;
+    }
+
+    // Check if user is admin → redirect to admin page
+    if (signInData.user) {
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', signInData.user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      if (roleData) {
+        toast.success('Welcome, Admin!');
+        navigate('/admin');
+        return;
+      }
     }
 
     toast.success('Welcome back!');

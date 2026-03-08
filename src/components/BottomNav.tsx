@@ -37,6 +37,9 @@ export default function BottomNav() {
 
   if (hiddenRoutes.includes(pathname)) return null;
 
+  // Admin only sees Home, Game, Admin, Logout
+  const isAdminPage = pathname === '/admin';
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast.success('Logged out');
