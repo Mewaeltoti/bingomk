@@ -1,18 +1,33 @@
-import { Wallet, ShoppingCart, History, Star } from 'lucide-react';
+import { Wallet, ShoppingCart, History } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PageShell from '@/components/PageShell';
 import BingoCartela from '@/components/BingoCartela';
-import { generateCartela } from '@/lib/bingo';
 import { motion } from 'framer-motion';
-
-const mockCartelas = [generateCartela(), generateCartela()];
-const mockTransactions = [
-  { id: 1, type: 'Deposit', amount: 100, status: 'Approved', date: 'Mar 5' },
-  { id: 2, type: 'Cartela Purchase', amount: -20, status: 'Completed', date: 'Mar 5' },
-  { id: 3, type: 'Deposit', amount: 50, status: 'Pending', date: 'Mar 4' },
-];
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useUser } from '@/lib/auth';
 
 export default function Dashboard() {
+  const user = useUser();
+  const [balance, setBalance] = useState(0);
+  const [myCartelas, setMyCartelas] = useState<any[]>([]);
+  const [deposits, setDeposits] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    async function load() {
+      const [profileRes, cartelasRes, depositsRes] = await Promise.all([
+        supabase.from('profiles').select('balance').eq('id', user!.id).single(),
+        supabase.from('cartelas').select('*').eq('owner_id', user!.id).order('id', { ascending: true }),
+        supabase.from('deposits').select('*').eq('user_id', user!.id).order('created_at', { ascending: false }).limit(10),
+      ]);
+      setBalance((profileRes.data as any)?.balance || 0);
+      setMyCartelas(cartelasRes.data || []);
+      setDeposits(depositsRes.data || []);
+    }
+    load();
+  }, [user?.id]);
+
   return (
     <PageShell title="My Wallet">
       {/* Balance */}
@@ -24,7 +39,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
           <Wallet className="w-4 h-4" /> Balance
         </div>
-        <div className="font-display text-3xl font-bold text-primary">130.00 ETB</div>
+        <div className="font-display text-3xl font-bold text-primary">{balance.toFixed(2)} ETB</div>
         <div className="mt-3 flex gap-2">
           <Link
             to="/payment"
@@ -44,37 +59,43 @@ export default function Dashboard() {
       {/* Purchased Cartelas */}
       <section className="mb-6">
         <h2 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-          <ShoppingCart className="w-4 h-4" /> My Cartelas
+          <ShoppingCart className="w-4 h-4" /> My Cartelas ({myCartelas.length})
         </h2>
-        <div className="grid grid-cols-2 gap-3">
-          {mockCartelas.map((c, i) => (
-            <BingoCartela key={i} numbers={c} size="sm" label={`#${i + 1}`} />
-          ))}
-        </div>
+        {myCartelas.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">No cartelas yet. Buy some to play!</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-2">
+            {myCartelas.map((c) => (
+              <BingoCartela key={c.id} numbers={c.numbers as number[][]} size="xs" label={`#${c.id}`} />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Transactions */}
       <section>
         <h2 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-          <History className="w-4 h-4" /> Transactions
+          <History className="w-4 h-4" /> Recent Deposits
         </h2>
         <div className="space-y-2">
-          {mockTransactions.map((t) => (
-            <div key={t.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+          {deposits.map((d) => (
+            <div key={d.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
               <div>
-                <div className="text-sm font-medium text-foreground">{t.type}</div>
-                <div className="text-xs text-muted-foreground">{t.date}</div>
+                <div className="text-sm font-medium text-foreground">{d.bank} — {d.amount} ETB</div>
+                <div className="text-xs text-muted-foreground">Ref: {d.reference}</div>
               </div>
-              <div className="text-right">
-                <div className={`text-sm font-display font-bold ${t.amount > 0 ? 'text-secondary' : 'text-foreground'}`}>
-                  {t.amount > 0 ? '+' : ''}{t.amount} ETB
-                </div>
-                <div className={`text-xs ${t.status === 'Pending' ? 'text-primary' : 'text-muted-foreground'}`}>
-                  {t.status}
-                </div>
-              </div>
+              <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                d.status === 'approved' ? 'bg-secondary/20 text-secondary' :
+                d.status === 'pending' ? 'bg-primary/20 text-primary' :
+                'bg-destructive/20 text-destructive'
+              }`}>
+                {d.status}
+              </span>
             </div>
           ))}
+          {deposits.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-4">No deposits yet</p>
+          )}
         </div>
       </section>
     </PageShell>
