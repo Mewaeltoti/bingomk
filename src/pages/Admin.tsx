@@ -398,25 +398,29 @@ export default function Admin() {
     const prize = Math.floor(totalSales * (1 - houseCutPercent / 100));
     setPrizeAmount(prize);
 
-    await supabase.from('games').update({ status: 'active', prize_amount: prize } as any).eq('id', 'current');
+    await supabase.from('games').update({ status: 'active', prize_amount: prize, auto_draw: true } as any).eq('id', 'current');
     setGameStatus('active');
     setAutoDraw(true);
+    invokeAutoDraw();
     toast.success(`🎲 Game started! ${bought} cartelas sold, prize: ${prize} ETB`);
   };
 
-  const pauseGame = () => {
+  const pauseGame = async () => {
+    await supabase.from('games').update({ auto_draw: false } as any).eq('id', 'current');
     setAutoDraw(false);
     toast('⏸️ Drawing paused');
   };
 
-  const resumeGame = () => {
+  const resumeGame = async () => {
+    await supabase.from('games').update({ auto_draw: true } as any).eq('id', 'current');
     setAutoDraw(true);
+    invokeAutoDraw();
     toast('▶️ Drawing resumed');
   };
 
   const stopGame = async () => {
+    await supabase.from('games').update({ status: 'stopped', auto_draw: false } as any).eq('id', 'current');
     setAutoDraw(false);
-    await supabase.from('games').update({ status: 'stopped' }).eq('id', 'current');
     setGameStatus('stopped');
     toast('🛑 Game stopped');
   };
