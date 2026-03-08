@@ -5,6 +5,7 @@ import BingoCartela from '@/components/BingoCartela';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 import { useUser } from '@/lib/auth';
 import { Search, Heart, X, ShoppingCart } from 'lucide-react';
 
@@ -24,17 +25,20 @@ export default function CartelaSelection() {
   const [page, setPage] = useState(1);
   const [showConfirm, setShowConfirm] = useState(false);
   const [buying, setBuying] = useState(false);
-  const [cartelaPrice, setCartelaPrice] = useState(20);
+  const [cartelaPrice, setCartelaPrice] = useState(10);
+  const [gameStatus, setGameStatus] = useState<string>('waiting');
   const pageSize = 20;
   const navigate = useNavigate();
   const user = useUser();
   const loaderRef = useRef<HTMLDivElement>(null);
 
+  const canBuy = gameStatus === 'buying' || gameStatus === 'waiting';
+
   useEffect(() => {
     async function fetchCartelas() {
       const [cartelasRes, gameRes] = await Promise.all([
         supabase.from('cartelas').select('*').eq('is_used', false).order('id', { ascending: true }),
-        supabase.from('games').select('cartela_price').eq('id', 'current').maybeSingle(),
+        supabase.from('games').select('cartela_price, status').eq('id', 'current').maybeSingle(),
       ]);
 
       if (cartelasRes.error) {
@@ -42,8 +46,11 @@ export default function CartelaSelection() {
         return;
       }
 
-      if (gameRes.data && (gameRes.data as any).cartela_price) {
-        setCartelaPrice((gameRes.data as any).cartela_price);
+      if (gameRes.data) {
+        if ((gameRes.data as any).cartela_price) {
+          setCartelaPrice((gameRes.data as any).cartela_price);
+        }
+        setGameStatus((gameRes.data as any).status || 'waiting');
       }
 
       const list = (cartelasRes.data || []) as unknown as Cartela[];
@@ -52,6 +59,18 @@ export default function CartelaSelection() {
       setFavorites(favs);
     }
     fetchCartelas();
+
+    // Listen for game status changes
+    const ch = supabase
+      .channel('cartela-game-status')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games' },
+        (payload: any) => {
+          const game = payload.new;
+          if (game?.status) setGameStatus(game.status);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
   // Infinite scroll
@@ -108,6 +127,7 @@ export default function CartelaSelection() {
   const handleBuy = async () => {
     if (!user?.id) { toast.error('Login required!'); return; }
     if (selected.size === 0) { toast.error('Select at least one cartela!'); return; }
+    if (!canBuy) { toast.error('Cannot buy cartelas during an active game!'); return; }
 
     setBuying(true);
 
@@ -156,8 +176,21 @@ export default function CartelaSelection() {
 
   return (
     <PageShell title="Choose Cartela">
+      {/* Block message when game is active */}
+      {!canBuy && (
+        <div className="mb-3 p-4 rounded-xl bg-destructive/10 border border-destructive/30 text-center">
+          <p className="text-sm font-bold text-destructive">🚫 Game in progress!</p>
+          <p className="text-xs text-muted-foreground mt-1">You can only buy cartelas before a game starts.</p>
+          <button
+            onClick={() => navigate('/game')}
+            className="mt-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold"
+          >
+            Go to Game
+          </button>
+        </div>
+      )}
       {/* Search & filter */}
-      <div className="flex gap-2 mb-3">
+      <div className={cn("flex gap-2 mb-3", !canBuy && "opacity-50 pointer-events-none")}>
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input

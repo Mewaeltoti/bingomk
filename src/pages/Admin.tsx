@@ -18,7 +18,7 @@ export default function Admin() {
   const [autoDraw, setAutoDraw] = useState(false);
   const [drawSpeed, setDrawSpeed] = useState(10);
   const [prizeAmount, setPrizeAmount] = useState(0);
-  const [cartelaPrice, setCartelaPrice] = useState(20);
+  const [cartelaPrice, setCartelaPrice] = useState(10);
   const [houseCutPercent, setHouseCutPercent] = useState(10);
   const [boughtCount, setBoughtCount] = useState(0);
   const [buyingCountdown, setBuyingCountdown] = useState(0);

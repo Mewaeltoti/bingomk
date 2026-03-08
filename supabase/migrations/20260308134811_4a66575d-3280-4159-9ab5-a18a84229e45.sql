@@ -1,0 +1,1 @@
+ALTER TABLE public.games ALTER COLUMN cartela_price SET DEFAULT 10;
