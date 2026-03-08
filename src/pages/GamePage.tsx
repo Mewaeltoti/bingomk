@@ -428,9 +428,8 @@ export default function GamePage() {
                 const cellsMarked = markedMap.get(c.id) || new Set<string>();
                 const isClaimed = claimedCartelas.has(c.id);
                 return (
-                  <motion.div
+                  <div
                     key={c.id}
-                    layout
                     className="flex flex-col gap-2"
                   >
                     <BingoCartela
