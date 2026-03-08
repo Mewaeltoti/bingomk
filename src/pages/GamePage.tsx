@@ -395,7 +395,7 @@ export default function GamePage() {
           )}
 
           {/* Collapsible 1-75 board */}
-          <div className="rounded-lg border border-border overflow-hidden bg-white/80 dark:bg-card">
+          <div className="rounded-lg border border-border overflow-hidden bg-background/40">
             <button
               onClick={() => setBoardOpen(prev => !prev)}
               className="w-full flex items-center justify-between px-3 py-1.5 bg-gradient-to-r from-blue-500 via-green-500 to-purple-500 text-white text-xs font-bold"
