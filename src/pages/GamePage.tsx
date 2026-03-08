@@ -48,8 +48,6 @@ export default function GamePage() {
   // Per-cartela marked cells: cartelaId -> Set<"row-col">
   const [markedMap, setMarkedMap] = useState<Map<number, Set<string>>>(new Map());
   const [claimedCartelas, setClaimedCartelas] = useState<Set<number>>(new Set());
-  const [removedCartelas, setRemovedCartelas] = useState<Set<number>>(new Set());
-  const [strikeMap, setStrikeMap] = useState<Map<number, number>>(new Map());
   const [gameStatus, setGameStatus] = useState<string>('waiting');
   const [buyingCountdown, setBuyingCountdown] = useState(0);
   const buyingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -116,20 +114,11 @@ export default function GamePage() {
       if (claimsRes.data && user?.id) {
         const userClaims = claimsRes.data.filter((c: any) => c.user_id === user.id);
         const claimed = new Set<number>();
-        const removed = new Set<number>();
-        const strikes = new Map<number, number>();
         for (const claim of userClaims) {
           const cid = (claim as any).cartela_id;
-          if (cid) {
-            if (claim.is_valid === null) claimed.add(cid);
-            const s = (claim as any).strike_count || 0;
-            strikes.set(cid, Math.max(strikes.get(cid) || 0, s));
-            if (s >= 2) removed.add(cid);
-          }
+          if (cid && claim.is_valid === null) claimed.add(cid);
         }
         setClaimedCartelas(claimed);
-        setRemovedCartelas(removed);
-        setStrikeMap(strikes);
       }
     }
     fetchGameState();
@@ -157,8 +146,6 @@ export default function GamePage() {
             setGameResult(null);
             setMarkedMap(new Map());
             setClaimedCartelas(new Set());
-            setRemovedCartelas(new Set());
-            setStrikeMap(new Map());
             if (user?.id) {
               supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true)
                 .then(({ data }) => {
@@ -197,8 +184,6 @@ export default function GamePage() {
             setGameResult(null);
             setMarkedMap(new Map());
             setClaimedCartelas(new Set());
-            setRemovedCartelas(new Set());
-            setStrikeMap(new Map());
           }
           if (game.status === 'won') {
             setGameResult({ type: 'winner', message: 'Someone won this round! 🏆' });
@@ -217,14 +202,7 @@ export default function GamePage() {
           if (claim.user_id !== user?.id) return;
           const cid = claim.cartela_id;
           if (claim.is_valid === false) {
-            const strikes = claim.strike_count || 0;
-            setStrikeMap(prev => new Map(prev).set(cid, strikes));
-            if (strikes >= 2) {
-              toast.error(`Cartela #${cid} removed — 2 wrong claims!`);
-              setRemovedCartelas(prev => new Set(prev).add(cid));
-            } else {
-              toast.warning(`Wrong claim on #${cid}! ${2 - strikes} chance(s) left.`);
-            }
+            toast.warning(`Claim on #${cid} was invalid. Try again!`);
             setClaimedCartelas(prev => {
               const next = new Set(prev);
               next.delete(cid);
@@ -272,7 +250,7 @@ export default function GamePage() {
   // Per-cartela BINGO claim with local validation first
   const handleClaimBingo = async (cartelaId: number, cartela: any) => {
     if (!user?.id || isSpectator) return;
-    if (claimedCartelas.has(cartelaId) || removedCartelas.has(cartelaId)) return;
+    if (claimedCartelas.has(cartelaId)) return;
 
     // Local validation: check marked numbers match drawn and pattern
     const markedNums = getMarkedNumbersForCartela(cartela);
@@ -294,20 +272,6 @@ export default function GamePage() {
     }
 
     // Passed local check — submit to server
-    const { data: existingClaims } = await supabase
-      .from('bingo_claims')
-      .select('*')
-      .eq('game_id', 'current')
-      .eq('user_id', user.id)
-      .eq('cartela_id', cartelaId);
-
-    const currentStrikes = existingClaims?.length || 0;
-    if (currentStrikes >= 2) {
-      toast.error('This cartela has been removed from the game!');
-      setRemovedCartelas(prev => new Set(prev).add(cartelaId));
-      return;
-    }
-
     setClaimedCartelas(prev => new Set(prev).add(cartelaId));
 
     const { error } = await supabase
@@ -316,7 +280,6 @@ export default function GamePage() {
         game_id: 'current',
         user_id: user.id,
         cartela_id: cartelaId,
-        strike_count: currentStrikes + 1,
       } as any);
 
     if (error) {
@@ -332,11 +295,8 @@ export default function GamePage() {
     toast.success(`🎯 BINGO claimed on #${cartelaId}! Verifying...`);
   };
 
-  // Active cartelas (not removed)
-  const activeCartelas = useMemo(
-    () => playerCartelas.filter(c => !removedCartelas.has(c.id)),
-    [playerCartelas, removedCartelas]
-  );
+  // All player cartelas are active (no removal)
+  const activeCartelas = playerCartelas;
 
   return (
     <PageShell title="Live Game">
@@ -519,7 +479,6 @@ export default function GamePage() {
 
       <div className="grid grid-cols-2 gap-3 mb-24">
         {activeCartelas.map((c) => {
-          const strikes = strikeMap.get(c.id) || 0;
           const cellsMarked = markedMap.get(c.id) || new Set<string>();
           return (
             <div key={c.id} className="flex flex-col gap-1.5">
@@ -532,25 +491,8 @@ export default function GamePage() {
                 label={`#${c.id}`}
                 showLegend
               />
-              {/* Strike indicator */}
-              {strikes > 0 && (
-                <div className="flex items-center justify-center gap-1 text-xs">
-                  {Array.from({ length: 2 }, (_, i) => (
-                    <span
-                      key={i}
-                      className={cn(
-                        'w-2 h-2 rounded-full',
-                        i < strikes ? 'bg-destructive' : 'bg-muted'
-                      )}
-                    />
-                  ))}
-                  <span className="text-destructive font-medium ml-1">
-                    {2 - strikes} left
-                  </span>
-                </div>
-              )}
               {/* Per-cartela Claim Bingo button */}
-              {!isSpectator && gameStatus === 'active' && drawnNumbers.length > 0 && !removedCartelas.has(c.id) && (
+              {!isSpectator && gameStatus === 'active' && drawnNumbers.length > 0 && (
                 <button
                   onClick={() => handleClaimBingo(c.id, c)}
                   disabled={claimedCartelas.has(c.id)}
@@ -571,7 +513,7 @@ export default function GamePage() {
         {activeCartelas.length === 0 && (
           <div className="col-span-2 text-center text-muted-foreground py-8">
             <Eye className="w-8 h-8 mx-auto mb-2 opacity-40" />
-            <p>{removedCartelas.size > 0 ? 'All cartelas removed — game over for you' : 'No cartelas — watching as spectator'}</p>
+            <p>No cartelas — watching as spectator</p>
             <button
               onClick={() => navigate('/cartelas')}
               className="mt-2 px-4 py-2 rounded-lg gradient-gold text-primary-foreground text-sm font-medium"
