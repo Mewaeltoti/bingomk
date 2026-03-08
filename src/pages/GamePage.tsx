@@ -453,18 +453,14 @@ export default function GamePage() {
 
           {/* Row 3: Player's cartelas - responsive grid */}
           {playerCartelas.length > 0 ? (
-            <div className={cn(
-              playerCartelas.length > 2
-                ? 'flex flex-col gap-3'
-                : 'flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-2 px-2'
-            )}>
+            <div className="grid grid-cols-2 gap-3">
               {playerCartelas.map((c) => {
                 const cellsMarked = markedMap.get(c.id) || new Set<string>();
                 const isClaimed = claimedCartelas.has(c.id);
                 return (
                   <div
                     key={c.id}
-                    className={cn('flex flex-col gap-2', playerCartelas.length <= 2 && 'min-w-[160px] snap-center flex-shrink-0')}
+                    className="flex flex-col gap-2"
                   >
                     <BingoCartela
                       numbers={c.numbers as number[][]}
