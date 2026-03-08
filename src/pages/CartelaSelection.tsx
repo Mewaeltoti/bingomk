@@ -24,6 +24,7 @@ export default function CartelaSelection() {
   const [page, setPage] = useState(1);
   const [showConfirm, setShowConfirm] = useState(false);
   const [buying, setBuying] = useState(false);
+  const [cartelaPrice, setCartelaPrice] = useState(20);
   const pageSize = 20;
   const navigate = useNavigate();
   const user = useUser();
@@ -31,18 +32,21 @@ export default function CartelaSelection() {
 
   useEffect(() => {
     async function fetchCartelas() {
-      const { data, error } = await supabase
-        .from('cartelas')
-        .select('*')
-        .eq('is_used', false)
-        .order('id', { ascending: true });
+      const [cartelasRes, gameRes] = await Promise.all([
+        supabase.from('cartelas').select('*').eq('is_used', false).order('id', { ascending: true }),
+        supabase.from('games').select('cartela_price').eq('id', 'current').maybeSingle(),
+      ]);
 
-      if (error) {
+      if (cartelasRes.error) {
         toast.error('Failed to fetch cartelas');
         return;
       }
 
-      const list = (data || []) as unknown as Cartela[];
+      if (gameRes.data && (gameRes.data as any).cartela_price) {
+        setCartelaPrice((gameRes.data as any).cartela_price);
+      }
+
+      const list = (cartelasRes.data || []) as unknown as Cartela[];
       setCartelas(list);
       const favs = new Set(list.filter(c => c.is_favorite).map(c => c.id));
       setFavorites(favs);
@@ -123,7 +127,7 @@ export default function CartelaSelection() {
 
     const { data: profile } = await supabase.from('profiles').select('balance').eq('id', user.id).single();
     const balance = (profile as any)?.balance || 0;
-    const cost = selected.size * 20;
+    const cost = selected.size * cartelaPrice;
 
     if (balance < cost) {
       toast.error(`Need ${cost} ETB, have ${balance} ETB`);
@@ -148,7 +152,7 @@ export default function CartelaSelection() {
     navigate('/game');
   };
 
-  const cost = selected.size * 20;
+  const cost = selected.size * cartelaPrice;
 
   return (
     <PageShell title="Choose Cartela">
@@ -176,7 +180,7 @@ export default function CartelaSelection() {
       </div>
 
       <p className="text-xs text-muted-foreground mb-3">
-        {filtered.length} available · 20 ETB each · Tap to select
+        {filtered.length} available · {cartelaPrice} ETB each · Tap to select
       </p>
 
       {/* Selected cartelas strip */}
@@ -275,7 +279,7 @@ export default function CartelaSelection() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Price each</span>
-                  <span className="text-foreground font-medium">20 ETB</span>
+                  <span className="text-foreground font-medium">{cartelaPrice} ETB</span>
                 </div>
                 <div className="border-t border-border my-1" />
                 <div className="flex justify-between text-sm font-bold">

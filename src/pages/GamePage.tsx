@@ -54,6 +54,7 @@ export default function GamePage() {
   const [isSpectator, setIsSpectator] = useState(false);
   const [displayName, setDisplayName] = useState<string>('');
   const [balance, setBalance] = useState(0);
+  const [prizeAmount, setPrizeAmount] = useState(0);
   const user = useUser();
   const navigate = useNavigate();
   const players = useGamePresence(user?.id, displayName);
@@ -100,6 +101,7 @@ export default function GamePage() {
       if (gameRes.data) {
         setGamePattern(gameRes.data.pattern || 'Full House');
         setGameStatus(gameRes.data.status || 'waiting');
+        setPrizeAmount((gameRes.data as any).prize_amount || 0);
         if (gameRes.data.status === 'won') {
           setGameResult({ type: 'winner', message: 'Someone won this round! 🏆' });
           setShowResult(true);
@@ -193,6 +195,7 @@ export default function GamePage() {
             }
           }
           if (game.pattern) setGamePattern(game.pattern);
+          if (game.prize_amount !== undefined) setPrizeAmount(game.prize_amount);
         }
       )
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'bingo_claims' },
@@ -394,6 +397,9 @@ export default function GamePage() {
               <div>
                 <div className="text-sm font-display font-bold text-foreground">{gamePattern}</div>
                 <div className="text-xs text-muted-foreground">{drawnNumbers.length}/75 drawn</div>
+                {prizeAmount > 0 && (
+                  <div className="text-xs font-bold text-primary">🏆 {prizeAmount} ETB</div>
+                )}
               </div>
             </div>
           </div>

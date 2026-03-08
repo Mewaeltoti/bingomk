@@ -1,0 +1,1 @@
+ALTER TABLE public.games ADD COLUMN IF NOT EXISTS cartela_price numeric NOT NULL DEFAULT 20;
