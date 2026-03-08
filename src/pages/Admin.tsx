@@ -277,19 +277,25 @@ export default function Admin() {
   };
 
   const pauseGame = async () => {
-    await supabase.functions.invoke('game-lifecycle', { body: { action: 'pause' } });
+    setActionLoading('pause');
+    await invokeWithRetry('game-lifecycle', { body: { action: 'pause' } });
+    setActionLoading(null);
     setAutoDraw(false);
     toast('⏸️ Drawing paused');
   };
 
   const resumeGame = async () => {
-    await supabase.functions.invoke('game-lifecycle', { body: { action: 'resume' } });
+    setActionLoading('resume');
+    await invokeWithRetry('game-lifecycle', { body: { action: 'resume' } });
+    setActionLoading(null);
     setAutoDraw(true);
     toast('▶️ Drawing resumed');
   };
 
   const stopGame = async () => {
-    await supabase.functions.invoke('game-lifecycle', { body: { action: 'stop' } });
+    setActionLoading('stop');
+    await invokeWithRetry('game-lifecycle', { body: { action: 'stop' } });
+    setActionLoading(null);
     setAutoDraw(false);
     setGameStatus('stopped');
     toast('🛑 Game stopped');
