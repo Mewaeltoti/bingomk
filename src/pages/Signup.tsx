@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import PageShell from '@/components/PageShell';
 import { motion } from 'framer-motion';
 
 export default function Signup() {
@@ -50,15 +49,15 @@ export default function Signup() {
   };
 
   return (
-    <PageShell>
-      <div className="flex flex-col items-center justify-center min-h-[80vh] px-2">
+    <div className="min-h-screen bg-background flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+      <div className="flex-1 flex flex-col items-center justify-center px-6">
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="w-full max-w-sm"
+          className="w-full"
         >
-          <div className="text-center mb-8">
-            <h1 className="font-display text-3xl font-bold">
+          <div className="text-center mb-10">
+            <h1 className="font-display text-4xl font-bold">
               <span className="text-secondary">Bingo</span>{' '}
               <span className="text-primary">Ethio</span>
             </h1>
@@ -67,41 +66,41 @@ export default function Signup() {
 
           <form onSubmit={handleSignup} className="space-y-4">
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Phone Number</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Phone Number</label>
               <div className="flex gap-2">
-                <span className="flex items-center px-3 rounded-lg bg-muted text-muted-foreground text-sm">+251</span>
+                <span className="flex items-center px-3 rounded-xl bg-muted text-muted-foreground text-sm font-medium">+251</span>
                 <input
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="9XXXXXXXX"
-                  className="flex-1 px-4 py-3 rounded-xl bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
+                  className="flex-1 px-4 py-3.5 rounded-xl bg-muted text-foreground text-base outline-none focus:ring-2 focus:ring-primary"
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Password</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-4 py-3 rounded-xl bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-3.5 rounded-xl bg-muted text-foreground text-base outline-none focus:ring-2 focus:ring-primary"
                 required
                 minLength={6}
               />
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Confirm Password</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Confirm Password</label>
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-4 py-3 rounded-xl bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-3.5 rounded-xl bg-muted text-foreground text-base outline-none focus:ring-2 focus:ring-primary"
                 required
                 minLength={6}
               />
@@ -116,12 +115,12 @@ export default function Signup() {
             </button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground mt-6">
+          <p className="text-center text-sm text-muted-foreground mt-8">
             Already have an account?{' '}
-            <Link to="/login" className="text-primary font-medium">Sign in</Link>
+            <Link to="/login" className="text-primary font-bold">Sign in</Link>
           </p>
         </motion.div>
       </div>
-    </PageShell>
+    </div>
   );
 }

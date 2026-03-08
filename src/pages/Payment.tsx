@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useUser } from '@/lib/auth';
 import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const banks = ['Commercial Bank of Ethiopia', 'Awash Bank', 'Dashen Bank', 'Bank of Abyssinia', 'Telebirr'];
 
@@ -69,12 +70,12 @@ export default function Payment() {
     setBank(''); setAmount(''); setAccountNumber('');
   };
 
-  const inputClass = "w-full p-3 rounded-xl bg-muted border border-border text-foreground text-sm focus:ring-2 focus:ring-primary outline-none";
+  const inputClass = "w-full p-3.5 rounded-xl bg-muted text-foreground text-base focus:ring-2 focus:ring-primary outline-none";
 
   return (
     <PageShell title="Wallet">
       {/* Balance */}
-      <div className="text-center mb-4 p-4 rounded-xl bg-card border border-border">
+      <div className="text-center mb-4 p-4 rounded-2xl gradient-card glow-gold">
         <div className="text-xs text-muted-foreground uppercase tracking-wider">Your Balance</div>
         <div className="text-3xl font-display font-bold text-primary">{balance} ETB</div>
       </div>
@@ -83,17 +84,19 @@ export default function Payment() {
       <div className="flex gap-2 mb-4">
         <button
           onClick={() => setTab('deposit')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+          className={cn(
+            'flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl text-sm font-bold transition-colors active:scale-95',
             tab === 'deposit' ? 'gradient-gold text-primary-foreground' : 'bg-muted text-muted-foreground'
-          }`}
+          )}
         >
           <ArrowDownCircle className="w-4 h-4" /> Deposit
         </button>
         <button
           onClick={() => setTab('withdraw')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+          className={cn(
+            'flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl text-sm font-bold transition-colors active:scale-95',
             tab === 'withdraw' ? 'gradient-gold text-primary-foreground' : 'bg-muted text-muted-foreground'
-          }`}
+          )}
         >
           <ArrowUpCircle className="w-4 h-4" /> Withdraw
         </button>
@@ -101,32 +104,32 @@ export default function Payment() {
 
       {tab === 'deposit' && (
         <>
-          <motion.form initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} onSubmit={handleDeposit} className="space-y-4">
+          <motion.form initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} onSubmit={handleDeposit} className="space-y-3">
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Bank Name</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Bank Name</label>
               <select value={bank} onChange={(e) => setBank(e.target.value)} className={inputClass}>
                 <option value="">Select bank</option>
                 {banks.map((b) => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Amount (ETB)</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Amount (ETB)</label>
               <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 100" className={inputClass} />
             </div>
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Reference Number</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Reference Number</label>
               <input type="text" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Transaction reference" className={inputClass} />
             </div>
-            <button type="submit" disabled={loading} className="w-full py-4 rounded-xl font-display font-bold gradient-gold text-primary-foreground text-lg active:scale-95 transition-transform disabled:opacity-50">
+            <button type="submit" disabled={loading} className="w-full py-4 rounded-xl font-display font-bold gradient-gold text-primary-foreground text-base active:scale-95 transition-transform disabled:opacity-50">
               {loading ? 'Submitting...' : 'Submit Deposit'}
             </button>
           </motion.form>
 
-          <section className="mt-8">
-            <h2 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Recent Deposits</h2>
-            <div className="space-y-2">
+          <section className="mt-6">
+            <h2 className="font-display text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Recent Deposits</h2>
+            <div className="space-y-1.5">
               {deposits.map((d) => (
-                <div key={d.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                <div key={d.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
                   <div>
                     <div className="text-sm font-medium text-foreground">{d.bank} — {d.amount} ETB</div>
                     <div className="text-xs text-muted-foreground">Ref: {d.reference}</div>
@@ -146,33 +149,33 @@ export default function Payment() {
 
       {tab === 'withdraw' && (
         <>
-          <motion.form initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} onSubmit={handleWithdraw} className="space-y-4">
+          <motion.form initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} onSubmit={handleWithdraw} className="space-y-3">
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Bank / Service</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Bank / Service</label>
               <select value={bank} onChange={(e) => setBank(e.target.value)} className={inputClass}>
                 <option value="">Select bank</option>
                 {banks.map((b) => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Account Number</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Account Number</label>
               <input type="text" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Your account number" className={inputClass} />
             </div>
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Amount (ETB)</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Amount (ETB)</label>
               <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 50" className={inputClass} />
               <p className="text-xs text-muted-foreground mt-1">Available: {balance} ETB</p>
             </div>
-            <button type="submit" disabled={loading} className="w-full py-4 rounded-xl font-display font-bold gradient-gold text-primary-foreground text-lg active:scale-95 transition-transform disabled:opacity-50">
+            <button type="submit" disabled={loading} className="w-full py-4 rounded-xl font-display font-bold gradient-gold text-primary-foreground text-base active:scale-95 transition-transform disabled:opacity-50">
               {loading ? 'Submitting...' : 'Request Withdrawal'}
             </button>
           </motion.form>
 
-          <section className="mt-8">
-            <h2 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Recent Withdrawals</h2>
-            <div className="space-y-2">
+          <section className="mt-6">
+            <h2 className="font-display text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Recent Withdrawals</h2>
+            <div className="space-y-1.5">
               {withdrawals.map((w: any) => (
-                <div key={w.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                <div key={w.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
                   <div>
                     <div className="text-sm font-medium text-foreground">{w.bank} — {w.amount} ETB</div>
                     <div className="text-xs text-muted-foreground">Acct: {w.account_number}</div>

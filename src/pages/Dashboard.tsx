@@ -34,7 +34,7 @@ export default function Dashboard() {
       <motion.div
         initial={{ y: 10, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="gradient-card rounded-2xl border border-border p-5 mb-6 glow-gold"
+        className="gradient-card rounded-2xl p-5 mb-4 glow-gold"
       >
         <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
           <Wallet className="w-4 h-4" /> Balance
@@ -43,13 +43,13 @@ export default function Dashboard() {
         <div className="mt-3 flex gap-2">
           <Link
             to="/payment"
-            className="flex-1 py-2 rounded-lg gradient-gold text-primary-foreground text-center text-sm font-semibold"
+            className="flex-1 py-3 rounded-xl gradient-gold text-primary-foreground text-center text-sm font-bold active:scale-95 transition-transform"
           >
             Deposit
           </Link>
           <Link
             to="/cartelas"
-            className="flex-1 py-2 rounded-lg bg-secondary text-secondary-foreground text-center text-sm font-semibold"
+            className="flex-1 py-3 rounded-xl bg-secondary text-secondary-foreground text-center text-sm font-bold active:scale-95 transition-transform"
           >
             Buy Cartela
           </Link>
@@ -57,9 +57,9 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Purchased Cartelas */}
-      <section className="mb-6">
-        <h2 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-          <ShoppingCart className="w-4 h-4" /> My Cartelas ({myCartelas.length})
+      <section className="mb-4">
+        <h2 className="font-display text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
+          <ShoppingCart className="w-3.5 h-3.5" /> My Cartelas ({myCartelas.length})
         </h2>
         {myCartelas.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">No cartelas yet. Buy some to play!</p>
@@ -74,12 +74,12 @@ export default function Dashboard() {
 
       {/* Transactions */}
       <section>
-        <h2 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-          <History className="w-4 h-4" /> Recent Deposits
+        <h2 className="font-display text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
+          <History className="w-3.5 h-3.5" /> Recent Deposits
         </h2>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {deposits.map((d) => (
-            <div key={d.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+            <div key={d.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
               <div>
                 <div className="text-sm font-medium text-foreground">{d.bank} — {d.amount} ETB</div>
                 <div className="text-xs text-muted-foreground">Ref: {d.reference}</div>
