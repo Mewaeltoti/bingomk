@@ -152,7 +152,7 @@ export default function CartelaSelection() {
     navigate('/game');
   };
 
-  const cost = selected.size * 20;
+  const cost = selected.size * cartelaPrice;
 
   return (
     <PageShell title="Choose Cartela">
