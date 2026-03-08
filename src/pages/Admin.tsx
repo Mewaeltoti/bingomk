@@ -62,6 +62,10 @@ export default function Admin() {
         setGameStatus(gameRes.data.status || 'waiting');
         setDrawSpeed((gameRes.data as any).draw_speed || 10);
         setPrizeAmount((gameRes.data as any).prize_amount || 0);
+        // If game was left in 'buying' state after reload, allow admin to start immediately
+        if (gameRes.data.status === 'buying') {
+          setBuyingCountdown(0); // show "Skip & Start Now" immediately
+        }
       }
       setClaims(await enrichWithProfiles(claimsRes.data || []));
     }
@@ -488,15 +492,19 @@ export default function Admin() {
           </div>
 
           {/* Buying countdown */}
-          {gameStatus === 'buying' && buyingCountdown > 0 && (
+          {gameStatus === 'buying' && (
             <div className="p-4 rounded-xl bg-accent/10 border border-accent/30 text-center space-y-2">
               <p className="text-sm font-display font-bold text-foreground">
                 🛒 Buying Period
               </p>
-              <div className="text-3xl font-display font-bold text-primary">
-                {Math.floor(buyingCountdown / 60)}:{String(buyingCountdown % 60).padStart(2, '0')}
-              </div>
-              <p className="text-xs text-muted-foreground">Game starts when timer ends</p>
+              {buyingCountdown > 0 && (
+                <div className="text-3xl font-display font-bold text-primary">
+                  {Math.floor(buyingCountdown / 60)}:{String(buyingCountdown % 60).padStart(2, '0')}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {buyingCountdown > 0 ? 'Game starts when timer ends' : 'Ready to start drawing'}
+              </p>
               <button
                 onClick={() => {
                   if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
@@ -505,7 +513,7 @@ export default function Admin() {
                 }}
                 className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold"
               >
-                Skip & Start Now
+                {buyingCountdown > 0 ? 'Skip & Start Now' : '▶️ Start Drawing'}
               </button>
             </div>
           )}
