@@ -240,7 +240,7 @@ export default function Admin() {
               </div>
               {claims.map((c: any) => (
                 <div key={c.id} className="text-xs text-muted-foreground">
-                  {(c.profiles as any)?.display_name || (c.profiles as any)?.phone || c.user_id.slice(0, 8)}
+                  {c.profile?.display_name || c.profile?.phone || c.user_id.slice(0, 8)}
                 </div>
               ))}
               <button
