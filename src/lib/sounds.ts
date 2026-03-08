@@ -49,6 +49,7 @@ export function playMarkSound() {
 
 /** Announce a bingo number vocally using Web Speech API */
 export function announceNumber(num: number) {
+  if (_muted) return;
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
 
   const letter =
