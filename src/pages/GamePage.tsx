@@ -114,20 +114,11 @@ export default function GamePage() {
       if (claimsRes.data && user?.id) {
         const userClaims = claimsRes.data.filter((c: any) => c.user_id === user.id);
         const claimed = new Set<number>();
-        const removed = new Set<number>();
-        const strikes = new Map<number, number>();
         for (const claim of userClaims) {
           const cid = (claim as any).cartela_id;
-          if (cid) {
-            if (claim.is_valid === null) claimed.add(cid);
-            const s = (claim as any).strike_count || 0;
-            strikes.set(cid, Math.max(strikes.get(cid) || 0, s));
-            if (s >= 2) removed.add(cid);
-          }
+          if (cid && claim.is_valid === null) claimed.add(cid);
         }
         setClaimedCartelas(claimed);
-        setRemovedCartelas(removed);
-        setStrikeMap(strikes);
       }
     }
     fetchGameState();
