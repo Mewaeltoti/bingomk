@@ -47,6 +47,7 @@ export default function GamePage() {
   const [claimedCartelas, setClaimedCartelas] = useState<Set<number>>(new Set());
   const [removedCartelas, setRemovedCartelas] = useState<Set<number>>(new Set());
   const [strikeMap, setStrikeMap] = useState<Map<number, number>>(new Map()); // cartelaId -> strikes
+  const [gameStatus, setGameStatus] = useState<string>('waiting');
   const [isSpectator, setIsSpectator] = useState(false);
   const [displayName, setDisplayName] = useState<string>('');
   const [balance, setBalance] = useState(0);
@@ -98,6 +99,7 @@ export default function GamePage() {
       if (numbersRes.data) setDrawnNumbers(numbersRes.data.map((n: any) => n.number));
       if (gameRes.data) {
         setGamePattern(gameRes.data.pattern || 'Full House');
+        setGameStatus(gameRes.data.status || 'waiting');
         if (gameRes.data.status === 'won') {
           setGameResult({ type: 'winner', message: 'Someone won this round! 🏆' });
           setShowResult(true);
@@ -144,6 +146,7 @@ export default function GamePage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'games' },
         (payload: any) => {
           const game = payload.new;
+          setGameStatus(game.status);
           if (game.status === 'waiting' || game.status === 'active') {
             setDrawnNumbers([]);
             setShowResult(false);
@@ -159,6 +162,9 @@ export default function GamePage() {
                   setPlayerCartelas(data || []);
                   setIsSpectator(!data || data.length === 0);
                 });
+            }
+            if (game.status === 'active') {
+              toast('🎲 New game started! Good luck!', { icon: '🔔' });
             }
           }
           if (game.status === 'won') {
@@ -297,6 +303,31 @@ export default function GamePage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* New game / waiting banner */}
+      {(gameStatus === 'waiting' || gameStatus === 'stopped' || gameStatus === 'won') && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-3 p-4 rounded-xl border-2 border-primary/30 bg-primary/5 text-center"
+        >
+          <div className="text-2xl mb-1">🎲</div>
+          <p className="text-sm font-display font-bold text-foreground mb-1">
+            {gameStatus === 'won' ? 'Round Over!' : 'Waiting for Next Game'}
+          </p>
+          <p className="text-xs text-muted-foreground mb-2">
+            {gameStatus === 'won'
+              ? 'A new game will start soon. Buy cartelas to play!'
+              : 'The admin will start a new game soon. Get your cartelas ready!'}
+          </p>
+          <button
+            onClick={() => navigate('/cartelas')}
+            className="px-4 py-2 rounded-xl gradient-gold text-primary-foreground text-sm font-bold active:scale-95 transition-transform"
+          >
+            Buy Cartelas
+          </button>
+        </motion.div>
+      )}
 
       {/* Top bar */}
       <div className="flex items-center justify-between mb-3">
