@@ -355,7 +355,8 @@ export default function GamePage() {
           <div className="absolute top-1 right-1 w-5 h-5 border-t-2 border-r-2 border-primary/50 rounded-tr-lg" />
           <div className="absolute bottom-1 left-1 w-5 h-5 border-b-2 border-l-2 border-primary/50 rounded-bl-lg" />
           <div className="absolute bottom-1 right-1 w-5 h-5 border-b-2 border-r-2 border-primary/50 rounded-br-lg" />
-          {/* Row 1: Last number + Pattern */}
+          {/* Felt-green inner area */}
+          <div className="rounded-xl bg-[hsl(145,35%,25%)] p-3 space-y-3 shadow-[inset_0_2px_8px_rgba(0,0,0,0.3)] text-black [&_*]:text-black [&_.text-muted-foreground]:!text-black/60 [&_.text-foreground]:!text-black [&_.text-primary]:!text-amber-600 [&_.font-display]:!text-black">
           <div className="flex items-center gap-3">
             {lastNumber ? (
               <div
