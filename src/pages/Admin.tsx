@@ -35,7 +35,14 @@ export default function Admin() {
   const [adjustAmount, setAdjustAmount] = useState('');
 
   const user = useUser();
+  const navigate = useNavigate();
   const onlinePlayers = useGamePresence(user?.id, 'Admin');
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast.success('Logged out');
+    navigate('/login');
+  };
 
   const tabs = [
     { key: 'game' as const, label: 'Game', icon: Gamepad2 },
