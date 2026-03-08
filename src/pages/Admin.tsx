@@ -113,86 +113,40 @@ export default function Admin() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Manual verification by admin
+  // Manual verification by admin — via edge function
   const verifyClaimManually = async (claim: any, isValid: boolean) => {
-    const cartelaId = claim.cartela_id;
+    const { data, error } = await supabase.functions.invoke('verify-claim', {
+      body: { action: 'verify_single', claim_id: claim.id, is_valid: isValid },
+    });
 
-    if (isValid) {
-      await supabase.from('bingo_claims').update({ is_valid: true } as any).eq('id', claim.id);
-      
-      // Count unique players with valid claims (including this one)
-      const alreadyValidClaims = claims.filter((c: any) => c.is_valid === true);
-      const allValidUserIds = new Set([claim.user_id, ...alreadyValidClaims.map((c: any) => c.user_id)]);
-      const uniqueWinnerCount = allValidUserIds.size;
+    if (error) { toast.error('Verification failed'); return; }
 
-      if (uniqueWinnerCount >= 3) {
-        // 3+ different players — disqualify round
-        await supabase.from('games').update({ status: 'disqualified', winner_id: null } as any).eq('id', 'current');
-        await supabase.from('game_numbers').delete().eq('game_id', 'current');
-        await supabase.from('bingo_claims').delete().eq('game_id', 'current');
-        setGameStatus('disqualified');
-        setDrawnNumbers([]);
-        setClaims([]);
-        toast.error('🔄 3+ different winners — Round restart!');
-        setTimeout(startNewGame, 3000);
-        return;
+    if (!isValid) {
+      toast.warning(`❌ Invalid claim on #${claim.cartela_id}`);
+      if (data?.result === 'invalid') {
+        // auto-draw resumed server-side if no more pending
       }
-
-      // Check if there are still pending claims
-      const pendingClaims = claims.filter((c: any) => c.is_valid === null && c.id !== claim.id);
-      if (pendingClaims.length > 0) {
-        toast.success(`✅ Claim valid! ${pendingClaims.length} more pending...`);
+    } else if (data?.result === 'valid_pending_remaining') {
+      toast.success(`✅ Claim valid! ${data.remaining} more pending...`);
+    } else if (data?.result === 'won') {
+      setGameStatus('won');
+      setDrawnNumbers([]);
+      if (data.winner_count === 2) {
+        toast.success(`🏆 2 winners — ${data.prize_per_winner} ETB each credited!`);
       } else {
-        // No more pending — resolve game
-        const { data: nums } = await supabase.from('game_numbers').select('number').eq('game_id', 'current');
-        const drawnNumbersList = (nums || []).map((n: any) => n.number);
-        
-        // Count players (cartelas with owners)
-        const { count: playersCount } = await supabase.from('cartelas').select('owner_id', { count: 'exact', head: true }).eq('is_used', true).not('owner_id', 'is', null);
-
-        const prizePerWinner = uniqueWinnerCount === 2 ? prizeAmount / 2 : prizeAmount;
-        await supabase.from('games').update({ status: 'won', winner_id: claim.user_id }).eq('id', 'current');
-        await supabase.from('game_history').insert({
-          game_id: 'current', winner_id: claim.user_id, pattern,
-          players_count: playersCount || 0, prize: prizePerWinner, drawn_numbers: drawnNumbersList,
-        } as any);
-        await supabase.from('game_numbers').delete().eq('game_id', 'current');
-
-        // Credit winner balances
-        for (const wId of Array.from(allValidUserIds)) {
-          const { data: wp } = await supabase.from('profiles').select('balance').eq('id', wId).single();
-          if (wp) {
-            await supabase.from('profiles').update({ balance: (wp as any).balance + prizePerWinner } as any).eq('id', wId);
-          }
-        }
-
-        setGameStatus('won');
-
-        if (uniqueWinnerCount === 2) {
-          toast.success(`🏆 2 winners — ${prizePerWinner} ETB each credited!`);
-        } else {
-          toast.success(`🏆 Winner gets ${prizePerWinner} ETB! Balance credited.`);
-        }
-
-        // Auto-reset after 10 seconds
-        setTimeout(startNewGame, 10000);
+        toast.success(`🏆 Winner gets ${data.prize_per_winner} ETB! Balance credited.`);
       }
-    } else {
-      await supabase.from('bingo_claims').update({ is_valid: false } as any).eq('id', claim.id);
-      toast.warning(`❌ Invalid claim on #${cartelaId}`);
-      
-      // Resume if no more pending
-      const remainingPending = claims.filter((c: any) => c.is_valid === null && c.id !== claim.id);
-      if (remainingPending.length === 0) {
-        toast('▶️ No more pending claims — resuming draw');
-        await supabase.from('games').update({ auto_draw: true } as any).eq('id', 'current');
-        setAutoDraw(true);
-        invokeAutoDraw();
-      }
+      setTimeout(startNewGame, 10000);
+    } else if (data?.result === 'disqualified') {
+      setGameStatus('disqualified');
+      setDrawnNumbers([]);
+      setClaims([]);
+      toast.error(`🔄 ${data.winner_count} different winners — Round restart!`);
+      setTimeout(startNewGame, 3000);
     }
 
-    const { data } = await supabase.from('bingo_claims').select('*').eq('game_id', 'current');
-    setClaims(await enrichWithProfiles(data || []));
+    const { data: claimsRefresh } = await supabase.from('bingo_claims').select('*').eq('game_id', 'current');
+    setClaims(await enrichWithProfiles(claimsRefresh || []));
   };
 
   // Verify all pending claims at once — count unique PLAYERS not claims
