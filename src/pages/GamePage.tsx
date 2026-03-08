@@ -8,10 +8,9 @@ import { getBingoLetter } from '@/lib/bingoEngine';
 import { checkWin } from '@/lib/winDetection';
 import { PatternName } from '@/lib/bingo';
 import { toast } from 'sonner';
-// lightweight: no framer-motion
 import { cn } from '@/lib/utils';
 import { playDrawSound, playWinSound, playMarkSound, announceNumber } from '@/lib/sounds';
-import { Users, Eye, Hand, ShoppingCart } from 'lucide-react';
+import { Users, Eye, Hand, ShoppingCart, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import MuteToggle from '@/components/MuteToggle';
 
@@ -51,6 +50,7 @@ export default function GamePage() {
   const [buyingCountdown, setBuyingCountdown] = useState(0);
   const buyingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isSpectator, setIsSpectator] = useState(false);
+  const [boardOpen, setBoardOpen] = useState(true);
   const [displayName, setDisplayName] = useState<string>('');
   const [balance, setBalance] = useState(0);
   const [prizeAmount, setPrizeAmount] = useState(0);
@@ -293,7 +293,7 @@ export default function GamePage() {
   const showBuyPrompt = gameStatus === 'buying' || gameStatus === 'waiting' || gameStatus === 'stopped' || gameStatus === 'won';
 
   return (
-    <PageShell title="Bingo">
+    <PageShell title="Bingo" whiteBg>
       {/* Winner overlay - simple confetti + message */}
       {showResult && gameResult && (
         <div
@@ -388,32 +388,45 @@ export default function GamePage() {
             </div>
           </div>
 
-          {/* Row 2: Compact 1-75 board */}
-          <div className="rounded-lg border border-border overflow-hidden bg-card">
-            {['B', 'I', 'N', 'G', 'O'].map((letter, rowIdx) => (
-              <div key={letter} className="flex items-center border-b border-border last:border-b-0">
-                <div className="w-6 flex-shrink-0 text-center font-display font-bold text-primary text-[10px] py-0.5 bg-muted/50">
-                  {letter}
-                </div>
-                <div className="flex flex-1">
-                  {Array.from({ length: 15 }, (_, i) => {
-                    const num = rowIdx * 15 + i + 1;
-                    const isDrawn = drawnSet.has(num);
-                    return (
-                      <div
-                        key={num}
-                        className={cn(
-                          'flex-1 aspect-square flex items-center justify-center text-[8px] font-medium transition-colors',
-                          isDrawn ? 'bg-primary text-primary-foreground' : 'text-muted-foreground/60'
-                        )}
-                      >
-                        {num}
-                      </div>
-                    );
-                  })}
-                </div>
+          {/* Row 2: Collapsible 1-75 board with circle numbers */}
+          <div className="rounded-lg border border-border overflow-hidden bg-white dark:bg-card">
+            <button
+              onClick={() => setBoardOpen(prev => !prev)}
+              className="w-full flex items-center justify-between px-3 py-1.5 bg-muted/30 text-xs font-medium text-muted-foreground"
+            >
+              <span>Drawn Numbers ({drawnNumbers.length}/75)</span>
+              {boardOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+            {boardOpen && (
+              <div className="p-1.5">
+                {['B', 'I', 'N', 'G', 'O'].map((letter, rowIdx) => (
+                  <div key={letter} className="flex items-center gap-0.5 mb-0.5 last:mb-0">
+                    <div className="w-5 flex-shrink-0 text-center font-display font-bold text-primary text-[10px]">
+                      {letter}
+                    </div>
+                    <div className="flex flex-1 gap-px">
+                      {Array.from({ length: 15 }, (_, i) => {
+                        const num = rowIdx * 15 + i + 1;
+                        const isDrawn = drawnSet.has(num);
+                        return (
+                          <div
+                            key={num}
+                            className={cn(
+                              'flex-1 aspect-square flex items-center justify-center text-[7px] font-bold rounded-full transition-colors',
+                              isDrawn
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted/40 text-muted-foreground/50'
+                            )}
+                          >
+                            {num}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
 
           {/* Row 3: Player's cartelas - responsive grid */}
