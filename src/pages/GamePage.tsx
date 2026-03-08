@@ -331,7 +331,7 @@ export default function GamePage() {
 
       {/* Buy/Waiting state */}
       {showBuyPrompt && !isGameActive && (
-        <div className="mb-3 p-4 rounded-xl bg-card border border-border text-center">
+        <div className="mb-2 mx-3 p-4 rounded-xl bg-card border border-border text-center">
           <p className="text-sm text-muted-foreground mb-3">
             {gameStatus === 'buying' ? 'Buy cartelas before game starts!' : gameStatus === 'won' ? 'Round over! New game soon.' : 'Waiting for next game...'}
           </p>
