@@ -18,6 +18,8 @@ export default function Admin() {
   const [deposits, setDeposits] = useState<any[]>([]);
   const [players, setPlayers] = useState<any[]>([]);
   const [claims, setClaims] = useState<any[]>([]);
+  const [adjustingPlayer, setAdjustingPlayer] = useState<string | null>(null);
+  const [adjustAmount, setAdjustAmount] = useState('');
 
   const tabs = [
     { key: 'deposits' as const, label: 'Deposits', icon: CreditCard },
