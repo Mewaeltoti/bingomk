@@ -1,0 +1,1 @@
+ALTER TABLE public.games ADD COLUMN IF NOT EXISTS prize_amount numeric NOT NULL DEFAULT 0;

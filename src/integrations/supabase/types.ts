@@ -194,6 +194,7 @@ export type Database = {
           draw_speed: number
           id: string
           pattern: string
+          prize_amount: number
           status: string
           winner_id: string | null
         }
@@ -202,6 +203,7 @@ export type Database = {
           draw_speed?: number
           id?: string
           pattern?: string
+          prize_amount?: number
           status?: string
           winner_id?: string | null
         }
@@ -210,6 +212,7 @@ export type Database = {
           draw_speed?: number
           id?: string
           pattern?: string
+          prize_amount?: number
           status?: string
           winner_id?: string | null
         }
