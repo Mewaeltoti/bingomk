@@ -18,6 +18,9 @@ export default function Admin() {
   const [autoDraw, setAutoDraw] = useState(false);
   const [drawSpeed, setDrawSpeed] = useState(10);
   const [prizeAmount, setPrizeAmount] = useState(0);
+  const [cartelaPrice, setCartelaPrice] = useState(20);
+  const [houseCutPercent, setHouseCutPercent] = useState(10);
+  const [boughtCount, setBoughtCount] = useState(0);
   const [buyingCountdown, setBuyingCountdown] = useState(0);
   const autoDrawRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const buyingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -323,8 +326,9 @@ export default function Admin() {
     ]);
     // Set game to "buying" status — 2 min rest
     await supabase.from('games').upsert({
-      id: 'current', pattern, status: 'buying', winner_id: null, draw_speed: drawSpeed, prize_amount: prizeAmount,
+      id: 'current', pattern, status: 'buying', winner_id: null, draw_speed: drawSpeed, prize_amount: 0,
     } as any);
+    setBoughtCount(0);
     setDrawnNumbers([]);
     setClaims([]);
     setGameStatus('buying');
@@ -335,10 +339,15 @@ export default function Admin() {
     // Start countdown
     buyingTimerRef.current = setInterval(() => {
       setBuyingCountdown(prev => {
+        // Refresh bought count every 10 seconds
+        if (prev % 10 === 0) {
+          supabase.from('cartelas').select('id', { count: 'exact', head: true })
+            .eq('is_used', true).not('owner_id', 'is', null)
+            .then(({ count }) => setBoughtCount(count || 0));
+        }
         if (prev <= 1) {
           if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
           buyingTimerRef.current = null;
-          // Prevent calling startDrawing multiple times
           if (!drawingStartedRef.current) {
             drawingStartedRef.current = true;
             startDrawing();
@@ -351,10 +360,22 @@ export default function Admin() {
   };
 
   const startDrawing = async () => {
-    await supabase.from('games').update({ status: 'active' } as any).eq('id', 'current');
+    // Auto-calculate prize from bought cartelas
+    const { count } = await supabase
+      .from('cartelas')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_used', true)
+      .not('owner_id', 'is', null);
+    const bought = count || 0;
+    setBoughtCount(bought);
+    const totalSales = bought * cartelaPrice;
+    const prize = Math.floor(totalSales * (1 - houseCutPercent / 100));
+    setPrizeAmount(prize);
+
+    await supabase.from('games').update({ status: 'active', prize_amount: prize } as any).eq('id', 'current');
     setGameStatus('active');
     setAutoDraw(true);
-    toast.success(`🎲 Game started! Drawing every ${drawSpeed}s`);
+    toast.success(`🎲 Game started! ${bought} cartelas sold, prize: ${prize} ETB`);
   };
 
   const pauseGame = () => {
@@ -454,22 +475,53 @@ export default function Admin() {
             </div>
           </div>
 
-          {/* Prize Amount */}
-          <div>
-            <label className="text-sm text-muted-foreground mb-2 block">Prize Pot (ETB)</label>
-            <input
-              type="number"
-              min={0}
-              step={10}
-              value={prizeAmount}
-              onChange={(e) => setPrizeAmount(Number(e.target.value) || 0)}
-              disabled={autoDraw}
-              placeholder="Enter prize amount"
-              className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              1 winner = full • 2 winners = {prizeAmount ? (prizeAmount / 2).toFixed(0) : '0'} ETB each
-            </p>
+          {/* Cartela Price & House Cut */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm text-muted-foreground mb-1 block">Cartela Price (ETB)</label>
+              <input
+                type="number"
+                min={1}
+                value={cartelaPrice}
+                onChange={(e) => setCartelaPrice(Number(e.target.value) || 1)}
+                disabled={autoDraw || gameStatus === 'active'}
+                className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground mb-1 block">House Cut %</label>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                value={houseCutPercent}
+                onChange={(e) => setHouseCutPercent(Number(e.target.value) || 0)}
+                disabled={autoDraw || gameStatus === 'active'}
+                className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+              />
+            </div>
+          </div>
+
+          {/* Prize calculation preview */}
+          <div className="p-3 rounded-xl bg-muted/50 border border-border space-y-1">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Cartelas sold</span>
+              <span className="text-foreground font-medium">{boughtCount}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Total sales</span>
+              <span className="text-foreground font-medium">{boughtCount * cartelaPrice} ETB</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">House cut ({houseCutPercent}%)</span>
+              <span className="text-foreground font-medium">{Math.floor(boughtCount * cartelaPrice * houseCutPercent / 100)} ETB</span>
+            </div>
+            <div className="border-t border-border my-1" />
+            <div className="flex justify-between text-sm font-bold">
+              <span className="text-foreground">Prize pot</span>
+              <span className="text-primary">{prizeAmount || Math.floor(boughtCount * cartelaPrice * (1 - houseCutPercent / 100))} ETB</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Auto-calculated when game starts</p>
           </div>
 
           {/* Game controls */}
