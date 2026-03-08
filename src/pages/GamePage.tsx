@@ -1,13 +1,10 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import PageShell from '@/components/PageShell';
 import BingoCartela from '@/components/BingoCartela';
-import GameChat from '@/components/GameChat';
 import { supabase } from '@/integrations/supabase/client';
 import { useUser } from '@/lib/auth';
 import { useGamePresence } from '@/hooks/useGamePresence';
 import { getBingoLetter } from '@/lib/bingoEngine';
-import { checkWin, getWinningCells } from '@/lib/winDetection';
-import type { PatternName } from '@/lib/bingo';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactConfetti from 'react-confetti';
@@ -47,7 +44,8 @@ export default function GamePage() {
   const [gameResult, setGameResult] = useState<GameResult | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [playerMarked, setPlayerMarked] = useState<Set<number>>(new Set());
-  const [hasClaimed, setHasClaimed] = useState(false);
+  const [claimedCartelas, setClaimedCartelas] = useState<Set<number>>(new Set());
+  const [removedCartelas, setRemovedCartelas] = useState<Set<number>>(new Set());
   const [isSpectator, setIsSpectator] = useState(false);
   const [displayName, setDisplayName] = useState<string>('');
   const [balance, setBalance] = useState(0);
@@ -80,7 +78,7 @@ export default function GamePage() {
   // Fetch cartelas
   useEffect(() => {
     if (!user?.id) return;
-    supabase.from('cartelas').select('*').eq('owner_id', user.id).order('id', { ascending: true })
+    supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true).order('id', { ascending: true })
       .then(({ data }) => {
         setPlayerCartelas(data || []);
         if (!data || data.length === 0) setIsSpectator(true);
@@ -88,7 +86,7 @@ export default function GamePage() {
       });
   }, [user?.id]);
 
-  // Fetch game state
+  // Fetch game state + existing claims for this user
   useEffect(() => {
     async function fetchGameState() {
       const [numbersRes, gameRes, claimsRes] = await Promise.all([
@@ -107,8 +105,20 @@ export default function GamePage() {
           }
         }
       }
+      // Track existing claims for this user
       if (claimsRes.data && user?.id) {
-        if (claimsRes.data.some((c: any) => c.user_id === user.id)) setHasClaimed(true);
+        const userClaims = claimsRes.data.filter((c: any) => c.user_id === user.id);
+        const claimed = new Set<number>();
+        const removed = new Set<number>();
+        for (const claim of userClaims) {
+          const cid = (claim as any).cartela_id;
+          if (cid) {
+            claimed.add(cid);
+            if ((claim as any).strike_count >= 2) removed.add(cid);
+          }
+        }
+        setClaimedCartelas(claimed);
+        setRemovedCartelas(removed);
       }
     }
     fetchGameState();
@@ -130,24 +140,45 @@ export default function GamePage() {
         (payload: any) => {
           const game = payload.new;
           if (game.status === 'waiting' || game.status === 'active') {
-            if (game.status === 'waiting' || game.status === 'active') {
-              setDrawnNumbers([]);
-              setShowResult(false);
-              setGameResult(null);
-              setPlayerMarked(new Set());
-              setHasClaimed(false);
-            }
+            setDrawnNumbers([]);
+            setShowResult(false);
+            setGameResult(null);
+            setPlayerMarked(new Set());
+            setClaimedCartelas(new Set());
+            setRemovedCartelas(new Set());
           }
           if (game.status === 'won') {
             setGameResult({ type: 'winner', message: 'Someone won this round! 🏆' });
             setShowResult(true);
             playWinSound();
-
             if (game.winner_id === user?.id) {
               setGameResult({ type: 'winner', message: 'You won! 🎉🏆' });
             }
           }
           if (game.pattern) setGamePattern(game.pattern);
+        }
+      )
+      // Listen for claim validation results
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'bingo_claims' },
+        (payload: any) => {
+          const claim = payload.new;
+          if (claim.user_id !== user?.id) return;
+          const cid = claim.cartela_id;
+          if (claim.is_valid === false) {
+            const strikes = claim.strike_count || 0;
+            if (strikes >= 2) {
+              toast.error(`Cartela #${cid} removed — 2 wrong claims!`);
+              setRemovedCartelas(prev => new Set(prev).add(cid));
+            } else {
+              toast.warning(`Wrong claim on #${cid}! ${2 - strikes} chance(s) left.`);
+            }
+            // Allow re-claiming
+            setClaimedCartelas(prev => {
+              const next = new Set(prev);
+              next.delete(cid);
+              return next;
+            });
+          }
         }
       )
       .subscribe();
@@ -157,7 +188,7 @@ export default function GamePage() {
 
   const lastNumber = drawnNumbers[drawnNumbers.length - 1];
 
-  // Manual marking — only allow marking numbers that have been drawn
+  // Manual marking
   const handleMarkNumber = useCallback((num: number) => {
     setPlayerMarked((prev) => {
       const next = new Set(prev);
@@ -166,39 +197,55 @@ export default function GamePage() {
     });
   }, []);
 
-  // Manual claim bingo
-  const handleClaimBingo = async () => {
-    if (!user?.id || hasClaimed || isSpectator) return;
-    const { error } = await supabase
+  // Per-cartela BINGO claim
+  const handleClaimBingo = async (cartelaId: number) => {
+    if (!user?.id || isSpectator) return;
+    if (claimedCartelas.has(cartelaId) || removedCartelas.has(cartelaId)) return;
+
+    // Check how many strikes already
+    const { data: existingClaims } = await supabase
       .from('bingo_claims')
-      .insert({ game_id: 'current', user_id: user.id });
-    if (error) {
-      if (error.code === '23505') toast.info('Already claimed!');
-      else toast.error('Failed to claim');
+      .select('*')
+      .eq('game_id', 'current')
+      .eq('user_id', user.id)
+      .eq('cartela_id', cartelaId);
+
+    const currentStrikes = existingClaims?.length || 0;
+    if (currentStrikes >= 2) {
+      toast.error('This cartela has been removed from the game!');
+      setRemovedCartelas(prev => new Set(prev).add(cartelaId));
       return;
     }
-    setHasClaimed(true);
-    toast.success('🎯 BINGO claimed! System is verifying...');
+
+    setClaimedCartelas(prev => new Set(prev).add(cartelaId));
+
+    const { error } = await supabase
+      .from('bingo_claims')
+      .insert({
+        game_id: 'current',
+        user_id: user.id,
+        cartela_id: cartelaId,
+        strike_count: currentStrikes + 1,
+      } as any);
+
+    if (error) {
+      toast.error('Failed to claim');
+      setClaimedCartelas(prev => {
+        const next = new Set(prev);
+        next.delete(cartelaId);
+        return next;
+      });
+      return;
+    }
+
+    toast.success(`🎯 BINGO claimed on #${cartelaId}! Verifying...`);
   };
 
-  // Check if player has a potential win (for highlighting only)
-  const winData = useMemo(() => {
-    for (const c of playerCartelas) {
-      const nums = c.numbers as number[][];
-      if (checkWin(nums, drawnSet, gamePattern as PatternName)) {
-        const cells = getWinningCells(nums, drawnSet, gamePattern as PatternName);
-        return { cartelaId: c.id, cells };
-      }
-    }
-    return null;
-  }, [playerCartelas, drawnSet, gamePattern]);
-
-  const winCellsSet = useMemo(() => {
-    if (!winData) return undefined;
-    const s = new Set<string>();
-    winData.cells.forEach(([r, c]) => s.add(`${r}-${c}`));
-    return s;
-  }, [winData]);
+  // Active cartelas (not removed)
+  const activeCartelas = useMemo(
+    () => playerCartelas.filter(c => !removedCartelas.has(c.id)),
+    [playerCartelas, removedCartelas]
+  );
 
   return (
     <PageShell title="Live Game">
@@ -329,23 +376,39 @@ export default function GamePage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-24">
-        {playerCartelas.map((c) => (
-          <BingoCartela
-            key={c.id}
-            numbers={c.numbers as number[][]}
-            drawnNumbers={drawnSet}
-            playerMarked={playerMarked}
-            onMarkNumber={isSpectator ? undefined : handleMarkNumber}
-            size="sm"
-            label={`#${c.id}`}
-            winningCells={winData?.cartelaId === c.id ? winCellsSet : undefined}
-            autoMark={false}
-          />
+        {activeCartelas.map((c) => (
+          <div key={c.id} className="flex flex-col gap-1.5">
+            <BingoCartela
+              numbers={c.numbers as number[][]}
+              drawnNumbers={drawnSet}
+              playerMarked={playerMarked}
+              onMarkNumber={isSpectator ? undefined : handleMarkNumber}
+              size="sm"
+              label={`#${c.id}`}
+              autoMark={false}
+            />
+            {/* Per-cartela BINGO button */}
+            {!isSpectator && drawnNumbers.length > 0 && !removedCartelas.has(c.id) && (
+              <button
+                onClick={() => handleClaimBingo(c.id)}
+                disabled={claimedCartelas.has(c.id)}
+                className={cn(
+                  'w-full py-2 rounded-xl font-display font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform',
+                  claimedCartelas.has(c.id)
+                    ? 'bg-muted text-muted-foreground'
+                    : 'gradient-gold text-primary-foreground glow-gold'
+                )}
+              >
+                <Hand className="w-4 h-4" />
+                {claimedCartelas.has(c.id) ? 'Verifying...' : 'BINGO!'}
+              </button>
+            )}
+          </div>
         ))}
-        {playerCartelas.length === 0 && (
+        {activeCartelas.length === 0 && (
           <div className="col-span-2 text-center text-muted-foreground py-8">
             <Eye className="w-8 h-8 mx-auto mb-2 opacity-40" />
-            <p>No cartelas — watching as spectator</p>
+            <p>{removedCartelas.size > 0 ? 'All cartelas removed — game over for you' : 'No cartelas — watching as spectator'}</p>
             <button
               onClick={() => navigate('/cartelas')}
               className="mt-2 px-4 py-2 rounded-lg gradient-gold text-primary-foreground text-sm font-medium"
@@ -355,31 +418,6 @@ export default function GamePage() {
           </div>
         )}
       </div>
-
-      {/* Manual Claim Bingo button */}
-      {!isSpectator && !hasClaimed && drawnNumbers.length > 0 && (
-        <div className="fixed bottom-20 left-4 right-4 z-40">
-          <button
-            onClick={handleClaimBingo}
-            className="w-full py-4 rounded-2xl gradient-gold text-primary-foreground font-display font-bold text-lg active:scale-95 transition-transform flex items-center justify-center gap-2 glow-gold shadow-lg"
-          >
-            <Hand className="w-6 h-6" />
-            BINGO!
-          </button>
-        </div>
-      )}
-
-      {/* Claimed status */}
-      {hasClaimed && !showResult && (
-        <div className="fixed bottom-20 left-4 right-4 z-40">
-          <div className="w-full py-4 rounded-2xl bg-secondary/20 text-center text-secondary font-display font-bold text-lg">
-            ✅ BINGO claimed! System verifying...
-          </div>
-        </div>
-      )}
-
-      {/* Chat */}
-      <GameChat userId={user?.id} isSpectator={false} />
     </PageShell>
   );
 }
