@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import PageShell from '@/components/PageShell';
-import { Users, CreditCard, Gamepad2, Check, X, AlertTriangle, Plus, Minus, Pause, Play, Square } from 'lucide-react';
+import { Users, CreditCard, Gamepad2, Check, X, AlertTriangle, Plus, Minus, Pause, Play, Square, ArrowUpCircle } from 'lucide-react';
 import { PATTERNS, PatternName } from '@/lib/bingo';
 import { getBingoLetter } from '@/lib/bingoEngine';
 import { checkWin } from '@/lib/winDetection';
@@ -11,7 +11,7 @@ import { useUser } from '@/lib/auth';
 import { toast } from 'sonner';
 
 export default function Admin() {
-  const [tab, setTab] = useState<'game' | 'deposits' | 'players'>('game');
+  const [tab, setTab] = useState<'game' | 'deposits' | 'withdrawals' | 'players'>('game');
   const [pattern, setPattern] = useState<PatternName>('Full House');
   const [drawnNumbers, setDrawnNumbers] = useState<number[]>([]);
   const [gameStatus, setGameStatus] = useState('waiting');
@@ -24,6 +24,7 @@ export default function Admin() {
   const drawnRef = useRef<number[]>([]);
 
   const [deposits, setDeposits] = useState<any[]>([]);
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [players, setPlayers] = useState<any[]>([]);
   const [claims, setClaims] = useState<any[]>([]);
   const [adjustingPlayer, setAdjustingPlayer] = useState<string | null>(null);
@@ -35,6 +36,7 @@ export default function Admin() {
   const tabs = [
     { key: 'game' as const, label: 'Game', icon: Gamepad2 },
     { key: 'deposits' as const, label: 'Deposits', icon: CreditCard },
+    { key: 'withdrawals' as const, label: 'Withdrawals', icon: ArrowUpCircle },
     { key: 'players' as const, label: 'Players', icon: Users },
   ];
 
@@ -269,6 +271,13 @@ export default function Admin() {
     supabase.from('deposits').select('*')
       .order('created_at', { ascending: false })
       .then(async ({ data }) => setDeposits(await enrichWithProfiles(data || [])));
+  }, [tab]);
+
+  useEffect(() => {
+    if (tab !== 'withdrawals') return;
+    (supabase.from('withdrawals' as any) as any).select('*')
+      .order('created_at', { ascending: false })
+      .then(async ({ data }: any) => setWithdrawals(await enrichWithProfiles(data || [])));
   }, [tab]);
 
   useEffect(() => {
@@ -638,6 +647,54 @@ export default function Admin() {
                     <Check className="w-4 h-4" /> Approve
                   </button>
                   <button onClick={() => handleDeposit(d.id, 'rejected', d.user_id, d.amount)}
+                    className="flex-1 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium flex items-center justify-center gap-1">
+                    <X className="w-4 h-4" /> Decline
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === 'withdrawals' && (
+        <div className="space-y-2">
+          {withdrawals.length === 0 && <p className="text-center text-muted-foreground py-8">No withdrawal requests</p>}
+          {withdrawals.map((w: any) => (
+            <div key={w.id} className="p-3 rounded-xl bg-muted/50 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium text-foreground">{w.bank} — {w.amount} ETB</div>
+                  <div className="text-xs text-muted-foreground">
+                    Acct: {w.account_number} · {w.profile?.display_name || w.profile?.phone || 'Unknown'}
+                  </div>
+                </div>
+                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                  w.status === 'approved' ? 'bg-secondary/20 text-secondary' :
+                  w.status === 'pending' ? 'bg-primary/20 text-primary' :
+                  'bg-destructive/20 text-destructive'
+                }`}>{w.status}</span>
+              </div>
+              {w.status === 'pending' && (
+                <div className="flex gap-2">
+                  <button onClick={async () => {
+                    // Deduct balance then approve
+                    const { data: profile } = await supabase.from('profiles').select('balance').eq('id', w.user_id).single();
+                    const bal = (profile as any)?.balance || 0;
+                    if (bal < w.amount) { toast.error('User has insufficient balance'); return; }
+                    await supabase.from('profiles').update({ balance: bal - w.amount } as any).eq('id', w.user_id);
+                    await (supabase.from('withdrawals' as any) as any).update({ status: 'approved' }).eq('id', w.id);
+                    setWithdrawals(prev => prev.map(x => x.id === w.id ? { ...x, status: 'approved' } : x));
+                    toast.success(`✅ Approved & deducted ${w.amount} ETB`);
+                  }}
+                    className="flex-1 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium flex items-center justify-center gap-1">
+                    <Check className="w-4 h-4" /> Approve
+                  </button>
+                  <button onClick={async () => {
+                    await (supabase.from('withdrawals' as any) as any).update({ status: 'rejected' }).eq('id', w.id);
+                    setWithdrawals(prev => prev.map(x => x.id === w.id ? { ...x, status: 'rejected' } : x));
+                    toast.success('Withdrawal rejected');
+                  }}
                     className="flex-1 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium flex items-center justify-center gap-1">
                     <X className="w-4 h-4" /> Decline
                   </button>
