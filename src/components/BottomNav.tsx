@@ -1,4 +1,4 @@
-import { Home, LayoutGrid, Gamepad2, Wallet, User, LogOut, Shield } from 'lucide-react';
+import { Home, LayoutGrid, Gamepad2, Wallet, User, LogOut, Shield, Trophy } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/lib/auth';
@@ -8,8 +8,8 @@ import { useEffect, useState } from 'react';
 
 const navItems = [
   { to: '/', icon: Home, label: 'Home' },
-  { to: '/cartelas', icon: LayoutGrid, label: 'Cartelas' },
   { to: '/game', icon: Gamepad2, label: 'Game' },
+  { to: '/leaderboard', icon: Trophy, label: 'Rank' },
   { to: '/dashboard', icon: Wallet, label: 'Wallet' },
   { to: '/profile', icon: User, label: 'Profile' },
 ];
