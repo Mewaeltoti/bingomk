@@ -8,8 +8,8 @@ import { useEffect, useState } from 'react';
 
 const navItems = [
   { to: '/', icon: Home, label: 'Home' },
-  { to: '/cartelas', icon: LayoutGrid, label: 'Cartelas' },
   { to: '/game', icon: Gamepad2, label: 'Game' },
+  { to: '/leaderboard', icon: Trophy, label: 'Rank' },
   { to: '/dashboard', icon: Wallet, label: 'Wallet' },
   { to: '/profile', icon: User, label: 'Profile' },
 ];
