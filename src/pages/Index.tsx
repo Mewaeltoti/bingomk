@@ -1,83 +1,40 @@
 import { motion } from 'framer-motion';
-import { Users, Trophy, Zap, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Index() {
   return (
-    <div className="min-h-screen bg-background flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-      <div className="flex-1 flex flex-col px-5">
-        {/* Hero */}
-        <div className="text-center pt-16 pb-8">
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            <h1 className="font-display text-5xl font-bold tracking-tight">
-              <span className="text-secondary">Bingo</span>{' '}
-              <span className="text-primary">Ethio</span>
-            </h1>
-            <p className="text-muted-foreground mt-3 text-base">Play. Win. Celebrate.</p>
-          </motion.div>
-        </div>
-
-        {/* Status Card */}
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+      <div className="flex-1 flex flex-col items-center justify-center px-5 max-w-sm w-full">
         <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="rounded-2xl p-5 bg-card border border-border mb-6"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-12"
         >
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-2.5 h-2.5 rounded-full bg-secondary animate-pulse" />
-            <span className="text-secondary text-sm font-semibold">Live Game</span>
-          </div>
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <Users className="w-5 h-5 mx-auto text-muted-foreground mb-1" />
-              <div className="font-display text-2xl font-bold text-foreground">24</div>
-              <div className="text-xs text-muted-foreground">Players</div>
-            </div>
-            <div>
-              <Trophy className="w-5 h-5 mx-auto text-primary mb-1" />
-              <div className="font-display text-2xl font-bold text-primary">2,400</div>
-              <div className="text-xs text-muted-foreground">Prize (ETB)</div>
-            </div>
-            <div>
-              <Zap className="w-5 h-5 mx-auto text-accent mb-1" />
-              <div className="font-display text-2xl font-bold text-foreground">R3</div>
-              <div className="text-xs text-muted-foreground">Round</div>
-            </div>
-          </div>
+          <h1 className="font-display text-4xl font-black tracking-tight mb-2">
+            <span className="text-primary">BINGO</span>{' '}
+            <span className="text-secondary">ETHIO</span>
+          </h1>
+          <p className="text-muted-foreground text-sm">Play. Win. Celebrate.</p>
         </motion.div>
 
-        {/* Join Button */}
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4 }}>
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }} className="w-full space-y-3">
           <Link
-            to="/cartelas"
-            className="flex items-center justify-center gap-2 w-full py-4 rounded-xl font-display font-bold text-lg bg-primary text-primary-foreground transition-transform active:scale-95"
+            to="/game"
+            className="flex items-center justify-center gap-2 w-full py-4 rounded-lg font-display font-bold text-lg gradient-neon text-primary-foreground transition-transform active:scale-95 glow-neon"
           >
-            Join Game <ArrowRight className="w-5 h-5" />
+            Play Now <ArrowRight className="w-5 h-5" />
           </Link>
+          <div className="flex gap-2">
+            <Link to="/login" className="flex-1 py-3 rounded-lg bg-muted text-muted-foreground text-center text-sm font-medium">
+              Login
+            </Link>
+            <Link to="/signup" className="flex-1 py-3 rounded-lg bg-secondary/20 text-secondary text-center text-sm font-medium">
+              Sign Up
+            </Link>
+          </div>
         </motion.div>
-
-        {/* Quick Info */}
-        <div className="mt-8 space-y-2 pb-8">
-          <h2 className="font-display text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">How it works</h2>
-          {[
-            { step: '1', text: 'Deposit funds to your wallet' },
-            { step: '2', text: 'Buy a cartela for the game' },
-            { step: '3', text: 'Wait for the game to start' },
-            { step: '4', text: 'Match the pattern & win!' },
-          ].map(({ step, text }) => (
-            <div key={step} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center font-display font-bold text-primary-foreground text-sm shrink-0">
-                {step}
-              </div>
-              <span className="text-sm text-foreground">{text}</span>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );
