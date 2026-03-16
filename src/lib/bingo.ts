@@ -25,12 +25,23 @@ export function generateCartela(): number[][] {
 
 export const BINGO_LETTERS = ['B', 'I', 'N', 'G', 'O'];
 
-export const PATTERNS = {
+export const PATTERNS: Record<string, string> = {
   'Full House': 'All numbers marked',
-  'L Shape': 'First column + last row',
-  'T Shape': 'First row + middle column',
-  'U Shape': 'First col + last col + last row',
+  'Single Line H': 'Any horizontal line',
+  'Single Line V': 'Any vertical line',
+  'Single Line D': 'Any diagonal line',
+  'Two Lines': 'Any two complete lines',
+  'Four Corners': 'All four corner cells',
   'X Shape': 'Both diagonals',
+  'T Shape': 'First row + middle column',
+  'L Shape': 'First column + last row',
+  'Cross': 'Middle row + middle column',
+  'Frame': 'All border cells',
+  'Postage Stamp': 'Any 2x2 corner block',
+  'Small Diamond': 'Diamond in center',
+  'Arrow Up': 'Arrow pointing up',
+  'Pyramid': 'Triangle from top center',
+  'U Shape': 'First col + last col + last row',
 };
 
 export type PatternName = keyof typeof PATTERNS;
