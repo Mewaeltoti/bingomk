@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-    // Run draw loop for up to ~50 seconds, then exit (edge function limit ~60s)
+    const DRAW_INTERVAL_MS = 5_000; // Fixed 5-second interval
     const startTime = Date.now();
     const MAX_RUNTIME_MS = 50_000;
 
@@ -48,7 +48,6 @@ Deno.serve(async (req) => {
         .is("is_valid", null);
 
       if (pendingClaims && pendingClaims.length > 0) {
-        // Pause auto_draw in DB
         await supabase
           .from("games")
           .update({ auto_draw: false })
@@ -88,9 +87,8 @@ Deno.serve(async (req) => {
         .from("game_numbers")
         .insert({ number: num, game_id: "current" });
 
-      // Sleep for draw_speed seconds
-      const speed = game.draw_speed || 10;
-      await sleep(speed * 1000);
+      // Fixed 5-second draw interval
+      await sleep(DRAW_INTERVAL_MS);
     }
 
     // Time's up — re-invoke self to continue
@@ -101,7 +99,7 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
         "Content-Type": "application/json",
       },
-    }).catch(() => {}); // fire and forget
+    }).catch(() => {});
 
     return new Response(
       JSON.stringify({ ok: true, reason: "re-invoked" }),
