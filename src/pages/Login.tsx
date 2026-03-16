@@ -1,14 +1,68 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { invokeWithRetry } from '@/lib/edgeFn';
+
+// Detect Telegram Mini App environment
+function getTelegramWebApp(): any {
+  return (window as any).Telegram?.WebApp;
+}
 
 export default function Login() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [tgLoading, setTgLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Auto-login via Telegram if in Mini App
+  useEffect(() => {
+    const tg = getTelegramWebApp();
+    if (tg?.initDataUnsafe?.user) {
+      handleTelegramLogin(tg);
+    }
+  }, []);
+
+  const handleTelegramLogin = async (tg: any) => {
+    setTgLoading(true);
+    const telegramUser = tg.initDataUnsafe.user;
+    
+    const { data, error } = await invokeWithRetry('telegram-auth', {
+      body: {
+        initData: tg.initData,
+        telegramUser: {
+          id: telegramUser.id,
+          first_name: telegramUser.first_name,
+          last_name: telegramUser.last_name,
+          username: telegramUser.username,
+          phone_number: telegramUser.phone_number,
+        },
+      },
+    });
+
+    if (error || !data?.ok) {
+      toast.error('Telegram login failed');
+      setTgLoading(false);
+      return;
+    }
+
+    // Sign in with the credentials
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: data.email,
+      password: data.password,
+    });
+
+    setTgLoading(false);
+    if (signInError) {
+      toast.error('Authentication failed');
+      return;
+    }
+
+    toast.success(`Welcome, ${data.displayName}!`);
+    navigate('/game');
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,13 +102,24 @@ export default function Login() {
     navigate('/game');
   };
 
+  if (tgLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground text-sm">Signing in via Telegram...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       <div className="flex-1 flex flex-col items-center justify-center px-6">
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="w-full"
+          className="w-full max-w-sm"
         >
           <div className="text-center mb-10">
             <h1 className="font-display text-4xl font-bold">
@@ -95,7 +160,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 rounded-xl font-display font-bold text-lg gradient-gold text-primary-foreground active:scale-95 transition-transform disabled:opacity-50"
+              className="w-full py-4 rounded-xl font-display font-bold text-lg gradient-neon text-primary-foreground active:scale-95 transition-transform disabled:opacity-50"
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
