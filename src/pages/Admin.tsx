@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 
 export default function Admin() {
   const [tab, setTab] = useState<'game' | 'deposits' | 'withdrawals' | 'players'>('game');
-  const [pattern, setPattern] = useState<PatternName>('Full House');
+  const [pattern, setPattern] = useState<string>('Full House');
   const [drawnNumbers, setDrawnNumbers] = useState<number[]>([]);
   const [gameStatus, setGameStatus] = useState('waiting');
   const [autoDraw, setAutoDraw] = useState(false);
