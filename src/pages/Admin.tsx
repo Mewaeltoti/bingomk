@@ -75,7 +75,7 @@ export default function Admin() {
       ]);
       if (numbersRes.data) setDrawnNumbers(numbersRes.data.map((n: any) => n.number));
       if (gameRes.data) {
-        setPattern(gameRes.data.pattern as PatternName);
+        setPattern(gameRes.data.pattern as string);
         setGameStatus(gameRes.data.status || 'waiting');
         setDrawSpeed((gameRes.data as any).draw_speed || 10);
         setPrizeAmount((gameRes.data as any).prize_amount || 0);
