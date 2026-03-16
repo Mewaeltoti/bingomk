@@ -1,0 +1,1 @@
+ALTER TABLE public.games ADD COLUMN IF NOT EXISTS session_number integer NOT NULL DEFAULT 1;

@@ -197,6 +197,7 @@ export type Database = {
           id: string
           pattern: string
           prize_amount: number
+          session_number: number
           status: string
           winner_id: string | null
         }
@@ -208,6 +209,7 @@ export type Database = {
           id?: string
           pattern?: string
           prize_amount?: number
+          session_number?: number
           status?: string
           winner_id?: string | null
         }
@@ -219,6 +221,7 @@ export type Database = {
           id?: string
           pattern?: string
           prize_amount?: number
+          session_number?: number
           status?: string
           winner_id?: string | null
         }
