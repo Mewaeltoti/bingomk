@@ -38,35 +38,35 @@ Deno.serve(async (req) => {
     const { action, pattern, draw_speed, prize_amount, cartela_price } = await req.json();
 
     if (action === "new_game") {
-      // Stop auto draw
       await supabase.from("games").update({ auto_draw: false }).eq("id", "current");
 
-      // Clean up atomically
+      // Get current session number
+      const { data: currentGame } = await supabase.from("games").select("session_number").eq("id", "current").maybeSingle();
+      const nextSession = ((currentGame as any)?.session_number || 0) + 1;
+
       await Promise.all([
         supabase.from("game_numbers").delete().eq("game_id", "current"),
         supabase.from("bingo_claims").delete().eq("game_id", "current"),
         supabase.from("cartelas").update({ is_used: false, owner_id: null }).eq("is_used", true),
       ]);
 
-      // Set buying state
       await supabase.from("games").upsert({
         id: "current", pattern: pattern || "Full House", status: "buying",
-        winner_id: null, draw_speed: draw_speed || 10, prize_amount: 0,
+        winner_id: null, draw_speed: draw_speed || 5, prize_amount: 0,
         cartela_price: cartela_price || 10, auto_draw: false,
+        session_number: nextSession,
       });
 
-      return new Response(JSON.stringify({ ok: true, status: "buying" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ ok: true, status: "buying", session: nextSession }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (action === "start_drawing") {
-      // Count bought cartelas
       const { count } = await supabase.from("cartelas").select("id", { count: "exact", head: true }).eq("is_used", true).not("owner_id", "is", null);
 
       await supabase.from("games").update({
         status: "active", prize_amount: prize_amount || 0, auto_draw: true,
       }).eq("id", "current");
 
-      // Invoke auto-draw
       fetch(`${SUPABASE_URL}/functions/v1/auto-draw`, {
         method: "POST",
         headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },

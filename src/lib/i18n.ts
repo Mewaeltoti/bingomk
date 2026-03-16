@@ -1,0 +1,128 @@
+// Tigrinya + English translations
+const translations = {
+  ti: {
+    bingo: 'ቢንጎ',
+    session: 'ዙር',
+    players: 'ተጻወቲ',
+    spectating: 'ተዓዛቢ',
+    wallet: 'ቦርሳ',
+    logout: 'ውጻእ',
+    buyCartelas: 'ካርተላ ግዛ',
+    hideShop: 'ዕጸው',
+    buying: 'ግዝያ',
+    waitingForGame: 'ጸባ ጸወታ...',
+    roundOver: 'ጸወታ ተወዲኡ! ሓድሽ ጸወታ ቀረባ...',
+    nextGameIn: 'ዝመጽእ ጸወታ ኣብ',
+    seconds: 'ካልኢት',
+    drawn: 'ዝወጸ',
+    prize: 'ሽልማት',
+    board: 'ሰሌዳ',
+    verifying: 'ይረጋገጽ ኣሎ...',
+    search: 'ብቁጽሪ ድለ...',
+    quick: 'ቅልጡፍ',
+    cards: 'ካርዲ',
+    available: 'ዝተረፈ',
+    each: 'ነፍሲ ወከፍ',
+    buy: 'ግዛ',
+    deposit: 'ምቕማጥ',
+    withdraw: 'ምውጻእ',
+    balance: 'ዘለካ ገንዘብ',
+    back: 'ተመለስ',
+    comingSoon: 'ኣብ ቀረባ',
+    submitDeposit: 'ለኣኽ',
+    requestWithdraw: 'ጠይቕ',
+    bankName: 'ባንክ',
+    amount: 'መጠን',
+    reference: 'ሪፈረንስ',
+    accountNumber: 'ቁጽሪ ሕሳብ',
+    recentDeposits: 'ናይ ቀረባ ምቕማጥ',
+    recentWithdrawals: 'ናይ ቀረባ ምውጻእ',
+    noDeposits: 'ገና ምቕማጥ የለን',
+    noWithdrawals: 'ገና ምውጻእ የለን',
+    selectBank: 'ባንክ ምረጽ',
+    winnerAnnounced: 'ዝሰዓረ ተኸሲቱ! 🏆',
+    youWon: 'ስዒርካ! 🎉🏆',
+    newGameStarting: '🛒 ሓድሽ ጸወታ ይጅምር!',
+    gameStarted: '🎲 ጸወታ ጀሚሩ!',
+    claimInvalid: 'ዘይቅኑዕ ጠለብ',
+    claimSuccess: '🎯 ቢንጎ ተጠሊቡ! ይረጋገጽ ኣሎ...',
+    markedUndrawn: 'ዘይወጸ ቁጽሪ ምልክት ጌርካ!',
+    patternNoMatch: 'ምልክትካ ንቕዲ ኣይሰማማዕን!',
+    purchaseFailed: 'ግዝኣት ኣይተዓወተን',
+    purchased: 'ካርተላ ተጋዚኡ! 🎉',
+    noCartelas: 'ካርተላ የለን — ተዓዛቢ',
+    lastWinNumber: 'ናይ መወዳእታ ዝሰዓረ ቁጽሪ',
+  },
+  en: {
+    bingo: 'BINGO',
+    session: 'Session',
+    players: 'Players',
+    spectating: 'Spectating',
+    wallet: 'Wallet',
+    logout: 'Logout',
+    buyCartelas: 'Buy Cartelas',
+    hideShop: 'Hide Shop',
+    buying: 'Buying',
+    waitingForGame: 'Waiting for next game...',
+    roundOver: 'Round over! New game soon.',
+    nextGameIn: 'Next game in',
+    seconds: 'sec',
+    drawn: 'drawn',
+    prize: 'Prize',
+    board: 'Board',
+    verifying: 'Verifying...',
+    search: 'Search by ID...',
+    quick: 'Quick',
+    cards: 'Cards',
+    available: 'available',
+    each: 'each',
+    buy: 'Buy',
+    deposit: 'Deposit',
+    withdraw: 'Withdraw',
+    balance: 'Your Balance',
+    back: 'Back',
+    comingSoon: 'Coming Soon',
+    submitDeposit: 'Submit Deposit',
+    requestWithdraw: 'Request Withdrawal',
+    bankName: 'Bank Name',
+    amount: 'Amount',
+    reference: 'Reference Number',
+    accountNumber: 'Account Number',
+    recentDeposits: 'Recent Deposits',
+    recentWithdrawals: 'Recent Withdrawals',
+    noDeposits: 'No deposits yet',
+    noWithdrawals: 'No withdrawals yet',
+    selectBank: 'Select bank',
+    winnerAnnounced: 'Someone won this round! 🏆',
+    youWon: 'You won! 🎉🏆',
+    newGameStarting: '🛒 New game starting! Buy cartelas now!',
+    gameStarted: '🎲 Game started! Good luck!',
+    claimInvalid: 'Invalid claim',
+    claimSuccess: '🎯 BINGO claimed! Verifying...',
+    markedUndrawn: "You marked a number that hasn't been drawn!",
+    patternNoMatch: "Your marks don't match the pattern!",
+    purchaseFailed: 'Purchase failed',
+    purchased: 'Cartelas purchased! 🎉',
+    noCartelas: 'Spectating — no cartelas',
+    lastWinNumber: 'Last winning number',
+  },
+} as const;
+
+type Lang = keyof typeof translations;
+type Key = keyof typeof translations['en'];
+
+let currentLang: Lang = (localStorage.getItem('bingo-lang') as Lang) || 'ti';
+
+export function getLang(): Lang { return currentLang; }
+export function setLang(lang: Lang) {
+  currentLang = lang;
+  localStorage.setItem('bingo-lang', lang);
+}
+export function t(key: Key): string {
+  return translations[currentLang]?.[key] || translations.en[key] || key;
+}
+export function toggleLang(): Lang {
+  const next = currentLang === 'ti' ? 'en' : 'ti';
+  setLang(next);
+  return next;
+}

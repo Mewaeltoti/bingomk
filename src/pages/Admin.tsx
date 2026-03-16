@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import PageShell from '@/components/PageShell';
 import { Users, CreditCard, Gamepad2, Check, X, AlertTriangle, Plus, Minus, Pause, Play, Square, ArrowUpCircle, LogOut, KeyRound } from 'lucide-react';
-import { PATTERNS, PatternName } from '@/lib/bingo';
+import { PATTERNS } from '@/lib/bingo';
 import { getBingoLetter } from '@/lib/bingoEngine';
 import { supabase } from '@/integrations/supabase/client';
 import { invokeWithRetry } from '@/lib/edgeFn';
@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 
 export default function Admin() {
   const [tab, setTab] = useState<'game' | 'deposits' | 'withdrawals' | 'players'>('game');
-  const [pattern, setPattern] = useState<PatternName>('Full House');
+  const [pattern, setPattern] = useState<string>('Full House');
   const [drawnNumbers, setDrawnNumbers] = useState<number[]>([]);
   const [gameStatus, setGameStatus] = useState('waiting');
   const [autoDraw, setAutoDraw] = useState(false);
@@ -75,7 +75,7 @@ export default function Admin() {
       ]);
       if (numbersRes.data) setDrawnNumbers(numbersRes.data.map((n: any) => n.number));
       if (gameRes.data) {
-        setPattern(gameRes.data.pattern as PatternName);
+        setPattern(gameRes.data.pattern as string);
         setGameStatus(gameRes.data.status || 'waiting');
         setDrawSpeed((gameRes.data as any).draw_speed || 10);
         setPrizeAmount((gameRes.data as any).prize_amount || 0);
@@ -360,7 +360,7 @@ export default function Admin() {
           <div>
             <label className="text-sm text-muted-foreground mb-2 block">Winning Pattern</label>
             <div className="grid grid-cols-2 gap-2">
-              {(Object.keys(PATTERNS) as PatternName[]).map((p) => (
+              {Object.keys(PATTERNS).map((p) => (
                 <button
                   key={p}
                   onClick={() => setPattern(p)}

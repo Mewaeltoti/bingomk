@@ -5,28 +5,22 @@ import { supabase } from '@/integrations/supabase/client';
 import { useUser } from '@/lib/auth';
 import { useGamePresence } from '@/hooks/useGamePresence';
 import { getBingoLetter } from '@/lib/bingoEngine';
-import { checkWin } from '@/lib/winDetection';
-import { PatternName } from '@/lib/bingo';
+import { checkWin, getPatternCells } from '@/lib/winDetection';
+import { PATTERNS } from '@/lib/bingo';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { playDrawSound, playWinSound, playMarkSound, announceNumber } from '@/lib/sounds';
 import { invokeWithRetry } from '@/lib/edgeFn';
-import { Users, Eye, Hand, ShoppingCart, ChevronDown, ChevronUp, Wallet, LogOut, Search, Shuffle, Volume2, VolumeX } from 'lucide-react';
+import { t, getLang, toggleLang } from '@/lib/i18n';
+import { Users, Eye, Hand, ShoppingCart, ChevronDown, ChevronUp, Wallet, LogOut, Search, Shuffle, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import MuteToggle from '@/components/MuteToggle';
-
-const PATTERN_CELLS: Record<string, boolean[][]> = {
-  'Full House': Array(5).fill(Array(5).fill(true)),
-  'L Shape': Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, c) => c === 0 || r === 4)),
-  'T Shape': Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, c) => r === 0 || c === 2)),
-  'U Shape': Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, c) => c === 0 || c === 4 || r === 4)),
-  'X Shape': Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, c) => r === c || r + c === 4)),
-};
+import ThemeToggle from '@/components/ThemeToggle';
 
 function PatternGrid({ pattern }: { pattern: string }) {
-  const cells = PATTERN_CELLS[pattern] || PATTERN_CELLS['Full House'];
+  const cells = getPatternCells(pattern);
   return (
-    <div className="grid grid-cols-5 gap-px w-8 h-8 overflow-hidden border border-primary/30">
+    <div className="grid grid-cols-5 gap-px w-8 h-8 overflow-hidden border border-primary/30 rounded-sm">
       {cells.flat().map((on, i) => (
         <div key={i} className={cn('w-full h-full', on ? 'bg-primary' : 'bg-muted/30')} />
       ))}
@@ -40,7 +34,6 @@ type GameResult = {
   winnerCartela?: number[][];
 };
 
-// Cartela selection panel (inline)
 function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; cartelaPrice: number; gameStatus: string }) {
   const [cartelas, setCartelas] = useState<any[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -96,14 +89,14 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
       body: { cartela_ids: Array.from(selected).map(Number) },
     });
     if (error || data?.error) {
-      toast.error(data?.error || 'Purchase failed');
+      toast.error(data?.error || t('purchaseFailed'));
       setBuying(false);
       return;
     }
     setCartelas(prev => prev.filter(c => !selected.has(String(c.id))));
     setSelected(new Set());
     setBuying(false);
-    toast.success('Cartelas purchased! 🎉');
+    toast.success(t('purchased'));
     onBuy();
   };
 
@@ -117,21 +110,21 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
           <input
             type="text" value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Search by ID..."
-            className="w-full pl-9 pr-4 py-2 rounded-lg bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
+            placeholder={t('search')}
+            className="w-full pl-9 pr-4 py-2.5 rounded-lg bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
       </div>
       <div className="flex gap-2 flex-wrap">
-        <span className="text-xs text-muted-foreground flex items-center gap-1"><Shuffle className="w-3.5 h-3.5" /> Quick:</span>
+        <span className="text-xs text-muted-foreground flex items-center gap-1"><Shuffle className="w-3.5 h-3.5" /> {t('quick')}:</span>
         {[1, 3, 5].map(n => (
           <button key={n} onClick={() => quickPick(n)}
-            className="px-3 py-1 rounded bg-primary/10 text-primary text-xs font-bold active:scale-95">
-            {n} Card{n > 1 ? 's' : ''}
+            className="px-3 py-1.5 rounded bg-primary/10 text-primary text-xs font-bold active:scale-95">
+            {n} {t('cards')}
           </button>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">{filtered.length} available · {cartelaPrice} ETB each</p>
+      <p className="text-xs text-muted-foreground">{filtered.length} {t('available')} · {cartelaPrice} ETB {t('each')}</p>
 
       <div className="grid grid-cols-3 gap-2 max-h-[50vh] overflow-y-auto">
         {visible.map(c => (
@@ -149,9 +142,9 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
 
       {selected.size > 0 && (
         <button onClick={handleBuy} disabled={buying}
-          className="w-full py-3 rounded-lg font-display font-bold gradient-neon text-primary-foreground text-sm active:scale-95 glow-neon disabled:opacity-50">
+          className="w-full py-3.5 rounded-lg font-display font-bold gradient-neon text-primary-foreground text-sm active:scale-95 glow-neon disabled:opacity-50">
           <ShoppingCart className="w-4 h-4 inline mr-2" />
-          {buying ? 'Buying...' : `Buy ${selected.size} — ${cost} ETB`}
+          {buying ? '...' : `${t('buy')} ${selected.size} — ${cost} ETB`}
         </button>
       )}
     </div>
@@ -167,8 +160,11 @@ export default function GamePage() {
   const [markedMap, setMarkedMap] = useState<Map<number, Set<string>>>(new Map());
   const [claimedCartelas, setClaimedCartelas] = useState<Set<number>>(new Set());
   const [gameStatus, setGameStatus] = useState<string>('waiting');
+  const [sessionNumber, setSessionNumber] = useState(1);
+  const [nextGameCountdown, setNextGameCountdown] = useState(0);
   const [buyingCountdown, setBuyingCountdown] = useState(0);
   const buyingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const nextGameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isSpectator, setIsSpectator] = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
   const [showShop, setShowShop] = useState(false);
@@ -176,9 +172,15 @@ export default function GamePage() {
   const [balance, setBalance] = useState(0);
   const [prizeAmount, setPrizeAmount] = useState(0);
   const [lastWinNumber, setLastWinNumber] = useState<number | null>(null);
+  const [, setLangTick] = useState(0); // force re-render on lang change
   const user = useUser();
   const navigate = useNavigate();
   const players = useGamePresence(user?.id, displayName);
+
+  const handleToggleLang = () => {
+    toggleLang();
+    setLangTick(n => n + 1);
+  };
 
   useEffect(() => {
     if (!user?.id) return;
@@ -197,7 +199,6 @@ export default function GamePage() {
     return () => { supabase.removeChannel(ch); };
   }, [user?.id]);
 
-  // Fetch last winning number from game_history
   useEffect(() => {
     supabase.from('game_history').select('drawn_numbers').order('created_at', { ascending: false }).limit(1)
       .then(({ data }) => {
@@ -226,11 +227,12 @@ export default function GamePage() {
       setGamePattern(gameRes.data.pattern || 'Full House');
       setGameStatus(gameRes.data.status || 'waiting');
       setPrizeAmount((gameRes.data as any).prize_amount || 0);
+      setSessionNumber((gameRes.data as any).session_number || 1);
       if (gameRes.data.status === 'won') {
-        setGameResult({ type: 'winner', message: 'Someone won this round! 🏆' });
+        setGameResult({ type: 'winner', message: t('winnerAnnounced') });
         setShowResult(true);
         if (gameRes.data.winner_id === user?.id) {
-          setGameResult({ type: 'winner', message: 'You won! 🎉🏆' });
+          setGameResult({ type: 'winner', message: t('youWon') });
         }
       }
     }
@@ -264,10 +266,11 @@ export default function GamePage() {
         setGamePattern(gameRes.data.pattern || 'Full House');
         setGameStatus(gameRes.data.status || 'waiting');
         setPrizeAmount((gameRes.data as any).prize_amount || 0);
+        setSessionNumber((gameRes.data as any).session_number || 1);
         if (gameRes.data.status === 'won') {
-          setGameResult({ type: 'winner', message: 'Someone won this round! 🏆' });
+          setGameResult({ type: 'winner', message: t('winnerAnnounced') });
           setShowResult(true);
-          if (gameRes.data.winner_id === user?.id) setGameResult({ type: 'winner', message: 'You won! 🎉🏆' });
+          if (gameRes.data.winner_id === user?.id) setGameResult({ type: 'winner', message: t('youWon') });
         }
       }
       if (claimsRes.data && user?.id) {
@@ -300,6 +303,7 @@ export default function GamePage() {
         (payload: any) => {
           const game = payload.new;
           setGameStatus(game.status);
+          setSessionNumber(game.session_number || 1);
           if (game.status === 'buying') {
             setDrawnNumbers([]);
             setShowResult(false);
@@ -307,6 +311,8 @@ export default function GamePage() {
             setMarkedMap(new Map());
             setClaimedCartelas(new Set());
             setShowShop(true);
+            setNextGameCountdown(0);
+            if (nextGameTimerRef.current) clearInterval(nextGameTimerRef.current);
             if (user?.id) {
               supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true)
                 .then(({ data }) => { setPlayerCartelas(data || []); setIsSpectator(!data || data.length === 0); });
@@ -319,7 +325,7 @@ export default function GamePage() {
                 return prev - 1;
               });
             }, 1000);
-            toast('🛒 New game starting! Buy cartelas now!');
+            toast(t('newGameStarting'));
           }
           if (game.status === 'active') {
             setBuyingCountdown(0);
@@ -329,18 +335,26 @@ export default function GamePage() {
               supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true)
                 .then(({ data }) => { setPlayerCartelas(data || []); setIsSpectator(!data || data.length === 0); });
             }
-            toast('🎲 Game started! Good luck!');
+            toast(t('gameStarted'));
           }
           if (game.status === 'waiting') {
             setDrawnNumbers([]); setShowResult(false); setGameResult(null); setMarkedMap(new Map()); setClaimedCartelas(new Set());
           }
           if (game.status === 'won') {
-            setGameResult({ type: 'winner', message: 'Someone won this round! 🏆' });
+            setGameResult({ type: 'winner', message: t('winnerAnnounced') });
             setShowResult(true);
             playWinSound();
-            if (game.winner_id === user?.id) setGameResult({ type: 'winner', message: 'You won! 🎉🏆' });
-            // Fetch winner's cartela to display
+            if (game.winner_id === user?.id) setGameResult({ type: 'winner', message: t('youWon') });
             fetchWinnerCartela();
+            // Auto-countdown to next game (60 seconds)
+            setNextGameCountdown(60);
+            if (nextGameTimerRef.current) clearInterval(nextGameTimerRef.current);
+            nextGameTimerRef.current = setInterval(() => {
+              setNextGameCountdown(prev => {
+                if (prev <= 1) { if (nextGameTimerRef.current) clearInterval(nextGameTimerRef.current); return 0; }
+                return prev - 1;
+              });
+            }, 1000);
           }
           if (game.pattern) setGamePattern(game.pattern);
           if (game.prize_amount !== undefined) setPrizeAmount(game.prize_amount);
@@ -352,7 +366,7 @@ export default function GamePage() {
           if (claim.user_id !== user?.id) return;
           const cid = claim.cartela_id;
           if (claim.is_valid === false) {
-            toast.warning(`Claim on #${cid} invalid. Try again!`);
+            toast.warning(`${t('claimInvalid')} #${cid}`);
             setClaimedCartelas(prev => { const next = new Set(prev); next.delete(cid); return next; });
           }
         }
@@ -405,9 +419,9 @@ export default function GamePage() {
     const markedNums = getMarkedNumbersForCartela(cartela);
     const numbers = cartela.numbers as number[][];
     for (const num of markedNums) {
-      if (!drawnSet.has(num)) { toast.error('You marked a number that hasn\'t been drawn!'); return; }
+      if (!drawnSet.has(num)) { toast.error(t('markedUndrawn')); return; }
     }
-    if (!checkWin(numbers, markedNums, gamePattern as PatternName)) { toast.error('Your marks don\'t match the pattern!'); return; }
+    if (!checkWin(numbers, markedNums, gamePattern)) { toast.error(t('patternNoMatch')); return; }
     setClaimedCartelas(prev => new Set(prev).add(cartelaId));
     const { error } = await supabase.from('bingo_claims').insert({ game_id: 'current', user_id: user.id, cartela_id: cartelaId } as any);
     if (error) {
@@ -415,7 +429,7 @@ export default function GamePage() {
       setClaimedCartelas(prev => { const next = new Set(prev); next.delete(cartelaId); return next; });
       return;
     }
-    toast.success('🎯 BINGO claimed! Verifying...');
+    toast.success(t('claimSuccess'));
   };
 
   const isGameActive = gameStatus === 'active';
@@ -434,16 +448,21 @@ export default function GamePage() {
       {/* Winner overlay */}
       {showResult && gameResult && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-sm animate-in fade-in" onClick={() => setShowResult(false)}>
-          <div className="text-center p-6 rounded-lg bg-card border-2 border-primary max-w-xs mx-4 glow-neon">
+          <div className="text-center p-6 rounded-xl bg-card border-2 border-primary max-w-xs mx-4 glow-neon">
             <div className="text-5xl mb-3">{gameResult.type === 'winner' ? '🏆' : '🔄'}</div>
             <h2 className="text-xl font-display font-bold text-primary mb-1">
-              {gameResult.type === 'disqualified' ? 'RESTART' : 'BINGO!'}
+              {gameResult.type === 'disqualified' ? 'RESTART' : t('bingo') + '!'}
             </h2>
             <p className="text-muted-foreground text-sm mb-3">{gameResult.message}</p>
             {gameResult.winnerCartela && (
               <div className="flex justify-center">
                 <BingoCartela numbers={gameResult.winnerCartela} drawnNumbers={drawnSet} size="sm" label="Winner's Card" />
               </div>
+            )}
+            {nextGameCountdown > 0 && (
+              <p className="text-xs text-muted-foreground mt-3">
+                {t('nextGameIn')} <span className="text-primary font-bold">{nextGameCountdown}</span> {t('seconds')}
+              </p>
             )}
           </div>
         </div>
@@ -452,16 +471,23 @@ export default function GamePage() {
       {/* Top bar */}
       <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border px-3 py-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h1 className="font-display text-sm font-bold text-primary">BINGO</h1>
+          <h1 className="font-display text-sm font-bold text-primary">{t('bingo')}</h1>
+          <span className="text-[10px] font-display font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded">
+            {t('session')} #{sessionNumber}
+          </span>
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             <Users className="w-3 h-3" /> {players.length}
           </span>
-          {isSpectator && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground"><Eye className="w-3 h-3 inline" /> Spectating</span>}
+          {isSpectator && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground"><Eye className="w-3 h-3 inline" /> {t('spectating')}</span>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <button onClick={handleToggleLang} className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:text-foreground text-[10px] font-bold">
+            {getLang() === 'ti' ? 'EN' : 'ትግ'}
+          </button>
+          <ThemeToggle />
           <MuteToggle />
           <button onClick={() => navigate('/payment')} className="text-xs font-display font-bold text-primary flex items-center gap-1">
-            <Wallet className="w-3.5 h-3.5" /> {balance} ETB
+            <Wallet className="w-3.5 h-3.5" /> {balance}
           </button>
           <button onClick={handleLogout} className="text-muted-foreground p-1"><LogOut className="w-4 h-4" /></button>
         </div>
@@ -469,25 +495,25 @@ export default function GamePage() {
 
       {/* Last win number */}
       {lastWinNumber && !isGameActive && (
-        <div className="text-center py-1 bg-secondary/10 text-xs text-muted-foreground">
-          Last winning number: <span className="font-bold text-secondary">{getBingoLetter(lastWinNumber)} {lastWinNumber}</span>
+        <div className="text-center py-1 bg-primary/5 text-xs text-muted-foreground">
+          {t('lastWinNumber')}: <span className="font-bold text-primary">{getBingoLetter(lastWinNumber)} {lastWinNumber}</span>
         </div>
       )}
 
       {/* Buy/Waiting state */}
       {showBuyPrompt && !isGameActive && (
         <div className="px-3 pt-3">
-          <div className="p-4 rounded-lg bg-card border border-border text-center mb-3">
+          <div className="p-4 rounded-xl bg-card border border-border text-center mb-3">
             <p className="text-sm text-muted-foreground mb-2">
               {gameStatus === 'buying'
-                ? `Buy cartelas! ${buyingCountdown > 0 ? `(${buyingCountdown}s)` : ''}`
-                : gameStatus === 'won' ? 'Round over! New game soon.'
-                : 'Waiting for next game...'}
+                ? `${t('buying')}! ${buyingCountdown > 0 ? `(${buyingCountdown}s)` : ''}`
+                : gameStatus === 'won' ? (nextGameCountdown > 0 ? `${t('nextGameIn')} ${nextGameCountdown} ${t('seconds')}` : t('roundOver'))
+                : t('waitingForGame')}
             </p>
             <button onClick={() => setShowShop(!showShop)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-neon text-primary-foreground text-sm font-bold active:scale-95">
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl gradient-neon text-primary-foreground text-sm font-bold active:scale-95">
               <ShoppingCart className="w-4 h-4" />
-              {showShop ? 'Hide Shop' : 'Buy Cartelas'}
+              {showShop ? t('hideShop') : t('buyCartelas')}
             </button>
           </div>
           {showShop && (
@@ -507,24 +533,24 @@ export default function GamePage() {
           <div className="flex items-center gap-3">
             {lastNumber ? (
               <div key={lastNumber}
-                className="w-16 h-16 rounded-lg gradient-neon flex flex-col items-center justify-center text-primary-foreground shadow-lg glow-neon flex-shrink-0">
+                className="w-16 h-16 rounded-xl gradient-neon flex flex-col items-center justify-center text-primary-foreground shadow-lg glow-neon flex-shrink-0">
                 <span className="text-[10px] font-medium opacity-80">{getBingoLetter(lastNumber)}</span>
                 <span className="text-2xl font-display font-bold -mt-1">{lastNumber}</span>
               </div>
             ) : (
-              <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center text-muted-foreground text-xs flex-shrink-0">--</div>
+              <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center text-muted-foreground text-xs flex-shrink-0">--</div>
             )}
             <div className="flex-1 flex items-center gap-2">
               <PatternGrid pattern={gamePattern} />
               <div>
                 <div className="text-sm font-display font-bold text-foreground">{gamePattern}</div>
-                <div className="text-xs text-muted-foreground">{drawnNumbers.length}/75 drawn</div>
+                <div className="text-xs text-muted-foreground">{drawnNumbers.length}/75 {t('drawn')}</div>
                 {prizeAmount > 0 && <div className="text-xs font-bold text-primary">🏆 {prizeAmount} ETB</div>}
               </div>
             </div>
           </div>
 
-          {/* Drawn numbers marbles */}
+          {/* Drawn numbers */}
           {drawnNumbers.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {drawnNumbers.map(num => {
@@ -540,10 +566,10 @@ export default function GamePage() {
           )}
 
           {/* Collapsible 1-75 board */}
-          <div className="rounded-lg overflow-hidden bg-muted/30 border border-border">
+          <div className="rounded-xl overflow-hidden bg-muted/30 border border-border">
             <button onClick={() => setBoardOpen(prev => !prev)}
-              className="w-full flex items-center justify-between px-3 py-1.5 bg-gradient-to-r from-neon-blue via-neon-green to-neon-purple text-white text-xs font-bold">
-              <span>Board ({drawnNumbers.length}/75)</span>
+              className="w-full flex items-center justify-between px-3 py-2 bg-gradient-to-r from-primary/80 to-secondary/80 text-primary-foreground text-xs font-bold">
+              <span>{t('board')} ({drawnNumbers.length}/75)</span>
               {boardOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
             {boardOpen && (
@@ -552,7 +578,7 @@ export default function GamePage() {
                   const colorClasses = ['bg-neon-blue', 'bg-neon-pink', 'bg-neon-green', 'bg-neon-yellow', 'bg-neon-purple'];
                   return (
                     <div key={letter} className="flex items-center gap-[2px] mb-[3px] last:mb-0">
-                      <div className={cn('w-5 h-5 flex-shrink-0 flex items-center justify-center font-display font-bold text-[10px] text-white', colorClasses[rowIdx])}>
+                      <div className={cn('w-5 h-5 flex-shrink-0 flex items-center justify-center font-display font-bold text-[10px] text-white rounded-sm', colorClasses[rowIdx])}>
                         {letter}
                       </div>
                       <div className="flex flex-1 gap-[2px] justify-between">
@@ -561,7 +587,7 @@ export default function GamePage() {
                           const isDrawn = drawnSet.has(num);
                           return (
                             <div key={num}
-                              className={cn('w-[20px] h-[20px] flex items-center justify-center text-[7px] font-bold border border-border/30',
+                              className={cn('w-[20px] h-[20px] flex items-center justify-center text-[7px] font-bold border border-border/30 rounded-sm',
                                 isDrawn ? `${colorClasses[rowIdx]} text-white` : 'bg-muted/30 text-muted-foreground'
                               )}>
                               {num}
@@ -594,11 +620,11 @@ export default function GamePage() {
                     />
                     {!isSpectator && (
                       <button onClick={() => handleClaimBingo(c.id, c)} disabled={isClaimed}
-                        className={cn('w-full py-2.5 rounded-lg font-display font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all',
+                        className={cn('w-full py-3 rounded-xl font-display font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all',
                           isClaimed ? 'bg-muted text-muted-foreground' : 'gradient-neon text-primary-foreground glow-neon'
                         )}>
                         <Hand className="w-4 h-4" />
-                        {isClaimed ? 'Verifying...' : 'BINGO!'}
+                        {isClaimed ? t('verifying') : t('bingo') + '!'}
                       </button>
                     )}
                   </div>
@@ -608,7 +634,7 @@ export default function GamePage() {
           ) : (
             <div className="text-center py-6 text-muted-foreground">
               <Eye className="w-6 h-6 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">Spectating — no cartelas</p>
+              <p className="text-sm">{t('noCartelas')}</p>
             </div>
           )}
         </div>
