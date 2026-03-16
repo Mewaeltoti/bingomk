@@ -360,7 +360,7 @@ export default function Admin() {
           <div>
             <label className="text-sm text-muted-foreground mb-2 block">Winning Pattern</label>
             <div className="grid grid-cols-2 gap-2">
-              {(Object.keys(PATTERNS) as PatternName[]).map((p) => (
+              {Object.keys(PATTERNS).map((p) => (
                 <button
                   key={p}
                   onClick={() => setPattern(p)}
