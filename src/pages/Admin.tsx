@@ -316,35 +316,51 @@ export default function Admin() {
   };
 
   return (
-    <PageShell title="Admin Panel">
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
-          <h1 className="font-display text-xl font-bold">
-            <span className="text-secondary">Bingo</span>{' '}
-            <span className="text-primary">Ethio</span>
-          </h1>
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground bg-muted px-2 py-0.5 rounded">Admin</span>
+    <PageShell title="Admin Dashboard">
+      <div className="mb-6 rounded-3xl border border-border bg-hero-bingo p-4 md:p-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <div className="mb-2 flex items-center gap-2">
+              <h1 className="font-display text-2xl font-black text-foreground">Game Control Center</h1>
+              <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary">Admin</span>
+            </div>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              Separate control dashboard for desktop and mobile with game actions over backend functions and live monitoring.
+            </p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="flex items-center justify-center gap-2 rounded-xl bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20"
+          >
+            <LogOut className="w-4 h-4" />
+            Logout
+          </button>
         </div>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 transition-colors"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-          Logout
-        </button>
-      </div>
-      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary/10 text-xs w-fit mb-4">
-        <Users className="w-3.5 h-3.5 text-secondary" />
-        <span className="font-bold text-secondary">{onlinePlayers.length}</span>
-        <span className="text-muted-foreground">players online</span>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-border bg-card/75 p-4 backdrop-blur-sm">
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Online</div>
+            <div className="mt-1 flex items-center gap-2 font-display text-2xl font-bold text-primary">
+              <Users className="w-5 h-5" /> {onlinePlayers.length}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border bg-card/75 p-4 backdrop-blur-sm">
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Status</div>
+            <div className="mt-1 font-display text-2xl font-bold text-foreground">{gameStatus}</div>
+          </div>
+          <div className="rounded-2xl border border-border bg-card/75 p-4 backdrop-blur-sm">
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Drawn</div>
+            <div className="mt-1 font-display text-2xl font-bold text-foreground">{drawnNumbers.length}/75</div>
+          </div>
+        </div>
       </div>
 
-      <div className="flex gap-2 mb-6">
+      <div className="mb-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {tabs.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+            className={`flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition-colors ${
               tab === key ? 'gradient-gold text-primary-foreground' : 'bg-muted text-muted-foreground'
             }`}
           >
@@ -530,10 +546,10 @@ export default function Admin() {
             </div>
           )}
 
-          {/* Claims - manual verification */}
+          {/* Claims monitor */}
           {claims.length > 0 && (
-            <div className="p-3 rounded-xl border border-border bg-muted/30 space-y-3">
-              <div className="flex items-center justify-between">
+            <div className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
+              <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm font-bold text-foreground">
                   <AlertTriangle className="w-4 h-4 text-primary" />
                   Claims ({claims.length})
@@ -542,25 +558,25 @@ export default function Admin() {
                   <button
                     onClick={verifyAllPendingClaims}
                     disabled={actionLoading === 'verify-all'}
-                    className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50"
+                    className="rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-50"
                   >
                     {actionLoading === 'verify-all' ? '⏳ Verifying...' : 'Verify All'}
                   </button>
                 )}
               </div>
               {claims.map((c: any) => (
-                <div key={c.id} className="p-2 rounded-lg bg-card border border-border space-y-2">
-                  <div className="flex items-center justify-between">
+                <div key={c.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
                     <div>
                       <span className="text-sm font-medium text-foreground">
                         {c.profile?.display_name || c.profile?.phone || c.user_id.slice(0, 8)}
                       </span>
-                      <span className="text-xs text-muted-foreground ml-2">
+                      <span className="ml-2 text-xs text-muted-foreground">
                         Cartela #{c.cartela_id}
                       </span>
                     </div>
                     <span className={c.is_valid ? 'text-secondary font-bold text-xs' : c.is_valid === false ? 'text-destructive text-xs' : 'text-muted-foreground text-xs'}>
-                      {c.is_valid ? '✅ Winner!' : c.is_valid === false ? '❌ Invalid' : '⏳ Pending'}
+                      {c.is_valid ? '✅ Auto valid' : c.is_valid === false ? '❌ Auto invalid' : '⏳ Checking'}
                     </span>
                   </div>
                   {c.is_valid === null && (
@@ -568,23 +584,23 @@ export default function Admin() {
                       <button
                         onClick={() => verifyClaimManually(c, true)}
                         disabled={!!actionLoading}
-                        className="flex-1 py-1.5 rounded-lg bg-secondary text-secondary-foreground text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-50"
+                        className="flex-1 rounded-xl bg-secondary py-2 text-xs font-bold text-secondary-foreground disabled:opacity-50"
                       >
-                        {actionLoading === `verify-${c.id}` ? '⏳...' : <><Check className="w-3.5 h-3.5" /> Valid Winner</>}
+                        {actionLoading === `verify-${c.id}` ? '⏳...' : 'Force valid'}
                       </button>
                       <button
                         onClick={() => verifyClaimManually(c, false)}
                         disabled={!!actionLoading}
-                        className="flex-1 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-50"
+                        className="flex-1 rounded-xl bg-destructive py-2 text-xs font-bold text-destructive-foreground disabled:opacity-50"
                       >
-                        {actionLoading === `verify-${c.id}` ? '⏳...' : <><X className="w-3.5 h-3.5" /> Invalid</>}
+                        {actionLoading === `verify-${c.id}` ? '⏳...' : 'Force invalid'}
                       </button>
                     </div>
                   )}
                 </div>
               ))}
-              <p className="text-[10px] text-muted-foreground text-center">
-                1 winner = full prize • 2 winners = split • 3+ = round restart
+              <p className="text-center text-[10px] text-muted-foreground">
+                Auto-check runs on claim; manual actions stay available as fallback.
               </p>
             </div>
           )}

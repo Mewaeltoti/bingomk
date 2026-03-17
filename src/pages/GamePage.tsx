@@ -47,6 +47,25 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
   useEffect(() => {
     supabase.from('cartelas').select('*').eq('is_used', false).order('id', { ascending: true })
       .then(({ data }) => setCartelas(data || []));
+
+    const channel = supabase
+      .channel('cartela-shop')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cartelas' }, (payload: any) => {
+        if (payload.new?.is_used) {
+          const id = String(payload.new.id);
+          setCartelas(prev => prev.filter(c => String(c.id) !== id));
+          setSelected(prev => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -83,14 +102,16 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
   };
 
   const handleBuy = async () => {
-    if (!user?.id || selected.size === 0) return;
+    if (!user?.id || selected.size === 0 || gameStatus !== 'buying') return;
     setBuying(true);
+    const ids = Array.from(selected).map(Number);
     const { data, error } = await invokeWithRetry('purchase-cartela', {
-      body: { cartela_ids: Array.from(selected).map(Number) },
+      body: { cartela_ids: ids },
     });
     if (error || data?.error) {
       toast.error(data?.error || t('purchaseFailed'));
       setBuying(false);
+      onBuy();
       return;
     }
     setCartelas(prev => prev.filter(c => !selected.has(String(c.id))));
@@ -111,7 +132,7 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
             type="text" value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }}
             placeholder={t('search')}
-            className="w-full pl-9 pr-4 py-2.5 rounded-lg bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
+            className="w-full pl-9 pr-4 py-3 rounded-xl bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
       </div>
@@ -119,14 +140,14 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
         <span className="text-xs text-muted-foreground flex items-center gap-1"><Shuffle className="w-3.5 h-3.5" /> {t('quick')}:</span>
         {[1, 3, 5].map(n => (
           <button key={n} onClick={() => quickPick(n)}
-            className="px-3 py-1.5 rounded bg-primary/10 text-primary text-xs font-bold active:scale-95">
+            className="px-3 py-2 rounded-xl bg-primary/10 text-primary text-xs font-bold active:scale-95">
             {n} {t('cards')}
           </button>
         ))}
       </div>
       <p className="text-xs text-muted-foreground">{filtered.length} {t('available')} · {cartelaPrice} ETB {t('each')}</p>
 
-      <div className="grid grid-cols-3 gap-2 max-h-[50vh] overflow-y-auto">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[52vh] overflow-y-auto">
         {visible.map(c => (
           <div key={c.id} onClick={() => toggleSelect(String(c.id))} className="cursor-pointer">
             <BingoCartela
@@ -141,8 +162,8 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
       <div ref={loaderRef} className="h-4" />
 
       {selected.size > 0 && (
-        <button onClick={handleBuy} disabled={buying}
-          className="w-full py-3.5 rounded-lg font-display font-bold gradient-neon text-primary-foreground text-sm active:scale-95 glow-neon disabled:opacity-50">
+        <button onClick={handleBuy} disabled={buying || gameStatus !== 'buying'}
+          className="w-full py-4 rounded-xl font-display font-bold gradient-neon text-primary-foreground text-sm active:scale-95 glow-neon disabled:opacity-50">
           <ShoppingCart className="w-4 h-4 inline mr-2" />
           {buying ? '...' : `${t('buy')} ${selected.size} — ${cost} ETB`}
         </button>
@@ -421,11 +442,18 @@ export default function GamePage() {
     for (const num of markedNums) {
       if (!drawnSet.has(num)) { toast.error(t('markedUndrawn')); return; }
     }
-    if (!checkWin(numbers, markedNums, gamePattern)) { toast.error(t('patternNoMatch')); return; }
+    if (!checkWin(numbers, markedNums, gamePattern as any)) { toast.error(t('patternNoMatch')); return; }
     setClaimedCartelas(prev => new Set(prev).add(cartelaId));
-    const { error } = await supabase.from('bingo_claims').insert({ game_id: 'current', user_id: user.id, cartela_id: cartelaId } as any);
-    if (error) {
-      toast.error('Failed to claim');
+    const { data, error } = await invokeWithRetry('verify-claim', {
+      body: { action: 'player_claim', cartela_id: cartelaId },
+    });
+    if (error || data?.error) {
+      toast.error(data?.error || 'Failed to claim');
+      setClaimedCartelas(prev => { const next = new Set(prev); next.delete(cartelaId); return next; });
+      return;
+    }
+    if (data?.result === 'invalid') {
+      toast.error(t('claimInvalid'));
       setClaimedCartelas(prev => { const next = new Set(prev); next.delete(cartelaId); return next; });
       return;
     }
@@ -469,29 +497,56 @@ export default function GamePage() {
       )}
 
       {/* Top bar */}
-      <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border px-3 py-2 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h1 className="font-display text-sm font-bold text-primary">{t('bingo')}</h1>
-          <span className="text-[10px] font-display font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded">
-            {t('session')} #{sessionNumber}
-          </span>
-          <span className="text-xs text-muted-foreground flex items-center gap-1">
-            <Users className="w-3 h-3" /> {players.length}
-          </span>
-          {isSpectator && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground"><Eye className="w-3 h-3 inline" /> {t('spectating')}</span>}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button onClick={handleToggleLang} className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:text-foreground text-[10px] font-bold">
-            {getLang() === 'ti' ? 'EN' : 'ትግ'}
-          </button>
-          <ThemeToggle />
-          <MuteToggle />
-          <button onClick={() => navigate('/payment')} className="text-xs font-display font-bold text-primary flex items-center gap-1">
-            <Wallet className="w-3.5 h-3.5" /> {balance}
-          </button>
-          <button onClick={handleLogout} className="text-muted-foreground p-1"><LogOut className="w-4 h-4" /></button>
+      <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-md px-3 py-2.5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="font-display text-sm font-bold text-primary">{t('bingo')}</h1>
+              <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-display font-bold text-primary">
+                {t('session')} #{sessionNumber}
+              </span>
+              <span className="rounded-full bg-muted px-2 py-1 text-[10px] text-muted-foreground flex items-center gap-1">
+                <Users className="w-3 h-3" /> {players.length}
+              </span>
+              {isSpectator && <span className="rounded-full bg-muted px-2 py-1 text-[10px] text-muted-foreground"><Eye className="mr-1 inline w-3 h-3" />{t('spectating')}</span>}
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">Fast mobile bingo with automatic draw, auto-check, and locked cartelas.</p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button onClick={handleToggleLang} className="rounded-lg bg-muted p-2 text-[10px] font-bold text-muted-foreground hover:text-foreground">
+              {getLang() === 'ti' ? 'EN' : 'ትግ'}
+            </button>
+            <ThemeToggle />
+            <MuteToggle />
+            <button onClick={() => navigate('/payment')} className="flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-2 text-xs font-display font-bold text-primary">
+              <Wallet className="w-3.5 h-3.5" /> {balance}
+            </button>
+            <button onClick={handleLogout} className="rounded-lg p-2 text-muted-foreground"><LogOut className="w-4 h-4" /></button>
+          </div>
         </div>
       </header>
+
+      <section className="relative overflow-hidden border-b border-border bg-hero-bingo px-3 py-4">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.15),transparent_40%)]" />
+        <div className="relative grid gap-3 md:grid-cols-[1.1fr_0.9fr] md:items-center">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-primary">Professional Bingo</p>
+            <h2 className="max-w-lg font-display text-2xl font-black leading-tight text-foreground md:text-3xl">
+              Automatic rounds, locked cards, and instant pattern checking.
+            </h2>
+            <p className="mt-2 max-w-lg text-sm text-muted-foreground">
+              Every finished round is archived, then a fresh session starts automatically.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-border bg-card/70 p-3 shadow-sm">
+            {['B', 'I', 'N', 'G', 'O', '★'].map((item, index) => (
+              <div key={`${item}-${index}`} className="flex aspect-square items-center justify-center rounded-xl border border-border bg-muted/50 font-display text-lg font-bold text-primary">
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* Last win number */}
       {lastWinNumber && !isGameActive && (
@@ -503,15 +558,15 @@ export default function GamePage() {
       {/* Buy/Waiting state */}
       {showBuyPrompt && !isGameActive && (
         <div className="px-3 pt-3">
-          <div className="p-4 rounded-xl bg-card border border-border text-center mb-3">
-            <p className="text-sm text-muted-foreground mb-2">
+          <div className="mb-3 rounded-2xl border border-border bg-card p-4 text-center shadow-sm">
+            <p className="mb-2 text-sm text-muted-foreground">
               {gameStatus === 'buying'
                 ? `${t('buying')}! ${buyingCountdown > 0 ? `(${buyingCountdown}s)` : ''}`
                 : gameStatus === 'won' ? (nextGameCountdown > 0 ? `${t('nextGameIn')} ${nextGameCountdown} ${t('seconds')}` : t('roundOver'))
                 : t('waitingForGame')}
             </p>
             <button onClick={() => setShowShop(!showShop)}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl gradient-neon text-primary-foreground text-sm font-bold active:scale-95">
+              className="inline-flex items-center gap-2 rounded-xl gradient-neon px-5 py-3 text-sm font-bold text-primary-foreground active:scale-95">
               <ShoppingCart className="w-4 h-4" />
               {showShop ? t('hideShop') : t('buyCartelas')}
             </button>
