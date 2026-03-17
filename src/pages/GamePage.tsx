@@ -35,24 +35,39 @@ type GameResult = {
 };
 
 
-function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; cartelaPrice: number; gameStatus: string }) {
+function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: { onBuy: () => void; cartelaPrice: number; gameStatus: string; prizeAmount: number }) {
   const [cartelas, setCartelas] = useState<any[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [buying, setBuying] = useState(false);
+  const [pulsePrize, setPulsePrize] = useState(false);
   const user = useUser();
   const pageSize = 30;
   const loaderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    supabase.from('cartelas').select('*').eq('is_used', false).eq('banned_for_game', false).order('id', { ascending: false })
+    supabase
+      .from('cartelas')
+      .select('*')
+      .eq('is_used', false)
+      .eq('banned_for_game', false)
+      .order('id', { ascending: false })
       .then(({ data }) => setCartelas((data || []).sort(() => Math.random() - 0.5)));
   }, []);
 
   useEffect(() => {
+    if (!prizeAmount) return;
+    setPulsePrize(true);
+    const timer = window.setTimeout(() => setPulsePrize(false), 650);
+    return () => window.clearTimeout(timer);
+  }, [prizeAmount]);
+
+  useEffect(() => {
     const observer = new IntersectionObserver(
-      (entries) => { if (entries[0].isIntersecting) setPage(p => p + 1); },
+      (entries) => {
+        if (entries[0].isIntersecting) setPage((p) => p + 1);
+      },
       { threshold: 0.1 }
     );
     if (loaderRef.current) observer.observe(loaderRef.current);
@@ -61,14 +76,14 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
 
   const filtered = useMemo(() => {
     let list = cartelas;
-    if (search.trim()) list = list.filter(c => String(c.id).includes(search.trim()));
+    if (search.trim()) list = list.filter((c) => String(c.id).includes(search.trim()));
     return list;
   }, [cartelas, search]);
 
   const visible = useMemo(() => filtered.slice(0, page * pageSize), [filtered, page]);
 
   const toggleSelect = (id: string) => {
-    setSelected(prev => {
+    setSelected((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
@@ -76,11 +91,24 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
   };
 
   const quickPick = (count: number) => {
-    const available = filtered.filter(c => !selected.has(String(c.id)));
+    const available = filtered.filter((c) => !selected.has(String(c.id)));
     const shuffled = [...available].sort(() => Math.random() - 0.5);
-    const picks = shuffled.slice(0, count).map(c => String(c.id));
-    setSelected(prev => { const next = new Set(prev); picks.forEach(id => next.add(id)); return next; });
+    const picks = shuffled.slice(0, count).map((c) => String(c.id));
+    setSelected((prev) => {
+      const next = new Set(prev);
+      picks.forEach((id) => next.add(id));
+      return next;
+    });
     if (picks.length > 0) toast.success(`${picks.length} cartela(s) added!`);
+  };
+
+  const getFriendlyPurchaseError = (message?: string | null) => {
+    const text = (message || '').toLowerCase();
+    if (text.includes('buying is closed') || text.includes('prize pot')) return 'Buying is closed for this round. Please wait for the next one.';
+    if (text.includes('at least one cartela must be sold')) return 'Round not ready yet. Buy a cartela to join the next game.';
+    if (text.includes('insufficient balance')) return 'Your balance is too low for this purchase.';
+    if (text.includes('no longer available')) return 'Some selected cartelas were already taken. Please pick different ones.';
+    return t('purchaseFailed');
   };
 
   const handleBuy = async () => {
@@ -89,12 +117,14 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
     const { data, error } = await invokeWithRetry('purchase-cartela', {
       body: { cartela_ids: Array.from(selected).map(Number) },
     });
+
     if (error || data?.error) {
-      toast.error(data?.error || t('purchaseFailed'));
+      toast.error(getFriendlyPurchaseError(data?.error || error));
       setBuying(false);
       return;
     }
-    setCartelas(prev => prev.filter(c => !selected.has(String(c.id))));
+
+    setCartelas((prev) => prev.filter((c) => !selected.has(String(c.id))));
     setSelected(new Set());
     setBuying(false);
     toast.success(t('purchased'));
@@ -105,30 +135,68 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text" value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder={t('search')}
-            className="w-full pl-9 pr-4 py-2.5 rounded-lg bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
-          />
+      <div className="rounded-[1.6rem] border border-border bg-card p-3 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Prize Pool</p>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={prizeAmount}
+                initial={{ scale: 0.95, opacity: 0.7, y: 6 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 1.02, opacity: 0 }}
+                transition={{ duration: 0.28 }}
+                className={cn('mt-1 text-2xl font-display font-bold text-primary', pulsePrize && 'animate-pulse-neon rounded-xl')}
+              >
+                {prizeAmount.toFixed(2)} ETB
+              </motion.div>
+            </AnimatePresence>
+          </div>
+          <div className="rounded-2xl bg-primary/10 px-3 py-2 text-right">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Ticket</p>
+            <p className="text-sm font-bold text-foreground">{cartelaPrice} ETB</p>
+          </div>
+        </div>
+        <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
+          <Clock3 className="h-3.5 w-3.5 text-primary" />
+          Auto-start in 2 minutes when the round is open.
         </div>
       </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          placeholder={t('search')}
+          className="w-full rounded-2xl bg-card pl-9 pr-4 py-3 text-sm text-foreground outline-none ring-1 ring-border focus:ring-2 focus:ring-primary"
+        />
+      </div>
+
       <div className="flex gap-2 flex-wrap">
-        <span className="text-xs text-muted-foreground flex items-center gap-1"><Shuffle className="w-3.5 h-3.5" /> {t('quick')}:</span>
-        {[1, 3, 5].map(n => (
-          <button key={n} onClick={() => quickPick(n)}
-            className="px-3 py-1.5 rounded bg-primary/10 text-primary text-xs font-bold active:scale-95">
-            {n} {t('cards')}
+        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground"><Shuffle className="w-3.5 h-3.5" /> Quick pick</span>
+        {[1, 3, 5].map((n) => (
+          <button
+            key={n}
+            onClick={() => quickPick(n)}
+            className="rounded-full bg-primary/10 px-3 py-1.5 text-[11px] font-bold text-primary active:scale-95"
+          >
+            {n} cards
           </button>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">{filtered.length} {t('available')} · {cartelaPrice} ETB {t('each')} · auto start in 2 min if prize pot is set</p>
 
-      <div className="grid grid-cols-3 gap-2 max-h-[50vh] overflow-y-auto">
-        {visible.map(c => (
+      <div className="flex items-center justify-between px-1 text-[11px] text-muted-foreground">
+        <span>{filtered.length} available</span>
+        <span>{gameStatus === 'buying' ? 'Buying open' : 'Waiting for next round'}</span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2.5 max-h-[44vh] overflow-y-auto rounded-[1.4rem] bg-card/60 p-2 ring-1 ring-border">
+        {visible.map((c) => (
           <div key={c.id} onClick={() => toggleSelect(String(c.id))} className="cursor-pointer">
             <BingoCartela
               numbers={c.numbers as number[][]}
@@ -138,16 +206,24 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
             />
           </div>
         ))}
+        {visible.length === 0 && <div className="col-span-3 py-6 text-center text-sm text-muted-foreground">No cartelas available right now.</div>}
       </div>
       <div ref={loaderRef} className="h-4" />
 
-      {selected.size > 0 && (
-        <button onClick={handleBuy} disabled={buying}
-          className="w-full py-3.5 rounded-lg font-display font-bold gradient-neon text-primary-foreground text-sm active:scale-95 glow-neon disabled:opacity-50">
-          <ShoppingCart className="w-4 h-4 inline mr-2" />
-          {buying ? '...' : `${t('buy')} ${selected.size} — ${cost} ETB`}
+      <div className="sticky bottom-0 z-10 rounded-[1.5rem] border border-primary/20 bg-card/95 p-3 backdrop-blur-md shadow-lg">
+        <div className="mb-2 flex items-center justify-between text-sm">
+          <span className="font-semibold text-foreground">{selected.size} selected</span>
+          <span className="font-display font-bold text-primary">{cost} ETB</span>
+        </div>
+        <button
+          onClick={handleBuy}
+          disabled={buying || selected.size === 0}
+          className="w-full rounded-2xl py-3.5 text-sm font-display font-bold text-primary-foreground gradient-neon glow-neon active:scale-95 disabled:opacity-50"
+        >
+          <ShoppingCart className="mr-2 inline w-4 h-4" />
+          {buying ? 'Processing...' : selected.size === 0 ? 'Select cartelas' : `${t('buy')} now`}
         </button>
-      )}
+      </div>
     </div>
   );
 }
