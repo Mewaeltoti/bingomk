@@ -46,7 +46,7 @@ export function useGameNotifications() {
               description: `Pattern: ${game.pattern}`,
               duration: 10000,
             });
-            sendPushNotification('🎮 Bingo Ethio', `New game starting! Pattern: ${game.pattern}. Buy cartelas now!`);
+            sendPushNotification('🎮 Bingo Mekele', `New game starting! Pattern: ${game.pattern}. Buy cartelas now!`);
           }
 
           if (game.status === 'active') {
