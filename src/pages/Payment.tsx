@@ -15,8 +15,8 @@ import cbeBirrLogo from '@/assets/cbe-birr.jpg';
 const banks = ['Commercial Bank of Ethiopia', 'Awash Bank', 'Dashen Bank', 'Bank of Abyssinia'];
 
 const paymentMethods = [
-  { name: 'Telebirr', logo: telebirrLogo, badgeClass: 'bg-primary/15 text-primary border border-primary/30', comingSoon: true },
-  { name: 'CBE Birr', logo: cbeBirrLogo, badgeClass: 'bg-secondary/20 text-secondary-foreground border border-border', comingSoon: true },
+  { name: 'Telebirr', logo: telebirrLogo, comingSoon: true },
+  { name: 'CBE Birr', logo: cbeBirrLogo, comingSoon: true },
 ];
 
 export default function Payment() {
