@@ -514,6 +514,9 @@ export default function GamePage() {
           </button>
           <ThemeToggle />
           <MuteToggle />
+          <button onClick={() => navigate('/profile')} className="text-xs font-display font-bold text-muted-foreground flex items-center gap-1">
+            <UserCircle className="w-3.5 h-3.5" />
+          </button>
           <button onClick={() => navigate('/payment')} className="text-xs font-display font-bold text-primary flex items-center gap-1">
             <Wallet className="w-3.5 h-3.5" /> {balance}
           </button>
