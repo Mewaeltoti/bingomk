@@ -110,7 +110,7 @@ export default function Payment() {
       <div className="mb-4 space-y-3">
         <div className="grid grid-cols-1 gap-3">
           {paymentMethods.map(pm => (
-            <div key={pm.name} className="relative overflow-hidden rounded-2xl border border-border bg-card p-3 shadow-sm">
+            <div key={pm.name} className="relative overflow-hidden rounded-[1.4rem] border border-border bg-card p-3 shadow-sm">
               <div className="flex items-center gap-3">
                 <img src={pm.logo} alt={`${pm.name} logo`} className="h-14 w-14 rounded-xl object-cover border border-border bg-background" loading="lazy" />
                 <div className="min-w-0 flex-1">
@@ -124,9 +124,24 @@ export default function Payment() {
             </div>
           ))}
         </div>
-        <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
-          <MessageCircle className="w-4 h-4 text-primary" />
-          Support on Telegram: <span className="font-semibold text-foreground">+251978187178</span>
+        <div className="rounded-[1.4rem] border border-primary/20 bg-card px-4 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <MessageCircle className="w-4 h-4 text-primary" /> Telegram Support
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">Fast help for deposits, withdrawals, and account issues.</p>
+              <p className="mt-2 text-sm font-semibold text-primary">+251978187178</p>
+            </div>
+            <a
+              href={TELEGRAM_SUPPORT_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground shadow-sm active:scale-95"
+            >
+              <Send className="w-3.5 h-3.5" /> Open
+            </a>
+          </div>
         </div>
       </div>
 
