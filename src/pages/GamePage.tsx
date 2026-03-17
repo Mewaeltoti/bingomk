@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { playDrawSound, playWinSound, playMarkSound, announceNumber } from '@/lib/sounds';
 import { invokeWithRetry } from '@/lib/edgeFn';
 import { t, getLang, toggleLang } from '@/lib/i18n';
-import { Users, Eye, Hand, ShoppingCart, ChevronDown, ChevronUp, Wallet, LogOut, Search, Shuffle, Globe, History, UserCircle } from 'lucide-react';
+import { Users, Eye, Hand, ShoppingCart, ChevronDown, ChevronUp, Wallet, LogOut, Search, Shuffle, UserCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import MuteToggle from '@/components/MuteToggle';
 import ThemeToggle from '@/components/ThemeToggle';
