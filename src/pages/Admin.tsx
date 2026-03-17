@@ -546,10 +546,10 @@ export default function Admin() {
             </div>
           )}
 
-          {/* Claims - manual verification */}
+          {/* Claims monitor */}
           {claims.length > 0 && (
-            <div className="p-3 rounded-xl border border-border bg-muted/30 space-y-3">
-              <div className="flex items-center justify-between">
+            <div className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
+              <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm font-bold text-foreground">
                   <AlertTriangle className="w-4 h-4 text-primary" />
                   Claims ({claims.length})
@@ -558,25 +558,25 @@ export default function Admin() {
                   <button
                     onClick={verifyAllPendingClaims}
                     disabled={actionLoading === 'verify-all'}
-                    className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50"
+                    className="rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-50"
                   >
                     {actionLoading === 'verify-all' ? '⏳ Verifying...' : 'Verify All'}
                   </button>
                 )}
               </div>
               {claims.map((c: any) => (
-                <div key={c.id} className="p-2 rounded-lg bg-card border border-border space-y-2">
-                  <div className="flex items-center justify-between">
+                <div key={c.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
                     <div>
                       <span className="text-sm font-medium text-foreground">
                         {c.profile?.display_name || c.profile?.phone || c.user_id.slice(0, 8)}
                       </span>
-                      <span className="text-xs text-muted-foreground ml-2">
+                      <span className="ml-2 text-xs text-muted-foreground">
                         Cartela #{c.cartela_id}
                       </span>
                     </div>
                     <span className={c.is_valid ? 'text-secondary font-bold text-xs' : c.is_valid === false ? 'text-destructive text-xs' : 'text-muted-foreground text-xs'}>
-                      {c.is_valid ? '✅ Winner!' : c.is_valid === false ? '❌ Invalid' : '⏳ Pending'}
+                      {c.is_valid ? '✅ Auto valid' : c.is_valid === false ? '❌ Auto invalid' : '⏳ Checking'}
                     </span>
                   </div>
                   {c.is_valid === null && (
@@ -584,23 +584,23 @@ export default function Admin() {
                       <button
                         onClick={() => verifyClaimManually(c, true)}
                         disabled={!!actionLoading}
-                        className="flex-1 py-1.5 rounded-lg bg-secondary text-secondary-foreground text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-50"
+                        className="flex-1 rounded-xl bg-secondary py-2 text-xs font-bold text-secondary-foreground disabled:opacity-50"
                       >
-                        {actionLoading === `verify-${c.id}` ? '⏳...' : <><Check className="w-3.5 h-3.5" /> Valid Winner</>}
+                        {actionLoading === `verify-${c.id}` ? '⏳...' : 'Force valid'}
                       </button>
                       <button
                         onClick={() => verifyClaimManually(c, false)}
                         disabled={!!actionLoading}
-                        className="flex-1 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-50"
+                        className="flex-1 rounded-xl bg-destructive py-2 text-xs font-bold text-destructive-foreground disabled:opacity-50"
                       >
-                        {actionLoading === `verify-${c.id}` ? '⏳...' : <><X className="w-3.5 h-3.5" /> Invalid</>}
+                        {actionLoading === `verify-${c.id}` ? '⏳...' : 'Force invalid'}
                       </button>
                     </div>
                   )}
                 </div>
               ))}
-              <p className="text-[10px] text-muted-foreground text-center">
-                1 winner = full prize • 2 winners = split • 3+ = round restart
+              <p className="text-center text-[10px] text-muted-foreground">
+                Auto-check runs on claim; manual actions stay available as fallback.
               </p>
             </div>
           )}
