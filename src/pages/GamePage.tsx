@@ -179,10 +179,6 @@ export default function GamePage() {
   const navigate = useNavigate();
   const players = useGamePresence(user?.id, displayName);
 
-  const handleToggleLang = () => {
-    toggleLang();
-    setLangTick(n => n + 1);
-  };
 
   useEffect(() => {
     if (!user?.id) return;
