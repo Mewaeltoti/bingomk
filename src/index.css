@@ -131,14 +131,6 @@
   .glow-gold {
     box-shadow: 0 0 15px hsl(var(--primary) / 0.3), 0 0 45px hsl(var(--primary) / 0.1);
   }
-  .bg-hero-bingo {
-    background:
-      linear-gradient(135deg, hsl(var(--background)), hsl(var(--card))),
-      url('/splash.png');
-    background-position: center;
-    background-size: cover;
-    background-blend-mode: overlay;
-  }
   .bingo-cell {
     @apply flex items-center justify-center font-display font-bold text-sm aspect-square transition-all duration-200;
   }
@@ -152,6 +144,6 @@
   }
   .bingo-cell-free {
     background: hsl(var(--secondary));
-    color: hsl(var(--secondary-foreground));
+    color: white;
   }
 }
