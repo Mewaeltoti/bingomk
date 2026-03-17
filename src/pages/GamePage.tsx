@@ -173,6 +173,7 @@ export default function GamePage() {
   const [displayName, setDisplayName] = useState<string>('');
   const [balance, setBalance] = useState(0);
   const [prizeAmount, setPrizeAmount] = useState(0);
+  const [cartelaPrice, setCartelaPrice] = useState(10);
   const [, setLangTick] = useState(0); // force re-render on lang change
   const user = useUser();
   const navigate = useNavigate();
