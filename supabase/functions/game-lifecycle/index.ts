@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const FIXED_DRAW_SPEED = 8;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -35,25 +36,35 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders });
     }
 
-    const { action, pattern, draw_speed, prize_amount, cartela_price } = await req.json();
+    const { action, pattern, prize_amount, cartela_price } = await req.json();
 
     if (action === "new_game") {
-      await supabase.from("games").update({ auto_draw: false }).eq("id", "current");
+      await supabase.from("games").delete().eq("id", "current");
 
-      // Get current session number
-      const { data: currentGame } = await supabase.from("games").select("session_number").eq("id", "current").maybeSingle();
-      const nextSession = ((currentGame as any)?.session_number || 0) + 1;
+      const { data: currentHistory } = await supabase
+        .from("game_history")
+        .select("session_number")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const nextSession = ((currentHistory as any)?.session_number || 0) + 1;
 
       await Promise.all([
         supabase.from("game_numbers").delete().eq("game_id", "current"),
         supabase.from("bingo_claims").delete().eq("game_id", "current"),
-        supabase.from("cartelas").update({ is_used: false, owner_id: null }).eq("is_used", true),
+        supabase.from("cartelas").update({ is_used: false, owner_id: null, banned_for_game: false }).or("is_used.eq.true,banned_for_game.eq.true"),
       ]);
 
-      await supabase.from("games").upsert({
-        id: "current", pattern: pattern || "Full House", status: "buying",
-        winner_id: null, draw_speed: draw_speed || 5, prize_amount: 0,
-        cartela_price: cartela_price || 10, auto_draw: false,
+      await supabase.from("games").insert({
+        id: "current",
+        pattern: pattern || "Full House",
+        status: "buying",
+        winner_id: null,
+        draw_speed: FIXED_DRAW_SPEED,
+        prize_amount: prize_amount || 0,
+        cartela_price: cartela_price || 10,
+        auto_draw: false,
         session_number: nextSession,
       });
 
@@ -62,9 +73,21 @@ Deno.serve(async (req) => {
 
     if (action === "start_drawing") {
       const { count } = await supabase.from("cartelas").select("id", { count: "exact", head: true }).eq("is_used", true).not("owner_id", "is", null);
+      const soldCount = count || 0;
+      if (soldCount < 1) {
+        return new Response(JSON.stringify({ error: "At least one cartela must be sold" }), { status: 400, headers: corsHeaders });
+      }
+
+      const prize = Number(prize_amount || 0);
+      if (prize <= 0) {
+        return new Response(JSON.stringify({ error: "Prize pot must be set" }), { status: 400, headers: corsHeaders });
+      }
 
       await supabase.from("games").update({
-        status: "active", prize_amount: prize_amount || 0, auto_draw: true,
+        status: "active",
+        prize_amount: prize,
+        auto_draw: true,
+        draw_speed: FIXED_DRAW_SPEED,
       }).eq("id", "current");
 
       fetch(`${SUPABASE_URL}/functions/v1/auto-draw`, {
@@ -72,7 +95,7 @@ Deno.serve(async (req) => {
         headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
       }).catch(() => {});
 
-      return new Response(JSON.stringify({ ok: true, status: "active", bought: count || 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ ok: true, status: "active", sold: soldCount }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (action === "pause") {
@@ -81,7 +104,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "resume") {
-      await supabase.from("games").update({ auto_draw: true }).eq("id", "current");
+      await supabase.from("games").update({ auto_draw: true, draw_speed: FIXED_DRAW_SPEED }).eq("id", "current");
       fetch(`${SUPABASE_URL}/functions/v1/auto-draw`, {
         method: "POST",
         headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },

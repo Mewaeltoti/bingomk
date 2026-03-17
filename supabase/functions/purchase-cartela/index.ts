@@ -30,51 +30,44 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-    // Block admins
-    const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle();
-    if (roleData) {
-      return new Response(JSON.stringify({ error: "Admins cannot purchase cartelas" }), { status: 403, headers: corsHeaders });
-    }
-
     const { cartela_ids } = await req.json();
     if (!Array.isArray(cartela_ids) || cartela_ids.length === 0) {
       return new Response(JSON.stringify({ error: "No cartelas selected" }), { status: 400, headers: corsHeaders });
     }
 
-    // Check game status
-    const { data: game } = await supabase.from("games").select("status, cartela_price").eq("id", "current").maybeSingle();
-    const status = game?.status || "waiting";
-    if (status !== "buying" && status !== "waiting") {
-      return new Response(JSON.stringify({ error: "Cannot buy during active game" }), { status: 400, headers: corsHeaders });
-    }
-
-    const cartelaPrice = game?.cartela_price || 10;
-    const cost = cartela_ids.length * cartelaPrice;
-
-    // Check balance
-    const { data: profile } = await supabase.from("profiles").select("balance").eq("id", userId).single();
-    const balance = profile?.balance || 0;
-    if (balance < cost) {
-      return new Response(JSON.stringify({ error: "Insufficient balance", need: cost, have: balance }), { status: 400, headers: corsHeaders });
-    }
-
-    // Verify cartelas are available
-    const { data: available } = await supabase.from("cartelas").select("id").in("id", cartela_ids).eq("is_used", false);
-    if (!available || available.length !== cartela_ids.length) {
-      return new Response(JSON.stringify({ error: "Some cartelas are no longer available" }), { status: 409, headers: corsHeaders });
-    }
-
-    // Atomic: assign cartelas + deduct balance
-    const { error: updateError } = await supabase.from("cartelas").update({ is_used: true, owner_id: userId }).in("id", cartela_ids);
-    if (updateError) {
-      return new Response(JSON.stringify({ error: "Purchase failed" }), { status: 500, headers: corsHeaders });
-    }
-
-    await supabase.from("profiles").update({ balance: balance - cost }).eq("id", userId);
-
-    return new Response(JSON.stringify({ ok: true, purchased: cartela_ids.length, cost, new_balance: balance - cost }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const { data: result, error: rpcError } = await supabase.rpc("purchase_cartelas_atomic", {
+      p_user_id: userId,
+      p_cartela_ids: cartela_ids,
     });
+
+    if (rpcError) {
+      return new Response(JSON.stringify({ error: rpcError.message || "Purchase failed" }), {
+        status: 500,
+        headers: corsHeaders,
+      });
+    }
+
+    const purchase = Array.isArray(result) ? result[0] : null;
+    if (!purchase?.ok) {
+      return new Response(
+        JSON.stringify({
+          error: purchase?.error_message || "Purchase failed",
+          cost: purchase?.total_cost ?? 0,
+          new_balance: purchase?.new_balance ?? 0,
+        }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        purchased: purchase.purchased_count,
+        cost: purchase.total_cost,
+        new_balance: purchase.new_balance,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: corsHeaders });
   }
