@@ -5,10 +5,12 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useUser } from '@/lib/auth';
-import { ArrowDownCircle, ArrowUpCircle, ArrowLeft, Clock } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, ArrowLeft, Clock, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { t } from '@/lib/i18n';
+import telebirrLogo from '@/assets/telebirr.webp';
+import cbeBirrLogo from '@/assets/cbe-birr.jpg';
 
 const banks = ['Commercial Bank of Ethiopia', 'Awash Bank', 'Dashen Bank', 'Bank of Abyssinia'];
 
