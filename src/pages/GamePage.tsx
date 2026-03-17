@@ -47,6 +47,25 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
   useEffect(() => {
     supabase.from('cartelas').select('*').eq('is_used', false).order('id', { ascending: true })
       .then(({ data }) => setCartelas(data || []));
+
+    const channel = supabase
+      .channel('cartela-shop')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cartelas' }, (payload: any) => {
+        if (payload.new?.is_used) {
+          const id = String(payload.new.id);
+          setCartelas(prev => prev.filter(c => String(c.id) !== id));
+          setSelected(prev => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -83,14 +102,16 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
   };
 
   const handleBuy = async () => {
-    if (!user?.id || selected.size === 0) return;
+    if (!user?.id || selected.size === 0 || gameStatus !== 'buying') return;
     setBuying(true);
+    const ids = Array.from(selected).map(Number);
     const { data, error } = await invokeWithRetry('purchase-cartela', {
-      body: { cartela_ids: Array.from(selected).map(Number) },
+      body: { cartela_ids: ids },
     });
     if (error || data?.error) {
       toast.error(data?.error || t('purchaseFailed'));
       setBuying(false);
+      onBuy();
       return;
     }
     setCartelas(prev => prev.filter(c => !selected.has(String(c.id))));
@@ -111,7 +132,7 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
             type="text" value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }}
             placeholder={t('search')}
-            className="w-full pl-9 pr-4 py-2.5 rounded-lg bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
+            className="w-full pl-9 pr-4 py-3 rounded-xl bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
       </div>
@@ -119,14 +140,14 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
         <span className="text-xs text-muted-foreground flex items-center gap-1"><Shuffle className="w-3.5 h-3.5" /> {t('quick')}:</span>
         {[1, 3, 5].map(n => (
           <button key={n} onClick={() => quickPick(n)}
-            className="px-3 py-1.5 rounded bg-primary/10 text-primary text-xs font-bold active:scale-95">
+            className="px-3 py-2 rounded-xl bg-primary/10 text-primary text-xs font-bold active:scale-95">
             {n} {t('cards')}
           </button>
         ))}
       </div>
       <p className="text-xs text-muted-foreground">{filtered.length} {t('available')} · {cartelaPrice} ETB {t('each')}</p>
 
-      <div className="grid grid-cols-3 gap-2 max-h-[50vh] overflow-y-auto">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[52vh] overflow-y-auto">
         {visible.map(c => (
           <div key={c.id} onClick={() => toggleSelect(String(c.id))} className="cursor-pointer">
             <BingoCartela
@@ -141,8 +162,8 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
       <div ref={loaderRef} className="h-4" />
 
       {selected.size > 0 && (
-        <button onClick={handleBuy} disabled={buying}
-          className="w-full py-3.5 rounded-lg font-display font-bold gradient-neon text-primary-foreground text-sm active:scale-95 glow-neon disabled:opacity-50">
+        <button onClick={handleBuy} disabled={buying || gameStatus !== 'buying'}
+          className="w-full py-4 rounded-xl font-display font-bold gradient-neon text-primary-foreground text-sm active:scale-95 glow-neon disabled:opacity-50">
           <ShoppingCart className="w-4 h-4 inline mr-2" />
           {buying ? '...' : `${t('buy')} ${selected.size} — ${cost} ETB`}
         </button>
