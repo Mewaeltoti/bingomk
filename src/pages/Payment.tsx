@@ -13,8 +13,8 @@ import { t } from '@/lib/i18n';
 const banks = ['Commercial Bank of Ethiopia', 'Awash Bank', 'Dashen Bank', 'Bank of Abyssinia'];
 
 const paymentMethods = [
-  { name: 'Telebirr', color: 'bg-green-600', comingSoon: true },
-  { name: 'CBE Birr', color: 'bg-blue-700', comingSoon: true },
+  { name: 'Telebirr', badgeClass: 'bg-primary/15 text-primary border border-primary/30', comingSoon: true },
+  { name: 'CBE Birr', badgeClass: 'bg-secondary/20 text-secondary-foreground border border-border', comingSoon: true },
 ];
 
 export default function Payment() {

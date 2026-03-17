@@ -9,6 +9,7 @@ import InstallPrompt from "./components/InstallPrompt";
 import Index from "./pages/Index";
 import GamePage from "./pages/GamePage";
 import Payment from "./pages/Payment";
+import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
