@@ -1,14 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
+import PageShell from '@/components/PageShell';
+import PullToRefresh from '@/components/PullToRefresh';
 import { toast } from 'sonner';
+import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useUser } from '@/lib/auth';
-import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, Clock, Wallet } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, ArrowLeft, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
+import { t } from '@/lib/i18n';
 
 const banks = ['Commercial Bank of Ethiopia', 'Awash Bank', 'Dashen Bank', 'Bank of Abyssinia'];
-const popularAmounts = [50, 100, 200, 500];
-const quickWithdraw = [100, 500, 1000, 2000];
+
+const paymentMethods = [
+  { name: 'Telebirr', color: 'bg-green-600', comingSoon: true },
+  { name: 'CBE Birr', color: 'bg-blue-700', comingSoon: true },
+];
 
 export default function Payment() {
   const [tab, setTab] = useState<'deposit' | 'withdraw'>('deposit');
@@ -39,201 +46,193 @@ export default function Payment() {
 
   const handleDeposit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!bank || !amount || !reference || !user?.id) { toast.error('Please fill all fields'); return; }
+    if (!bank || !amount || !reference || !user?.id) {
+      toast.error('Please fill all fields');
+      return;
+    }
     setLoading(true);
-    const { data, error } = await supabase.from('deposits')
-      .insert({ user_id: user.id, bank, amount: parseFloat(amount), reference }).select().single();
+    const { data, error } = await supabase
+      .from('deposits')
+      .insert({ user_id: user.id, bank, amount: parseFloat(amount), reference })
+      .select().single();
     setLoading(false);
     if (error) { toast.error('Failed to submit deposit'); return; }
-    setDeposits(prev => [data, ...prev]);
+    setDeposits((prev) => [data, ...prev]);
     toast.success('Deposit request submitted!');
     setBank(''); setAmount(''); setReference('');
   };
 
   const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!bank || !amount || !accountNumber || !user?.id) { toast.error('Please fill all fields'); return; }
+    if (!bank || !amount || !accountNumber || !user?.id) {
+      toast.error('Please fill all fields');
+      return;
+    }
     const withdrawAmount = parseFloat(amount);
     if (withdrawAmount <= 0) { toast.error('Invalid amount'); return; }
     if (withdrawAmount > balance) { toast.error('Insufficient balance'); return; }
+
     setLoading(true);
     const { data, error } = await (supabase.from('withdrawals' as any) as any)
-      .insert({ user_id: user.id, bank, amount: withdrawAmount, account_number: accountNumber }).select().single();
+      .insert({ user_id: user.id, bank, amount: withdrawAmount, account_number: accountNumber })
+      .select().single();
     setLoading(false);
-    if (error) { toast.error('Failed to submit withdrawal'); return; }
+    if (error) { toast.error('Failed to submit withdrawal'); console.error(error); return; }
     setWithdrawals((prev: any[]) => [data, ...prev]);
     toast.success('Withdrawal request submitted!');
     setBank(''); setAmount(''); setAccountNumber('');
   };
 
+  const inputClass = "w-full p-3.5 rounded-xl bg-muted text-foreground text-base focus:ring-2 focus:ring-primary outline-none";
+
   return (
-    <div className="min-h-screen bg-background safe-top">
-      {/* Header */}
-      <header className="bg-card border-b border-border px-4 py-3 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center active:scale-95">
-          <ArrowLeft className="w-5 h-5 text-foreground" />
-        </button>
-        <h1 className="text-lg font-bold text-foreground flex-1">
-          {tab === 'deposit' ? 'Deposit' : 'Withdraw Funds'}
-        </h1>
-      </header>
+    <PageShell title={t('wallet')}>
+      <PullToRefresh onRefresh={loadData}>
+      {/* Back button */}
+      <button
+        onClick={() => navigate(-1)}
+        className="flex items-center gap-2 mb-4 px-4 py-3 rounded-xl bg-muted text-foreground text-sm font-medium active:scale-95 transition-transform w-full"
+      >
+        <ArrowLeft className="w-5 h-5" />
+        {t('back')}
+      </button>
 
-      <div className="px-4 py-4 space-y-4">
-        {/* Balance card */}
-        <div className="text-center py-6 rounded-2xl bg-card border border-border">
-          <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-2">
-            <Wallet className="w-7 h-7 text-primary" />
-          </div>
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Available Balance</div>
-          <div className="text-3xl font-bold text-foreground mt-1">ETB {balance.toLocaleString()}</div>
-        </div>
+      {/* Balance */}
+      <div className="text-center mb-4 p-4 rounded-2xl gradient-card border border-border">
+        <div className="text-xs text-muted-foreground uppercase tracking-wider">{t('balance')}</div>
+        <div className="text-3xl font-display font-bold text-primary">{balance} ETB</div>
+      </div>
 
-        {/* Payment methods - coming soon */}
+      {/* Payment Methods - Coming Soon */}
+      <div className="mb-4">
         <div className="grid grid-cols-2 gap-3">
-          {[
-            { name: 'Telebirr', abbr: 'Tb', color: 'bg-primary' },
-            { name: 'CBE Birr', abbr: 'C', color: 'bg-blue-600' },
-          ].map(pm => (
-            <div key={pm.name} className="p-4 rounded-xl bg-card border border-border flex items-center gap-3 opacity-60">
-              <div className={cn('w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm', pm.color)}>
-                {pm.abbr}
+          {paymentMethods.map(pm => (
+            <div key={pm.name} className="relative p-4 rounded-xl bg-muted/50 border border-border flex flex-col items-center gap-2 opacity-60">
+              <div className={cn('w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs', pm.color)}>
+                {pm.name.charAt(0)}
               </div>
-              <div>
-                <div className="text-sm font-medium text-foreground">{pm.name}</div>
-                <div className="text-[10px] text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> Coming Soon</div>
-              </div>
+              <span className="text-xs font-medium text-foreground">{pm.name}</span>
+              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <Clock className="w-3 h-3" /> {t('comingSoon')}
+              </span>
             </div>
           ))}
         </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2">
-          <button onClick={() => setTab('deposit')}
-            className={cn('flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl text-sm font-bold transition-colors active:scale-95',
-              tab === 'deposit' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
-            <ArrowDownCircle className="w-4 h-4" /> Deposit
-          </button>
-          <button onClick={() => setTab('withdraw')}
-            className={cn('flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl text-sm font-bold transition-colors active:scale-95',
-              tab === 'withdraw' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
-            <ArrowUpCircle className="w-4 h-4" /> Withdraw
-          </button>
-        </div>
-
-        {tab === 'deposit' && (
-          <form onSubmit={handleDeposit} className="space-y-4">
-            {/* Popular amounts */}
-            <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Popular amounts</label>
-              <div className="grid grid-cols-2 gap-2">
-                {popularAmounts.map(a => (
-                  <button key={a} type="button" onClick={() => setAmount(String(a))}
-                    className={cn('py-3.5 rounded-xl text-sm font-bold transition-colors',
-                      amount === String(a) ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground border border-border')}>
-                    {a} <span className="text-xs font-normal">ETB</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Or enter custom amount</label>
-              <div className="flex items-center gap-2 p-3.5 rounded-xl bg-muted border border-border">
-                <span className="text-muted-foreground text-sm font-medium">ETB</span>
-                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00" className="flex-1 bg-transparent text-foreground text-base outline-none" />
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Bank</label>
-              <select value={bank} onChange={(e) => setBank(e.target.value)}
-                className="w-full p-3.5 rounded-xl bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary border border-border">
-                <option value="">Select bank</option>
-                {banks.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Transaction Reference</label>
-              <input type="text" value={reference} onChange={(e) => setReference(e.target.value)}
-                placeholder="Enter reference" className="w-full p-3.5 rounded-xl bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary border border-border" />
-            </div>
-            <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 flex items-start gap-2">
-              <span className="text-primary mt-0.5">ℹ️</span>
-              <span className="text-xs text-muted-foreground">Min deposit is 10 ETB. Funds will be available in your Bingo balance instantly after confirmation.</span>
-            </div>
-            <button type="submit" disabled={loading}
-              className="w-full py-4 rounded-xl font-bold text-base bg-primary text-primary-foreground active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2">
-              {loading ? '...' : 'Next →'}
-            </button>
-          </form>
-        )}
-
-        {tab === 'withdraw' && (
-          <form onSubmit={handleWithdraw} className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Amount to Withdraw</label>
-              <div className="flex items-center gap-2 p-3.5 rounded-xl bg-muted border border-border">
-                <span className="text-muted-foreground text-sm font-medium">ETB</span>
-                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00" className="flex-1 bg-transparent text-foreground text-base outline-none" />
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Quick Selection</label>
-              <div className="grid grid-cols-2 gap-2">
-                {quickWithdraw.map(a => (
-                  <button key={a} type="button" onClick={() => setAmount(prev => String((Number(prev) || 0) + a))}
-                    className="py-3 rounded-xl text-sm font-bold bg-muted text-foreground border border-border active:scale-95">
-                    + {a.toLocaleString()}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Bank</label>
-              <select value={bank} onChange={(e) => setBank(e.target.value)}
-                className="w-full p-3.5 rounded-xl bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary border border-border">
-                <option value="">Select bank</option>
-                {banks.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Account Number</label>
-              <input type="text" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)}
-                placeholder="Your account number" className="w-full p-3.5 rounded-xl bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary border border-border" />
-            </div>
-            <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 flex items-start gap-2">
-              <span className="text-primary mt-0.5">ℹ️</span>
-              <span className="text-xs text-muted-foreground">Minimum withdrawal amount is <strong>ETB 50.00</strong>. Transfers are usually processed within 24 hours to your linked bank account or mobile wallet.</span>
-            </div>
-            <button type="submit" disabled={loading}
-              className="w-full py-4 rounded-xl font-bold text-base bg-primary text-primary-foreground active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2">
-              {loading ? '...' : 'Next →'}
-            </button>
-          </form>
-        )}
-
-        {/* History */}
-        <section>
-          <h2 className="text-sm font-bold text-foreground mb-2">{tab === 'deposit' ? 'Recent Deposits' : 'Recent Withdrawals'}</h2>
-          <div className="space-y-1.5">
-            {(tab === 'deposit' ? deposits : withdrawals).map((item: any) => (
-              <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
-                <div>
-                  <div className="text-sm font-medium text-foreground">{item.bank} — {item.amount} ETB</div>
-                  <div className="text-xs text-muted-foreground">{tab === 'deposit' ? `Ref: ${item.reference}` : `Acct: ${item.account_number}`}</div>
-                </div>
-                <span className={cn('text-xs font-semibold px-2 py-1 rounded-full',
-                  item.status === 'approved' ? 'bg-primary/15 text-primary' :
-                  item.status === 'pending' ? 'bg-accent/15 text-accent' : 'bg-destructive/15 text-destructive'
-                )}>{item.status}</span>
-              </div>
-            ))}
-            {(tab === 'deposit' ? deposits : withdrawals).length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-6">No transactions yet</p>
-            )}
-          </div>
-        </section>
       </div>
-    </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setTab('deposit')}
+          className={cn(
+            'flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl text-sm font-bold transition-colors active:scale-95',
+            tab === 'deposit' ? 'gradient-neon text-primary-foreground' : 'bg-muted text-muted-foreground'
+          )}
+        >
+          <ArrowDownCircle className="w-4 h-4" /> {t('deposit')}
+        </button>
+        <button
+          onClick={() => setTab('withdraw')}
+          className={cn(
+            'flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl text-sm font-bold transition-colors active:scale-95',
+            tab === 'withdraw' ? 'gradient-neon text-primary-foreground' : 'bg-muted text-muted-foreground'
+          )}
+        >
+          <ArrowUpCircle className="w-4 h-4" /> {t('withdraw')}
+        </button>
+      </div>
+
+      {tab === 'deposit' && (
+        <>
+          <motion.form initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} onSubmit={handleDeposit} className="space-y-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">{t('bankName')}</label>
+              <select value={bank} onChange={(e) => setBank(e.target.value)} className={inputClass}>
+                <option value="">{t('selectBank')}</option>
+                {banks.map((b) => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">{t('amount')} (ETB)</label>
+              <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 100" className={inputClass} />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">{t('reference')}</label>
+              <input type="text" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Transaction reference" className={inputClass} />
+            </div>
+            <button type="submit" disabled={loading} className="w-full py-4 rounded-xl font-display font-bold gradient-neon text-primary-foreground text-base active:scale-95 transition-transform disabled:opacity-50">
+              {loading ? '...' : t('submitDeposit')}
+            </button>
+          </motion.form>
+
+          <section className="mt-6">
+            <h2 className="font-display text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{t('recentDeposits')}</h2>
+            <div className="space-y-1.5">
+              {deposits.map((d) => (
+                <div key={d.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
+                  <div>
+                    <div className="text-sm font-medium text-foreground">{d.bank} — {d.amount} ETB</div>
+                    <div className="text-xs text-muted-foreground">Ref: {d.reference}</div>
+                  </div>
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                    d.status === 'approved' ? 'bg-primary/20 text-primary' :
+                    d.status === 'pending' ? 'bg-accent/20 text-accent' :
+                    'bg-destructive/20 text-destructive'
+                  }`}>{d.status}</span>
+                </div>
+              ))}
+              {deposits.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">{t('noDeposits')}</p>}
+            </div>
+          </section>
+        </>
+      )}
+
+      {tab === 'withdraw' && (
+        <>
+          <motion.form initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} onSubmit={handleWithdraw} className="space-y-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">{t('bankName')}</label>
+              <select value={bank} onChange={(e) => setBank(e.target.value)} className={inputClass}>
+                <option value="">{t('selectBank')}</option>
+                {banks.map((b) => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">{t('accountNumber')}</label>
+              <input type="text" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Your account number" className={inputClass} />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">{t('amount')} (ETB)</label>
+              <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 50" className={inputClass} />
+              <p className="text-xs text-muted-foreground mt-1">{t('available')}: {balance} ETB</p>
+            </div>
+            <button type="submit" disabled={loading} className="w-full py-4 rounded-xl font-display font-bold gradient-neon text-primary-foreground text-base active:scale-95 transition-transform disabled:opacity-50">
+              {loading ? '...' : t('requestWithdraw')}
+            </button>
+          </motion.form>
+
+          <section className="mt-6">
+            <h2 className="font-display text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{t('recentWithdrawals')}</h2>
+            <div className="space-y-1.5">
+              {withdrawals.map((w: any) => (
+                <div key={w.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
+                  <div>
+                    <div className="text-sm font-medium text-foreground">{w.bank} — {w.amount} ETB</div>
+                    <div className="text-xs text-muted-foreground">Acct: {w.account_number}</div>
+                  </div>
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                    w.status === 'approved' ? 'bg-primary/20 text-primary' :
+                    w.status === 'pending' ? 'bg-accent/20 text-accent' :
+                    'bg-destructive/20 text-destructive'
+                  }`}>{w.status}</span>
+                </div>
+              ))}
+              {withdrawals.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">{t('noWithdrawals')}</p>}
+            </div>
+          </section>
+        </>
+      )}
+      </PullToRefresh>
+    </PageShell>
   );
 }
