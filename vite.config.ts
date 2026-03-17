@@ -20,10 +20,10 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "app-icon.png", "icons/*.png", "splash.png"],
       manifest: {
-        name: "Bingo Ethio - Play & Win",
-        short_name: "Bingo Ethio",
+        name: "Bingo Mekele - Play & Win",
+        short_name: "Bingo Mekele",
         description: "Play online bingo, buy cartelas, and win prizes!",
-        theme_color: "#1a1a2e",
+        theme_color: "#0f9960",
         background_color: "#0f0f1a",
         display: "standalone",
         orientation: "portrait",
