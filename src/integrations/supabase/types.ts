@@ -46,6 +46,7 @@ export type Database = {
       }
       cartelas: {
         Row: {
+          banned_for_game: boolean
           created_at: string
           id: number
           is_favorite: boolean
@@ -54,6 +55,7 @@ export type Database = {
           owner_id: string | null
         }
         Insert: {
+          banned_for_game?: boolean
           created_at?: string
           id?: number
           is_favorite?: boolean
@@ -62,6 +64,7 @@ export type Database = {
           owner_id?: string | null
         }
         Update: {
+          banned_for_game?: boolean
           created_at?: string
           id?: number
           is_favorite?: boolean
