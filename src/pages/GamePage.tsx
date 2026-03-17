@@ -639,23 +639,24 @@ export default function GamePage() {
               {playerCartelas.map(c => {
                 const cellsMarked = markedMap.get(c.id) || new Set<string>();
                 const isClaimed = claimedCartelas.has(c.id);
+                const isBanned = bannedCartelas.has(c.id) || c.banned_for_game;
                 return (
                   <div key={c.id} className="flex flex-col gap-2">
                     <BingoCartela
                       numbers={c.numbers as number[][]}
                       drawnNumbers={drawnSet}
                       markedCells={cellsMarked}
-                      onMarkCell={isSpectator ? undefined : (row, col) => handleMarkCell(c.id, row, col)}
+                      onMarkCell={isSpectator || isBanned ? undefined : (row, col) => handleMarkCell(c.id, row, col)}
                       size="sm"
                       label={`#${c.id}`}
                     />
                     {!isSpectator && (
-                      <button onClick={() => handleClaimBingo(c.id, c)} disabled={isClaimed}
+                      <button onClick={() => handleClaimBingo(c.id, c)} disabled={isClaimed || isBanned}
                         className={cn('w-full py-3 rounded-xl font-display font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all',
-                          isClaimed ? 'bg-muted text-muted-foreground' : 'gradient-neon text-primary-foreground glow-neon'
+                          isBanned ? 'bg-destructive/15 text-destructive border border-destructive/30' : isClaimed ? 'bg-muted text-muted-foreground' : 'gradient-neon text-primary-foreground glow-neon'
                         )}>
                         <Hand className="w-4 h-4" />
-                        {isClaimed ? t('verifying') : t('bingo') + '!'}
+                        {isBanned ? 'Banned this round' : isClaimed ? t('verifying') : t('bingo') + '!'}
                       </button>
                     )}
                   </div>
@@ -668,6 +669,26 @@ export default function GamePage() {
               <p className="text-sm">{t('noCartelas')}</p>
             </div>
           )}
+
+          <section className="rounded-xl border border-border bg-card p-3">
+            <div className="mb-3 flex items-center gap-2 text-sm font-display font-bold text-foreground">
+              <History className="w-4 h-4 text-primary" /> Winner History
+            </div>
+            <div className="space-y-2">
+              {winnerHistory.length > 0 ? winnerHistory.map((item) => (
+                <div key={item.id} className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-xs">
+                  <div>
+                    <div className="font-semibold text-foreground">Session #{item.session_number}</div>
+                    <div className="text-muted-foreground">{item.pattern}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-primary">{item.prize} ETB</div>
+                    <div className="text-muted-foreground">Last #{item.winning_number ?? '--'}</div>
+                  </div>
+                </div>
+              )) : <div className="text-xs text-muted-foreground">No winner history yet.</div>}
+            </div>
+          </section>
         </div>
       )}
       </PullToRefresh>
