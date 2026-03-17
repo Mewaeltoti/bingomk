@@ -11,6 +11,7 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const BUYING_WINDOW_MS = 2 * 60 * 1000;
 const NEXT_GAME_DELAY_MS = 60 * 1000;
 const FIXED_DRAW_SPEED = 8;
+const HOUSE_PAYOUT_RATIO = 0.8;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -101,7 +102,6 @@ Deno.serve(async (req) => {
         .not("owner_id", "is", null);
 
       const soldCount = count || 0;
-      const prizeAmount = Number(game.prize_amount || 0);
 
       if (soldCount < 1) {
         return new Response(JSON.stringify({ ok: true, action: "waiting_for_sale" }), {
@@ -109,16 +109,13 @@ Deno.serve(async (req) => {
         });
       }
 
-      if (prizeAmount <= 0) {
-        return new Response(JSON.stringify({ ok: true, action: "waiting_for_prize_pot" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      const prizeAmount = Number((soldCount * Number(game.cartela_price || 10) * HOUSE_PAYOUT_RATIO).toFixed(2));
 
       await supabase.from("games").update({
         status: "active",
         auto_draw: true,
         draw_speed: FIXED_DRAW_SPEED,
+        prize_amount: prizeAmount,
       }).eq("id", "current");
 
       fetch(`${SUPABASE_URL}/functions/v1/auto-draw`, {

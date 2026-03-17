@@ -9,6 +9,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const FIXED_DRAW_SPEED = 8;
+const HOUSE_PAYOUT_RATIO = 0.8;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -36,7 +37,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders });
     }
 
-    const { action, pattern, prize_amount, cartela_price } = await req.json();
+    const { action, pattern, cartela_price } = await req.json();
 
     if (action === "new_game") {
       await supabase.from("games").delete().eq("id", "current");
@@ -62,7 +63,7 @@ Deno.serve(async (req) => {
         status: "buying",
         winner_id: null,
         draw_speed: FIXED_DRAW_SPEED,
-        prize_amount: prize_amount || 0,
+        prize_amount: 0,
         cartela_price: cartela_price || 10,
         auto_draw: false,
         session_number: nextSession,
@@ -78,10 +79,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: "At least one cartela must be sold" }), { status: 400, headers: corsHeaders });
       }
 
-      const prize = Number(prize_amount || 0);
-      if (prize <= 0) {
-        return new Response(JSON.stringify({ error: "Prize pot must be set" }), { status: 400, headers: corsHeaders });
-      }
+      const prize = Number((soldCount * Number(cartela_price || 10) * HOUSE_PAYOUT_RATIO).toFixed(2));
 
       await supabase.from("games").update({
         status: "active",

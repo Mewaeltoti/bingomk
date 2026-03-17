@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const HOUSE_PAYOUT_RATIO = 0.8;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -59,12 +60,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    const [{ count: soldCount }, { data: currentGame }] = await Promise.all([
+      supabase.from("cartelas").select("id", { count: "exact", head: true }).eq("is_used", true).not("owner_id", "is", null),
+      supabase.from("games").select("id, cartela_price, status").eq("id", "current").maybeSingle(),
+    ]);
+
+    const livePrize = Number((((soldCount || 0) * Number(currentGame?.cartela_price || 10)) * HOUSE_PAYOUT_RATIO).toFixed(2));
+    if (currentGame?.id && currentGame.status === "buying") {
+      await supabase.from("games").update({ prize_amount: livePrize }).eq("id", "current");
+    }
+
     return new Response(
       JSON.stringify({
         ok: true,
         purchased: purchase.purchased_count,
         cost: purchase.total_cost,
         new_balance: purchase.new_balance,
+        prize_amount: livePrize,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

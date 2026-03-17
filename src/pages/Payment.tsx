@@ -5,16 +5,18 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useUser } from '@/lib/auth';
-import { ArrowDownCircle, ArrowUpCircle, ArrowLeft, Clock } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, ArrowLeft, Clock, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { t } from '@/lib/i18n';
+import telebirrLogo from '@/assets/telebirr.webp';
+import cbeBirrLogo from '@/assets/cbe-birr.jpg';
 
 const banks = ['Commercial Bank of Ethiopia', 'Awash Bank', 'Dashen Bank', 'Bank of Abyssinia'];
 
 const paymentMethods = [
-  { name: 'Telebirr', badgeClass: 'bg-primary/15 text-primary border border-primary/30', comingSoon: true },
-  { name: 'CBE Birr', badgeClass: 'bg-secondary/20 text-secondary-foreground border border-border', comingSoon: true },
+  { name: 'Telebirr', logo: telebirrLogo, comingSoon: true },
+  { name: 'CBE Birr', logo: cbeBirrLogo, comingSoon: true },
 ];
 
 export default function Payment() {
@@ -105,20 +107,24 @@ export default function Payment() {
 
       {/* Payment Methods - Coming Soon */}
       <div className="mb-4 space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           {paymentMethods.map(pm => (
-            <div key={pm.name} className="relative p-4 rounded-xl bg-muted/50 border border-border flex flex-col items-center gap-2 opacity-80">
-              <div className={cn('w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm', pm.badgeClass)}>
-                {pm.name === 'Telebirr' ? 'TB' : 'CBE'}
+            <div key={pm.name} className="relative overflow-hidden rounded-2xl border border-border bg-card p-3 shadow-sm">
+              <div className="flex items-center gap-3">
+                <img src={pm.logo} alt={`${pm.name} logo`} className="h-14 w-14 rounded-xl object-cover border border-border bg-background" loading="lazy" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold text-foreground">{pm.name}</div>
+                  <div className="text-xs text-muted-foreground">Deposit & withdraw</div>
+                </div>
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-[11px] font-semibold text-muted-foreground">
+                  <Clock className="w-3 h-3" /> {t('comingSoon')}
+                </span>
               </div>
-              <span className="text-xs font-medium text-foreground">{pm.name}</span>
-              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                <Clock className="w-3 h-3" /> {t('comingSoon')}
-              </span>
             </div>
           ))}
         </div>
-        <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+        <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
+          <MessageCircle className="w-4 h-4 text-primary" />
           Support on Telegram: <span className="font-semibold text-foreground">+251978187178</span>
         </div>
       </div>
