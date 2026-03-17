@@ -424,7 +424,7 @@ export default function GamePage() {
     if (data?.result === 'won') {
       setGameResult({ type: 'winner', message: data.winner_ids?.includes(user.id) ? t('youWon') : t('winnerAnnounced'), winnerCartela: data.winner_cartela });
       setShowResult(true);
-      setLastWinNumber(data.winning_number ?? null);
+      refreshGameData();
       refreshGameData();
       toast.success(t('claimSuccess'));
       return;
