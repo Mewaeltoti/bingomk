@@ -493,12 +493,6 @@ export default function GamePage() {
         </div>
       </header>
 
-      {/* Last win number */}
-      {lastWinNumber && !isGameActive && (
-        <div className="text-center py-1 bg-primary/5 text-xs text-muted-foreground">
-          {t('lastWinNumber')}: <span className="font-bold text-primary">{getBingoLetter(lastWinNumber)} {lastWinNumber}</span>
-        </div>
-      )}
 
       {/* Buy/Waiting state */}
       {showBuyPrompt && !isGameActive && (
