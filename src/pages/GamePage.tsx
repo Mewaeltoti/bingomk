@@ -34,14 +34,6 @@ type GameResult = {
   winnerCartela?: number[][];
 };
 
-type WinnerHistoryItem = {
-  id: string;
-  session_number: number;
-  pattern: string;
-  prize: number;
-  winning_number: number | null;
-  created_at: string;
-};
 
 function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; cartelaPrice: number; gameStatus: string }) {
   const [cartelas, setCartelas] = useState<any[]>([]);
