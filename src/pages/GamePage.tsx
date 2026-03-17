@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { playDrawSound, playWinSound, playMarkSound, announceNumber } from '@/lib/sounds';
 import { invokeWithRetry } from '@/lib/edgeFn';
 import { t, getLang, toggleLang } from '@/lib/i18n';
-import { Users, Eye, Hand, ShoppingCart, ChevronDown, ChevronUp, Wallet, LogOut, Search, Shuffle, Globe } from 'lucide-react';
+import { Users, Eye, Hand, ShoppingCart, ChevronDown, ChevronUp, Wallet, LogOut, Search, Shuffle, Globe, History, UserCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import MuteToggle from '@/components/MuteToggle';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -34,6 +34,15 @@ type GameResult = {
   winnerCartela?: number[][];
 };
 
+type WinnerHistoryItem = {
+  id: string;
+  session_number: number;
+  pattern: string;
+  prize: number;
+  winning_number: number | null;
+  created_at: string;
+};
+
 function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; cartelaPrice: number; gameStatus: string }) {
   const [cartelas, setCartelas] = useState<any[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -45,8 +54,8 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
   const loaderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    supabase.from('cartelas').select('*').eq('is_used', false).order('id', { ascending: true })
-      .then(({ data }) => setCartelas(data || []));
+    supabase.from('cartelas').select('*').eq('is_used', false).eq('banned_for_game', false).order('id', { ascending: false })
+      .then(({ data }) => setCartelas((data || []).sort(() => Math.random() - 0.5)));
   }, []);
 
   useEffect(() => {
@@ -124,7 +133,7 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
           </button>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">{filtered.length} {t('available')} · {cartelaPrice} ETB {t('each')}</p>
+      <p className="text-xs text-muted-foreground">{filtered.length} {t('available')} · {cartelaPrice} ETB {t('each')} · auto start in 2 min if prize pot is set</p>
 
       <div className="grid grid-cols-3 gap-2 max-h-[50vh] overflow-y-auto">
         {visible.map(c => (
@@ -159,6 +168,7 @@ export default function GamePage() {
   const [showResult, setShowResult] = useState(false);
   const [markedMap, setMarkedMap] = useState<Map<number, Set<string>>>(new Map());
   const [claimedCartelas, setClaimedCartelas] = useState<Set<number>>(new Set());
+  const [bannedCartelas, setBannedCartelas] = useState<Set<number>>(new Set());
   const [gameStatus, setGameStatus] = useState<string>('waiting');
   const [sessionNumber, setSessionNumber] = useState(1);
   const [nextGameCountdown, setNextGameCountdown] = useState(0);
@@ -172,6 +182,7 @@ export default function GamePage() {
   const [balance, setBalance] = useState(0);
   const [prizeAmount, setPrizeAmount] = useState(0);
   const [lastWinNumber, setLastWinNumber] = useState<number | null>(null);
+  const [winnerHistory, setWinnerHistory] = useState<WinnerHistoryItem[]>([]);
   const [, setLangTick] = useState(0); // force re-render on lang change
   const user = useUser();
   const navigate = useNavigate();
@@ -200,13 +211,20 @@ export default function GamePage() {
   }, [user?.id]);
 
   useEffect(() => {
-    supabase.from('game_history').select('drawn_numbers').order('created_at', { ascending: false }).limit(1)
+    supabase.from('game_history').select('id, session_number, pattern, prize, winning_number, created_at, drawn_numbers').order('created_at', { ascending: false }).limit(6)
       .then(({ data }) => {
         if (data && data.length > 0) {
-          const nums = data[0].drawn_numbers as number[];
-          if (Array.isArray(nums) && nums.length > 0) {
-            setLastWinNumber(nums[nums.length - 1]);
-          }
+          setWinnerHistory(data.map((item: any) => ({
+            id: item.id,
+            session_number: item.session_number || 1,
+            pattern: item.pattern || 'Full House',
+            prize: Number(item.prize || 0),
+            winning_number: item.winning_number ?? (Array.isArray(item.drawn_numbers) && item.drawn_numbers.length > 0 ? item.drawn_numbers[item.drawn_numbers.length - 1] : null),
+            created_at: item.created_at,
+          })));
+          const latest = data[0] as any;
+          const nums = latest.drawn_numbers as number[];
+          setLastWinNumber(latest.winning_number ?? (Array.isArray(nums) && nums.length > 0 ? nums[nums.length - 1] : null));
         }
       });
   }, []);
@@ -241,10 +259,11 @@ export default function GamePage() {
       const claimed = new Set<number>();
       for (const claim of userClaims) {
         const cid = (claim as any).cartela_id;
-        if (cid && claim.is_valid === null) claimed.add(cid);
+        if (cid && claim.is_valid !== false) claimed.add(cid);
       }
       setClaimedCartelas(claimed);
     }
+    setBannedCartelas(new Set((cartelasRes.data || []).filter((c: any) => c.banned_for_game).map((c: any) => c.id)));
     if (profileRes.data) setBalance((profileRes.data as any).balance || 0);
   }, [user?.id]);
 
@@ -415,18 +434,27 @@ export default function GamePage() {
   }, [markedMap]);
 
   const handleClaimBingo = async (cartelaId: number, cartela: any) => {
-    if (!user?.id || isSpectator || claimedCartelas.has(cartelaId)) return;
-    const markedNums = getMarkedNumbersForCartela(cartela);
-    const numbers = cartela.numbers as number[][];
-    for (const num of markedNums) {
-      if (!drawnSet.has(num)) { toast.error(t('markedUndrawn')); return; }
-    }
-    if (!checkWin(numbers, markedNums, gamePattern)) { toast.error(t('patternNoMatch')); return; }
+    if (!user?.id || isSpectator || claimedCartelas.has(cartelaId) || bannedCartelas.has(cartelaId)) return;
     setClaimedCartelas(prev => new Set(prev).add(cartelaId));
-    const { error } = await supabase.from('bingo_claims').insert({ game_id: 'current', user_id: user.id, cartela_id: cartelaId } as any);
-    if (error) {
-      toast.error('Failed to claim');
+    const { data, error } = await invokeWithRetry('verify-claim', {
+      body: { action: 'claim', cartela_id: cartelaId },
+    });
+    if (error || data?.error) {
+      toast.error(data?.error || 'Failed to claim');
       setClaimedCartelas(prev => { const next = new Set(prev); next.delete(cartelaId); return next; });
+      return;
+    }
+    if (data?.result === 'invalid_banned') {
+      setBannedCartelas(prev => new Set(prev).add(cartelaId));
+      toast.error('Wrong bingo claim: this cartela is banned for this round.');
+      return;
+    }
+    if (data?.result === 'won') {
+      setGameResult({ type: 'winner', message: data.winner_ids?.includes(user.id) ? t('youWon') : t('winnerAnnounced'), winnerCartela: data.winner_cartela });
+      setShowResult(true);
+      setLastWinNumber(data.winning_number ?? null);
+      refreshGameData();
+      toast.success(t('claimSuccess'));
       return;
     }
     toast.success(t('claimSuccess'));
@@ -486,6 +514,9 @@ export default function GamePage() {
           </button>
           <ThemeToggle />
           <MuteToggle />
+          <button onClick={() => navigate('/profile')} className="text-xs font-display font-bold text-muted-foreground flex items-center gap-1">
+            <UserCircle className="w-3.5 h-3.5" />
+          </button>
           <button onClick={() => navigate('/payment')} className="text-xs font-display font-bold text-primary flex items-center gap-1">
             <Wallet className="w-3.5 h-3.5" /> {balance}
           </button>
@@ -608,23 +639,24 @@ export default function GamePage() {
               {playerCartelas.map(c => {
                 const cellsMarked = markedMap.get(c.id) || new Set<string>();
                 const isClaimed = claimedCartelas.has(c.id);
+                const isBanned = bannedCartelas.has(c.id) || c.banned_for_game;
                 return (
                   <div key={c.id} className="flex flex-col gap-2">
                     <BingoCartela
                       numbers={c.numbers as number[][]}
                       drawnNumbers={drawnSet}
                       markedCells={cellsMarked}
-                      onMarkCell={isSpectator ? undefined : (row, col) => handleMarkCell(c.id, row, col)}
+                      onMarkCell={isSpectator || isBanned ? undefined : (row, col) => handleMarkCell(c.id, row, col)}
                       size="sm"
                       label={`#${c.id}`}
                     />
                     {!isSpectator && (
-                      <button onClick={() => handleClaimBingo(c.id, c)} disabled={isClaimed}
+                      <button onClick={() => handleClaimBingo(c.id, c)} disabled={isClaimed || isBanned}
                         className={cn('w-full py-3 rounded-xl font-display font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all',
-                          isClaimed ? 'bg-muted text-muted-foreground' : 'gradient-neon text-primary-foreground glow-neon'
+                          isBanned ? 'bg-destructive/15 text-destructive border border-destructive/30' : isClaimed ? 'bg-muted text-muted-foreground' : 'gradient-neon text-primary-foreground glow-neon'
                         )}>
                         <Hand className="w-4 h-4" />
-                        {isClaimed ? t('verifying') : t('bingo') + '!'}
+                        {isBanned ? 'Banned this round' : isClaimed ? t('verifying') : t('bingo') + '!'}
                       </button>
                     )}
                   </div>
@@ -637,6 +669,26 @@ export default function GamePage() {
               <p className="text-sm">{t('noCartelas')}</p>
             </div>
           )}
+
+          <section className="rounded-xl border border-border bg-card p-3">
+            <div className="mb-3 flex items-center gap-2 text-sm font-display font-bold text-foreground">
+              <History className="w-4 h-4 text-primary" /> Winner History
+            </div>
+            <div className="space-y-2">
+              {winnerHistory.length > 0 ? winnerHistory.map((item) => (
+                <div key={item.id} className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-xs">
+                  <div>
+                    <div className="font-semibold text-foreground">Session #{item.session_number}</div>
+                    <div className="text-muted-foreground">{item.pattern}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-primary">{item.prize} ETB</div>
+                    <div className="text-muted-foreground">Last #{item.winning_number ?? '--'}</div>
+                  </div>
+                </div>
+              )) : <div className="text-xs text-muted-foreground">No winner history yet.</div>}
+            </div>
+          </section>
         </div>
       )}
       </PullToRefresh>

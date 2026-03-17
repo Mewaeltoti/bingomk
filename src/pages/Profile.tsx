@@ -89,12 +89,13 @@ export default function Profile() {
               <Phone className="w-4 h-4" />
               <span>{phone || 'Not set'}</span>
             </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">Phone number is locked and cannot be changed.</p>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-4 rounded-xl font-display font-bold gradient-gold text-primary-foreground text-base active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-4 rounded-xl font-display font-bold gradient-neon text-primary-foreground text-base active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <Save className="w-5 h-5" />
             {loading ? 'Saving...' : 'Save Profile'}

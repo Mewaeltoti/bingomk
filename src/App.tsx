@@ -9,6 +9,7 @@ import InstallPrompt from "./components/InstallPrompt";
 import Index from "./pages/Index";
 import GamePage from "./pages/GamePage";
 import Payment from "./pages/Payment";
+import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -26,6 +27,7 @@ function AppContent() {
         <Route path="/" element={<Index />} />
         <Route path="/game" element={<RequireAuth><GamePage /></RequireAuth>} />
         <Route path="/payment" element={<RequireAuth><Payment /></RequireAuth>} />
+        <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
         <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
         <Route path="*" element={<NotFound />} />
       </Routes>

@@ -46,6 +46,7 @@ export type Database = {
       }
       cartelas: {
         Row: {
+          banned_for_game: boolean
           created_at: string
           id: number
           is_favorite: boolean
@@ -54,6 +55,7 @@ export type Database = {
           owner_id: string | null
         }
         Insert: {
+          banned_for_game?: boolean
           created_at?: string
           id?: number
           is_favorite?: boolean
@@ -62,6 +64,7 @@ export type Database = {
           owner_id?: string | null
         }
         Update: {
+          banned_for_game?: boolean
           created_at?: string
           id?: number
           is_favorite?: boolean
@@ -138,32 +141,44 @@ export type Database = {
         Row: {
           created_at: string
           drawn_numbers: Json
+          ended_status: string
           game_id: string
           id: string
           pattern: string
           players_count: number
           prize: number
+          session_number: number
+          winner_cartela: Json | null
           winner_id: string | null
+          winning_number: number | null
         }
         Insert: {
           created_at?: string
           drawn_numbers?: Json
+          ended_status?: string
           game_id: string
           id?: string
           pattern?: string
           players_count?: number
           prize?: number
+          session_number?: number
+          winner_cartela?: Json | null
           winner_id?: string | null
+          winning_number?: number | null
         }
         Update: {
           created_at?: string
           drawn_numbers?: Json
+          ended_status?: string
           game_id?: string
           id?: string
           pattern?: string
           players_count?: number
           prize?: number
+          session_number?: number
+          winner_cartela?: Json | null
           winner_id?: string | null
+          winning_number?: number | null
         }
         Relationships: []
       }
@@ -316,6 +331,16 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      purchase_cartelas_atomic: {
+        Args: { p_cartela_ids: number[]; p_user_id: string }
+        Returns: {
+          error_message: string
+          new_balance: number
+          ok: boolean
+          purchased_count: number
+          total_cost: number
+        }[]
       }
     }
     Enums: {
