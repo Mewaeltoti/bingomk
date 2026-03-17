@@ -168,6 +168,7 @@ export default function GamePage() {
   const [showResult, setShowResult] = useState(false);
   const [markedMap, setMarkedMap] = useState<Map<number, Set<string>>>(new Map());
   const [claimedCartelas, setClaimedCartelas] = useState<Set<number>>(new Set());
+  const [bannedCartelas, setBannedCartelas] = useState<Set<number>>(new Set());
   const [gameStatus, setGameStatus] = useState<string>('waiting');
   const [sessionNumber, setSessionNumber] = useState(1);
   const [nextGameCountdown, setNextGameCountdown] = useState(0);
@@ -181,6 +182,7 @@ export default function GamePage() {
   const [balance, setBalance] = useState(0);
   const [prizeAmount, setPrizeAmount] = useState(0);
   const [lastWinNumber, setLastWinNumber] = useState<number | null>(null);
+  const [winnerHistory, setWinnerHistory] = useState<WinnerHistoryItem[]>([]);
   const [, setLangTick] = useState(0); // force re-render on lang change
   const user = useUser();
   const navigate = useNavigate();
