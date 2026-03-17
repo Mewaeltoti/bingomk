@@ -211,13 +211,20 @@ export default function GamePage() {
   }, [user?.id]);
 
   useEffect(() => {
-    supabase.from('game_history').select('drawn_numbers').order('created_at', { ascending: false }).limit(1)
+    supabase.from('game_history').select('id, session_number, pattern, prize, winning_number, created_at, drawn_numbers').order('created_at', { ascending: false }).limit(6)
       .then(({ data }) => {
         if (data && data.length > 0) {
-          const nums = data[0].drawn_numbers as number[];
-          if (Array.isArray(nums) && nums.length > 0) {
-            setLastWinNumber(nums[nums.length - 1]);
-          }
+          setWinnerHistory(data.map((item: any) => ({
+            id: item.id,
+            session_number: item.session_number || 1,
+            pattern: item.pattern || 'Full House',
+            prize: Number(item.prize || 0),
+            winning_number: item.winning_number ?? (Array.isArray(item.drawn_numbers) && item.drawn_numbers.length > 0 ? item.drawn_numbers[item.drawn_numbers.length - 1] : null),
+            created_at: item.created_at,
+          })));
+          const latest = data[0] as any;
+          const nums = latest.drawn_numbers as number[];
+          setLastWinNumber(latest.winning_number ?? (Array.isArray(nums) && nums.length > 0 ? nums[nums.length - 1] : null));
         }
       });
   }, []);
