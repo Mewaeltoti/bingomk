@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
         status: "buying",
         winner_id: null,
         draw_speed: FIXED_DRAW_SPEED,
-        prize_amount: prize_amount || 0,
+        prize_amount: 0,
         cartela_price: cartela_price || 10,
         auto_draw: false,
         session_number: nextSession,
