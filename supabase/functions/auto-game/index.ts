@@ -102,7 +102,6 @@ Deno.serve(async (req) => {
         .not("owner_id", "is", null);
 
       const soldCount = count || 0;
-      const prizeAmount = Number(game.prize_amount || 0);
 
       if (soldCount < 1) {
         return new Response(JSON.stringify({ ok: true, action: "waiting_for_sale" }), {
@@ -110,11 +109,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      if (prizeAmount <= 0) {
-        return new Response(JSON.stringify({ ok: true, action: "waiting_for_prize_pot" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      const prizeAmount = Number((soldCount * Number(game.cartela_price || 10) * HOUSE_PAYOUT_RATIO).toFixed(2));
 
       await supabase.from("games").update({
         status: "active",
