@@ -259,10 +259,11 @@ export default function GamePage() {
       const claimed = new Set<number>();
       for (const claim of userClaims) {
         const cid = (claim as any).cartela_id;
-        if (cid && claim.is_valid === null) claimed.add(cid);
+        if (cid && claim.is_valid !== false) claimed.add(cid);
       }
       setClaimedCartelas(claimed);
     }
+    setBannedCartelas(new Set((cartelasRes.data || []).filter((c: any) => c.banned_for_game).map((c: any) => c.id)));
     if (profileRes.data) setBalance((profileRes.data as any).balance || 0);
   }, [user?.id]);
 
