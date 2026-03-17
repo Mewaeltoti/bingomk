@@ -115,6 +115,7 @@ Deno.serve(async (req) => {
         status: "active",
         auto_draw: true,
         draw_speed: FIXED_DRAW_SPEED,
+        prize_amount: prizeAmount,
       }).eq("id", "current");
 
       fetch(`${SUPABASE_URL}/functions/v1/auto-draw`, {

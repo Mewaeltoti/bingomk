@@ -79,10 +79,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: "At least one cartela must be sold" }), { status: 400, headers: corsHeaders });
       }
 
-      const prize = Number(prize_amount || 0);
-      if (prize <= 0) {
-        return new Response(JSON.stringify({ error: "Prize pot must be set" }), { status: 400, headers: corsHeaders });
-      }
+      const prize = Number((soldCount * Number(cartela_price || 10) * HOUSE_PAYOUT_RATIO).toFixed(2));
 
       await supabase.from("games").update({
         status: "active",
