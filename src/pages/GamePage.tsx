@@ -434,18 +434,27 @@ export default function GamePage() {
   }, [markedMap]);
 
   const handleClaimBingo = async (cartelaId: number, cartela: any) => {
-    if (!user?.id || isSpectator || claimedCartelas.has(cartelaId)) return;
-    const markedNums = getMarkedNumbersForCartela(cartela);
-    const numbers = cartela.numbers as number[][];
-    for (const num of markedNums) {
-      if (!drawnSet.has(num)) { toast.error(t('markedUndrawn')); return; }
-    }
-    if (!checkWin(numbers, markedNums, gamePattern)) { toast.error(t('patternNoMatch')); return; }
+    if (!user?.id || isSpectator || claimedCartelas.has(cartelaId) || bannedCartelas.has(cartelaId)) return;
     setClaimedCartelas(prev => new Set(prev).add(cartelaId));
-    const { error } = await supabase.from('bingo_claims').insert({ game_id: 'current', user_id: user.id, cartela_id: cartelaId } as any);
-    if (error) {
-      toast.error('Failed to claim');
+    const { data, error } = await invokeWithRetry('verify-claim', {
+      body: { action: 'claim', cartela_id: cartelaId },
+    });
+    if (error || data?.error) {
+      toast.error(data?.error || 'Failed to claim');
       setClaimedCartelas(prev => { const next = new Set(prev); next.delete(cartelaId); return next; });
+      return;
+    }
+    if (data?.result === 'invalid_banned') {
+      setBannedCartelas(prev => new Set(prev).add(cartelaId));
+      toast.error('Wrong bingo claim: this cartela is banned for this round.');
+      return;
+    }
+    if (data?.result === 'won') {
+      setGameResult({ type: 'winner', message: data.winner_ids?.includes(user.id) ? t('youWon') : t('winnerAnnounced'), winnerCartela: data.winner_cartela });
+      setShowResult(true);
+      setLastWinNumber(data.winning_number ?? null);
+      refreshGameData();
+      toast.success(t('claimSuccess'));
       return;
     }
     toast.success(t('claimSuccess'));
