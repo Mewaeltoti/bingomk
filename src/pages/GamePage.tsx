@@ -255,6 +255,7 @@ export default function GamePage() {
         setGamePattern(gameRes.data.pattern || 'Full House');
         setGameStatus(gameRes.data.status || 'waiting');
         setPrizeAmount((gameRes.data as any).prize_amount || 0);
+        setCartelaPrice((gameRes.data as any).cartela_price || 10);
         setSessionNumber((gameRes.data as any).session_number || 1);
         if (gameRes.data.status === 'won') {
           setGameResult({ type: 'winner', message: t('winnerAnnounced') });
