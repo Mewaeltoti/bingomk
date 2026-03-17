@@ -633,25 +633,6 @@ export default function GamePage() {
             </div>
           )}
 
-          <section className="rounded-xl border border-border bg-card p-3">
-            <div className="mb-3 flex items-center gap-2 text-sm font-display font-bold text-foreground">
-              <History className="w-4 h-4 text-primary" /> Winner History
-            </div>
-            <div className="space-y-2">
-              {winnerHistory.length > 0 ? winnerHistory.map((item) => (
-                <div key={item.id} className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-xs">
-                  <div>
-                    <div className="font-semibold text-foreground">Session #{item.session_number}</div>
-                    <div className="text-muted-foreground">{item.pattern}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-primary">{item.prize} ETB</div>
-                    <div className="text-muted-foreground">Last #{item.winning_number ?? '--'}</div>
-                  </div>
-                </div>
-              )) : <div className="text-xs text-muted-foreground">No winner history yet.</div>}
-            </div>
-          </section>
         </div>
       )}
       </PullToRefresh>
