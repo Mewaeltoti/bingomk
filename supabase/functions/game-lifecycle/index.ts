@@ -9,6 +9,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const FIXED_DRAW_SPEED = 8;
+const HOUSE_PAYOUT_RATIO = 0.8;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });

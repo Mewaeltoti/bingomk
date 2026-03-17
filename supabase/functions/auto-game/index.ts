@@ -11,6 +11,7 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const BUYING_WINDOW_MS = 2 * 60 * 1000;
 const NEXT_GAME_DELAY_MS = 60 * 1000;
 const FIXED_DRAW_SPEED = 8;
+const HOUSE_PAYOUT_RATIO = 0.8;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
