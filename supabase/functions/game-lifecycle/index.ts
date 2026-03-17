@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders });
     }
 
-    const { action, pattern, prize_amount, cartela_price } = await req.json();
+    const { action, pattern, cartela_price } = await req.json();
 
     if (action === "new_game") {
       await supabase.from("games").delete().eq("id", "current");
