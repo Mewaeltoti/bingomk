@@ -513,7 +513,7 @@ export default function GamePage() {
           {showShop && (
             <CartelaShop
               onBuy={refreshGameData}
-              cartelaPrice={Math.max(1, Number(prizeAmount > 0 ? (prizeAmount / 0.8) / Math.max(1, playerCartelas.length || 1) : 10))}
+              cartelaPrice={cartelaPrice}
               gameStatus={gameStatus}
             />
           )}
