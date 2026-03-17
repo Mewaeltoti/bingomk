@@ -54,8 +54,8 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
   const loaderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    supabase.from('cartelas').select('*').eq('is_used', false).order('id', { ascending: true })
-      .then(({ data }) => setCartelas(data || []));
+    supabase.from('cartelas').select('*').eq('is_used', false).eq('banned_for_game', false).order('id', { ascending: false })
+      .then(({ data }) => setCartelas((data || []).sort(() => Math.random() - 0.5)));
   }, []);
 
   useEffect(() => {
