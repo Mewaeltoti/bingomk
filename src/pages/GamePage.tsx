@@ -211,10 +211,11 @@ export default function GamePage() {
     setIsSpectator(!cartelasRes.data || cartelasRes.data.length === 0);
     if (numbersRes.data) setDrawnNumbers(numbersRes.data.map((n: any) => n.number));
     if (gameRes.data) {
-      setGamePattern(gameRes.data.pattern || 'Full House');
-      setGameStatus(gameRes.data.status || 'waiting');
-      setPrizeAmount((gameRes.data as any).prize_amount || 0);
-      setSessionNumber((gameRes.data as any).session_number || 1);
+        setGamePattern(gameRes.data.pattern || 'Full House');
+        setGameStatus(gameRes.data.status || 'waiting');
+        setPrizeAmount((gameRes.data as any).prize_amount || 0);
+        setCartelaPrice((gameRes.data as any).cartela_price || 10);
+        setSessionNumber((gameRes.data as any).session_number || 1);
       if (gameRes.data.status === 'won') {
         setGameResult({ type: 'winner', message: t('winnerAnnounced') });
         setShowResult(true);
