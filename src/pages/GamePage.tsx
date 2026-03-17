@@ -442,11 +442,18 @@ export default function GamePage() {
     for (const num of markedNums) {
       if (!drawnSet.has(num)) { toast.error(t('markedUndrawn')); return; }
     }
-    if (!checkWin(numbers, markedNums, gamePattern)) { toast.error(t('patternNoMatch')); return; }
+    if (!checkWin(numbers, markedNums, gamePattern as any)) { toast.error(t('patternNoMatch')); return; }
     setClaimedCartelas(prev => new Set(prev).add(cartelaId));
-    const { error } = await supabase.from('bingo_claims').insert({ game_id: 'current', user_id: user.id, cartela_id: cartelaId } as any);
-    if (error) {
-      toast.error('Failed to claim');
+    const { data, error } = await invokeWithRetry('verify-claim', {
+      body: { action: 'player_claim', cartela_id: cartelaId },
+    });
+    if (error || data?.error) {
+      toast.error(data?.error || 'Failed to claim');
+      setClaimedCartelas(prev => { const next = new Set(prev); next.delete(cartelaId); return next; });
+      return;
+    }
+    if (data?.result === 'invalid') {
+      toast.error(t('claimInvalid'));
       setClaimedCartelas(prev => { const next = new Set(prev); next.delete(cartelaId); return next; });
       return;
     }
