@@ -133,7 +133,7 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus }: { onBuy: () => void; c
           </button>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">{filtered.length} {t('available')} · {cartelaPrice} ETB {t('each')}</p>
+      <p className="text-xs text-muted-foreground">{filtered.length} {t('available')} · {cartelaPrice} ETB {t('each')} · auto start in 2 min if prize pot is set</p>
 
       <div className="grid grid-cols-3 gap-2 max-h-[50vh] overflow-y-auto">
         {visible.map(c => (
