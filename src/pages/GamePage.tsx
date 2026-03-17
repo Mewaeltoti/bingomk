@@ -173,8 +173,6 @@ export default function GamePage() {
   const [displayName, setDisplayName] = useState<string>('');
   const [balance, setBalance] = useState(0);
   const [prizeAmount, setPrizeAmount] = useState(0);
-  const [lastWinNumber, setLastWinNumber] = useState<number | null>(null);
-  const [winnerHistory, setWinnerHistory] = useState<WinnerHistoryItem[]>([]);
   const [, setLangTick] = useState(0); // force re-render on lang change
   const user = useUser();
   const navigate = useNavigate();
