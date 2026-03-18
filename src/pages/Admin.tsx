@@ -375,65 +375,30 @@ export default function Admin() {
             </div>
           </div>
 
-          {/* Draw speed */}
-          <div>
-            <label className="text-sm text-muted-foreground mb-2 block">Draw Speed: {drawSpeed}s</label>
-            <input
-              type="range"
-              min={3}
-              max={30}
-              value={drawSpeed}
-              onChange={(e) => setDrawSpeed(Number(e.target.value))}
-              disabled={autoDraw}
-              className="w-full accent-primary"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>3s (fast)</span>
-              <span>30s (slow)</span>
+          {/* Draw speed (fixed) */}
+          <div className="p-3 rounded-xl bg-muted/50 border border-border">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Draw Speed</span>
+              <span className="font-bold text-foreground">8s (fixed)</span>
             </div>
           </div>
 
-          {/* Cartela Price & Prize Pot */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Cartela Price (ETB)</label>
-              <input
-                type="number"
-                min={1}
-                value={cartelaPrice}
-                onChange={(e) => setCartelaPrice(Number(e.target.value) || 1)}
-                disabled={autoDraw || gameStatus === 'active'}
-                className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Prize Pot (ETB)</label>
-              <input
-                type="number"
-                min={0}
-                value={prizeAmount}
-                onChange={(e) => setPrizeAmount(Number(e.target.value) || 0)}
-                disabled={autoDraw || gameStatus === 'active'}
-                className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-              />
-              <div className="flex gap-1.5 mt-1.5">
-                {[50, 100, 200, 500].map((amt) => (
-                  <button
-                    key={amt}
-                    type="button"
-                    onClick={() => setPrizeAmount(amt)}
-                    disabled={autoDraw || gameStatus === 'active'}
-                    className={`flex-1 py-1 rounded-md text-[11px] font-semibold transition-colors disabled:opacity-50 ${
-                      prizeAmount === amt
-                        ? 'gradient-gold text-primary-foreground'
-                        : 'bg-muted text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {amt}
-                  </button>
-                ))}
-              </div>
-            </div>
+          {/* Cartela Price */}
+          <div>
+            <label className="text-sm text-muted-foreground mb-1 block">Cartela Price (ETB)</label>
+            <input
+              type="number"
+              min={1}
+              value={cartelaPrice}
+              onChange={(e) => setCartelaPrice(Number(e.target.value) || 1)}
+              disabled={autoDraw || gameStatus === 'active'}
+              className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+            />
+          </div>
+          
+          {/* Dynamic prize info */}
+          <div className="p-3 rounded-xl bg-primary/5 border border-primary/20">
+            <p className="text-xs text-muted-foreground">Prize = Sold × Price × 80% (auto-calculated)</p>
           </div>
 
           {/* Sales info */}
