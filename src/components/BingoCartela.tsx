@@ -18,6 +18,7 @@ interface BingoCartelaProps {
   onClick?: () => void;
   selected?: boolean;
   label?: string;
+  banned?: boolean;
 }
 
 export default function BingoCartela({
@@ -29,6 +30,7 @@ export default function BingoCartela({
   onClick,
   selected,
   label,
+  banned,
 }: BingoCartelaProps) {
   const cellSize =
     size === 'xs' ? 'text-[8px] w-5 h-5' :
@@ -53,14 +55,17 @@ export default function BingoCartela({
   return (
     <div
       className={cn(
-        'relative border-2 p-1 transition-all duration-200 bg-card',
-        selected ? 'border-primary glow-neon' : 'border-border',
+        'relative p-1.5 transition-all duration-200 rounded-lg',
+        // Wood texture feel
+        'bg-gradient-to-br from-amber-800/90 via-amber-700/80 to-amber-900/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_4px_12px_rgba(0,0,0,0.3)]',
+        selected ? 'ring-2 ring-primary glow-neon' : 'ring-1 ring-amber-600/50',
+        banned && 'opacity-50 grayscale',
         onClick && 'cursor-pointer active:scale-[0.98]'
       )}
       onClick={onClick}
     >
       {label && (
-        <div className="text-center text-[10px] font-display font-bold text-primary mb-0.5">{label}</div>
+        <div className="text-center text-[10px] font-display font-bold text-amber-200 mb-0.5 drop-shadow">{label}</div>
       )}
       {/* BINGO Header */}
       <div className="grid grid-cols-5 gap-px mb-px">
@@ -68,7 +73,7 @@ export default function BingoCartela({
           <div
             key={l}
             className={cn(
-              'flex items-center justify-center font-display font-bold',
+              'flex items-center justify-center font-display font-bold rounded-sm',
               headerSize,
               HEADER_COLORS[i]
             )}
@@ -77,8 +82,8 @@ export default function BingoCartela({
           </div>
         ))}
       </div>
-      {/* Grid with square cells */}
-      <div>
+      {/* Grid */}
+      <div className="bg-amber-950/30 rounded-sm overflow-hidden">
         {Array.from({ length: 5 }, (_, row) => (
           <div key={row} className="grid grid-cols-5 gap-px mb-px last:mb-0">
             {Array.from({ length: 5 }, (_, col) => {
@@ -93,14 +98,14 @@ export default function BingoCartela({
                   key={`${row}-${col}`}
                   onClick={(e) => handleCellClick(num, row, col, e)}
                   className={cn(
-                    'flex items-center justify-center font-display font-bold transition-colors border border-border/30',
+                    'flex items-center justify-center font-display font-bold transition-colors',
                     cellSize,
                     isClickable && 'cursor-pointer active:scale-90',
                     isFree
                       ? 'bg-secondary text-secondary-foreground'
                       : isMarked
                       ? 'bg-primary text-primary-foreground shadow-[0_0_8px_hsl(160_100%_50%/0.4)]'
-                      : 'bg-muted/60 text-foreground'
+                      : 'bg-amber-100/90 dark:bg-amber-950/60 text-amber-900 dark:text-amber-100'
                   )}
                 >
                   {isFree ? '★' : num}
