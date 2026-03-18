@@ -47,6 +47,28 @@ export function playMarkSound() {
   playTone(600, 0.08, 'sine', 0.1);
 }
 
+/** Premium claim approved sound — ascending triumphant chime */
+export function playClaimApprovedSound() {
+  if (_muted) return;
+  const notes = [523, 659, 784, 1047, 1319];
+  notes.forEach((freq, i) => {
+    setTimeout(() => playTone(freq, 0.25, 'sine', 0.3), i * 120);
+  });
+  // Add a shimmer
+  setTimeout(() => {
+    playTone(1568, 0.4, 'triangle', 0.15);
+    playTone(2093, 0.5, 'triangle', 0.1);
+  }, 600);
+}
+
+/** Premium claim rejected sound — descending buzzer */
+export function playClaimRejectedSound() {
+  if (_muted) return;
+  playTone(400, 0.15, 'sawtooth', 0.15);
+  setTimeout(() => playTone(300, 0.15, 'sawtooth', 0.15), 150);
+  setTimeout(() => playTone(200, 0.3, 'sawtooth', 0.2), 300);
+}
+
 /** Announce a bingo number vocally in English using Web Speech API */
 export function announceNumber(num: number) {
   if (_muted) return;
