@@ -385,7 +385,7 @@ function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () => void 
           href="https://t.me/+251978187178"
           target="_blank"
           rel="noopener noreferrer"
-          className="w-full flex items-center gap-2 px-3 py-3 rounded-lg bg-blue-500/10 text-blue-400 text-sm font-medium"
+          className="w-full flex items-center gap-2 px-3 py-3 rounded-lg bg-primary/10 text-primary text-sm font-medium"
         >
           <Send className="w-4 h-4" />
           Telegram Support
