@@ -49,7 +49,13 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      const nextSession = ((currentHistory as any)?.session_number || 0) + 1;
+      // First session starts random (100-999), then increments
+      let nextSession: number;
+      if (currentHistory && (currentHistory as any).session_number) {
+        nextSession = ((currentHistory as any).session_number || 0) + 1;
+      } else {
+        nextSession = Math.floor(Math.random() * 900) + 100;
+      }
 
       await Promise.all([
         supabase.from("game_numbers").delete().eq("game_id", "current"),
@@ -79,7 +85,10 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: "At least one cartela must be sold" }), { status: 400, headers: corsHeaders });
       }
 
-      const prize = Number((soldCount * Number(cartela_price || 10) * HOUSE_PAYOUT_RATIO).toFixed(2));
+      // Get current game to read cartela_price
+      const { data: currentGame } = await supabase.from("games").select("cartela_price").eq("id", "current").single();
+      const price = Number(currentGame?.cartela_price || cartela_price || 10);
+      const prize = Number((soldCount * price * HOUSE_PAYOUT_RATIO).toFixed(2));
 
       await supabase.from("games").update({
         status: "active",
@@ -93,7 +102,7 @@ Deno.serve(async (req) => {
         headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
       }).catch(() => {});
 
-      return new Response(JSON.stringify({ ok: true, status: "active", sold: soldCount }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ ok: true, status: "active", sold: soldCount, prize_amount: prize }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (action === "pause") {
