@@ -679,12 +679,14 @@ export default function GamePage() {
           if (claim.user_id !== user?.id) return;
           const cid = claim.cartela_id;
           if (claim.is_valid === false) {
-            toast.warning(`${t('claimInvalid')} #${cid}`);
+            playClaimRejectedSound();
+            toast.error(`❌ Claim rejected — Cartela #${cid} banned`, { duration: 6000 });
             setClaimedCartelas(prev => { const next = new Set(prev); next.delete(cid); return next; });
             setBannedCartelas(prev => new Set(prev).add(cid));
           }
           if (claim.is_valid === true) {
-            toast.success('🏆 Your claim was confirmed! Prize credited to your wallet!');
+            playClaimApprovedSound();
+            toast.success('🏆 BINGO CONFIRMED! Prize credited to your wallet!', { duration: 8000 });
             setShowConfetti(true);
             refreshGameData();
           }
