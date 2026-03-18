@@ -9,7 +9,7 @@ import { checkWin, getPatternCells } from '@/lib/winDetection';
 import { PATTERNS } from '@/lib/bingo';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { playDrawSound, playWinSound, playMarkSound, announceNumber, isMuted, setMuted } from '@/lib/sounds';
+import { playDrawSound, playWinSound, playMarkSound, playClaimApprovedSound, playClaimRejectedSound, announceNumber, isMuted, setMuted } from '@/lib/sounds';
 import { invokeWithRetry } from '@/lib/edgeFn';
 import { t, getLang, toggleLang } from '@/lib/i18n';
 import { useTheme } from '@/hooks/useTheme';
@@ -385,7 +385,7 @@ function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () => void 
           href="https://t.me/+251978187178"
           target="_blank"
           rel="noopener noreferrer"
-          className="w-full flex items-center gap-2 px-3 py-3 rounded-lg bg-blue-500/10 text-blue-400 text-sm font-medium"
+          className="w-full flex items-center gap-2 px-3 py-3 rounded-lg bg-primary/10 text-primary text-sm font-medium"
         >
           <Send className="w-4 h-4" />
           Telegram Support
@@ -679,12 +679,14 @@ export default function GamePage() {
           if (claim.user_id !== user?.id) return;
           const cid = claim.cartela_id;
           if (claim.is_valid === false) {
-            toast.warning(`${t('claimInvalid')} #${cid}`);
+            playClaimRejectedSound();
+            toast.error(`❌ Claim rejected — Cartela #${cid} banned`, { duration: 6000 });
             setClaimedCartelas(prev => { const next = new Set(prev); next.delete(cid); return next; });
             setBannedCartelas(prev => new Set(prev).add(cid));
           }
           if (claim.is_valid === true) {
-            toast.success('🏆 Your claim was confirmed! Prize credited to your wallet!');
+            playClaimApprovedSound();
+            toast.success('🏆 BINGO CONFIRMED! Prize credited to your wallet!', { duration: 8000 });
             setShowConfetti(true);
             refreshGameData();
           }

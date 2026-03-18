@@ -81,11 +81,9 @@ Deno.serve(async (req) => {
     if (action === "start_drawing") {
       const { count } = await supabase.from("cartelas").select("id", { count: "exact", head: true }).eq("is_used", true).not("owner_id", "is", null);
       const soldCount = count || 0;
-      if (soldCount < 1) {
-        return new Response(JSON.stringify({ error: "At least one cartela must be sold" }), { status: 400, headers: corsHeaders });
-      }
-
-      // Get current game to read cartela_price
+      
+      // Allow starting even with 0 sold (admin decides when to start)
+      // But calculate prize from actual sales
       const { data: currentGame } = await supabase.from("games").select("cartela_price").eq("id", "current").single();
       const price = Number(currentGame?.cartela_price || cartela_price || 10);
       const prize = Number((soldCount * price * HOUSE_PAYOUT_RATIO).toFixed(2));

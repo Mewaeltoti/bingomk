@@ -60,6 +60,7 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Update live prize pool
     const [{ count: soldCount }, { data: currentGame }] = await Promise.all([
       supabase.from("cartelas").select("id", { count: "exact", head: true }).eq("is_used", true).not("owner_id", "is", null),
       supabase.from("games").select("id, cartela_price, status").eq("id", "current").maybeSingle(),
