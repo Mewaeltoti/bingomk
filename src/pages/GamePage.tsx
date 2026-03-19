@@ -588,9 +588,13 @@ export default function GamePage() {
           if (cid && claim.is_valid !== false) claimed.add(cid);
         }
         setClaimedCartelas(claimed);
+        setHasPendingClaim(claimsRes.data.some((c: any) => c.user_id === user.id && c.is_valid === null));
       }
     }
     fetchGameState();
+    // Fetch sold count
+    supabase.from('cartelas').select('id', { count: 'exact', head: true }).eq('is_used', true).not('owner_id', 'is', null)
+      .then(({ count }) => setSoldCount(count || 0));
   }, [user?.id]);
 
   const drawnSet = useMemo(() => new Set(drawnNumbers), [drawnNumbers]);
