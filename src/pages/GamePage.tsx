@@ -821,7 +821,7 @@ export default function GamePage() {
       {/* Top bar */}
       <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border px-3 py-2 flex items-center justify-between gap-2">
         <div className="min-w-0 flex items-center gap-1.5">
-          <h1 className="font-display text-sm font-bold text-primary leading-none">{t('bingo')}</h1>
+          <h1 className="font-display text-sm font-bold text-primary leading-none">BINGO <span className="text-secondary">MK</span></h1>
           <span className="shrink-0 text-[10px] font-display font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded leading-none">
             #{sessionNumber}
           </span>
