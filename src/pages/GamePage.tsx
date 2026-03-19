@@ -435,6 +435,8 @@ export default function GamePage() {
   const [prizeAmount, setPrizeAmount] = useState(0);
   const [cartelaPrice, setCartelaPrice] = useState(10);
   const [, setLangTick] = useState(0);
+  const [soldCount, setSoldCount] = useState(0);
+  const [hasPendingClaim, setHasPendingClaim] = useState(false);
   const user = useUser();
   const navigate = useNavigate();
   const players = useGamePresence(user?.id, displayName);
@@ -526,6 +528,10 @@ export default function GamePage() {
     }
     setBannedCartelas(new Set((cartelasRes.data || []).filter((c: any) => c.banned_for_game).map((c: any) => c.id)));
     if (profileRes.data) setBalance((profileRes.data as any).balance || 0);
+    // Check pending claims
+    if (claimsRes.data && user?.id) {
+      setHasPendingClaim(claimsRes.data.some((c: any) => c.user_id === user.id && c.is_valid === null));
+    }
   }, [user?.id]);
 
   useEffect(() => {
@@ -582,9 +588,13 @@ export default function GamePage() {
           if (cid && claim.is_valid !== false) claimed.add(cid);
         }
         setClaimedCartelas(claimed);
+        setHasPendingClaim(claimsRes.data.some((c: any) => c.user_id === user.id && c.is_valid === null));
       }
     }
     fetchGameState();
+    // Fetch sold count
+    supabase.from('cartelas').select('id', { count: 'exact', head: true }).eq('is_used', true).not('owner_id', 'is', null)
+      .then(({ count }) => setSoldCount(count || 0));
   }, [user?.id]);
 
   const drawnSet = useMemo(() => new Set(drawnNumbers), [drawnNumbers]);
@@ -613,8 +623,10 @@ export default function GamePage() {
             setShowConfetti(false);
             setMarkedMap(new Map());
             setClaimedCartelas(new Set());
+            setHasPendingClaim(false);
             setShowShop(true);
             setNextGameCountdown(0);
+            setSoldCount(0);
             if (nextGameTimerRef.current) clearInterval(nextGameTimerRef.current);
             if (user?.id) {
               supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true)
@@ -673,22 +685,35 @@ export default function GamePage() {
           if (game.cartela_price !== undefined) setCartelaPrice(game.cartela_price);
         }
       )
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'bingo_claims' },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bingo_claims' },
         (payload: any) => {
           const claim = payload.new;
           if (claim.user_id !== user?.id) return;
           const cid = claim.cartela_id;
+          // Track pending state
+          if (claim.is_valid === null) {
+            setHasPendingClaim(true);
+          }
           if (claim.is_valid === false) {
             playClaimRejectedSound();
             toast.error(`❌ Claim rejected — Cartela #${cid} banned`, { duration: 6000 });
             setClaimedCartelas(prev => { const next = new Set(prev); next.delete(cid); return next; });
             setBannedCartelas(prev => new Set(prev).add(cid));
+            setHasPendingClaim(false);
           }
           if (claim.is_valid === true) {
             playClaimApprovedSound();
             toast.success('🏆 BINGO CONFIRMED! Prize credited to your wallet!', { duration: 8000 });
             setShowConfetti(true);
+            setHasPendingClaim(false);
             refreshGameData();
+          }
+        }
+      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cartelas' },
+        (payload: any) => {
+          if (payload.new.is_used && payload.new.owner_id) {
+            setSoldCount(prev => prev + 1);
           }
         }
       )
@@ -806,10 +831,24 @@ export default function GamePage() {
           {isSpectator && <span className="shrink-0 text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground"><Eye className="w-3 h-3 inline" /></span>}
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {/* Pending claim badge */}
+          {hasPendingClaim && (
+            <motion.div
+              initial={{ scale: 0 }} animate={{ scale: 1 }}
+              className="px-2 py-1 rounded-lg bg-accent/15 border border-accent/30 text-[10px] font-bold text-accent flex items-center gap-1"
+            >
+              <motion.span
+                animate={{ opacity: [1, 0.4, 1] }}
+                transition={{ repeat: Infinity, duration: 1.5 }}
+                className="w-1.5 h-1.5 rounded-full bg-accent inline-block"
+              />
+              Verifying
+            </motion.div>
+          )}
           <button onClick={() => navigate('/payment')} className="rounded-lg bg-primary/10 px-2 py-1.5 text-[11px] font-display font-bold text-primary flex items-center gap-1">
             <Wallet className="w-3.5 h-3.5" /> {balance}
           </button>
-          <button onClick={() => setSettingsOpen(true)} className="rounded-lg bg-muted p-2 text-muted-foreground hover:text-foreground">
+          <button onClick={() => setSettingsOpen(true)} className="relative rounded-lg bg-muted p-2 text-muted-foreground hover:text-foreground">
             <Settings className="w-4 h-4" />
           </button>
         </div>
@@ -825,9 +864,22 @@ export default function GamePage() {
                   {Math.floor(buyingCountdown / 60)}:{String(buyingCountdown % 60).padStart(2, '0')}
                 </div>
                 <p className="text-xs text-muted-foreground">{t('buying')} — game starts when timer ends</p>
+                {/* Live stats */}
+                <div className="flex items-center justify-center gap-4 mt-2">
+                  <motion.div key={`p-${players.length}`} initial={{ scale: 1.2 }} animate={{ scale: 1 }}
+                    className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Users className="w-3.5 h-3.5 text-primary" />
+                    <span className="font-bold text-foreground">{players.length}</span> online
+                  </motion.div>
+                  <motion.div key={`s-${soldCount}`} initial={{ scale: 1.3 }} animate={{ scale: 1 }}
+                    className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <ShoppingCart className="w-3.5 h-3.5 text-primary" />
+                    <span className="font-bold text-foreground">{soldCount}</span> sold
+                  </motion.div>
+                </div>
               </div>
             )}
-            <p className="text-sm text-muted-foreground mb-2">
+            <p className="text-sm text-muted-foreground mb-3">
               {gameStatus === 'buying' && buyingCountdown <= 0
                 ? 'Starting soon...'
                 : gameStatus === 'won' ? (nextGameCountdown > 0 ? `${t('nextGameIn')} ${nextGameCountdown} ${t('seconds')}` : t('roundOver'))
@@ -835,8 +887,8 @@ export default function GamePage() {
             </p>
             {(gameStatus === 'buying' || gameStatus === 'waiting') && (
               <button onClick={() => setShowShop(!showShop)}
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl gradient-neon text-primary-foreground text-sm font-bold active:scale-95">
-                <ShoppingCart className="w-4 h-4" />
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl gradient-neon text-primary-foreground text-sm font-bold active:scale-95 shadow-lg glow-neon">
+                <ShoppingCart className="w-5 h-5" />
                 {showShop ? t('hideShop') : t('buyCartelas')}
               </button>
             )}
