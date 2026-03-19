@@ -856,7 +856,7 @@ export default function GamePage() {
 
       {/* Buying state with countdown */}
       {showBuyPrompt && !isGameActive && (
-        <div className="px-3 pt-3">
+        <div className="px-3 pt-3 pb-20">
           <div className="p-4 rounded-xl bg-card border border-border text-center mb-3">
             {gameStatus === 'buying' && buyingCountdown > 0 && (
               <div className="mb-2">
@@ -885,13 +885,6 @@ export default function GamePage() {
                 : gameStatus === 'won' ? (nextGameCountdown > 0 ? `${t('nextGameIn')} ${nextGameCountdown} ${t('seconds')}` : t('roundOver'))
                 : gameStatus !== 'buying' ? t('waitingForGame') : null}
             </p>
-            {(gameStatus === 'buying' || gameStatus === 'waiting') && (
-              <button onClick={() => setShowShop(!showShop)}
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl gradient-neon text-primary-foreground text-sm font-bold active:scale-95 shadow-lg glow-neon">
-                <ShoppingCart className="w-5 h-5" />
-                {showShop ? t('hideShop') : t('buyCartelas')}
-              </button>
-            )}
           </div>
           {showShop && (
             <CartelaShop
@@ -901,6 +894,17 @@ export default function GamePage() {
               prizeAmount={prizeAmount}
             />
           )}
+        </div>
+      )}
+
+      {/* Fixed bottom buy button — always visible during buying/waiting */}
+      {(gameStatus === 'buying' || gameStatus === 'waiting') && !isGameActive && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 p-3 bg-card/95 backdrop-blur-md border-t border-border" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}>
+          <button onClick={() => setShowShop(!showShop)}
+            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl gradient-neon text-primary-foreground text-sm font-bold active:scale-95 shadow-lg glow-neon">
+            <ShoppingCart className="w-5 h-5" />
+            {showShop ? t('hideShop') : t('buyCartelas')}
+          </button>
         </div>
       )}
 
