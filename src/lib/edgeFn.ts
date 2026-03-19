@@ -12,7 +12,7 @@ interface InvokeOptions<T> {
  * Invoke a Supabase edge function with automatic retry and optional Zod validation.
  * Returns { data, error } — error is null on success.
  */
-export async function invokeWithRetry<T = unknown>(
+export async function invokeWithRetry<T = any>(
   functionName: string,
   { body, retries = 2, retryDelay = 1500, schema }: InvokeOptions<T>
 ): Promise<{ data: T | null; error: string | null }> {
