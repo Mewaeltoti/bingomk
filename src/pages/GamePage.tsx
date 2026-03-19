@@ -435,6 +435,8 @@ export default function GamePage() {
   const [prizeAmount, setPrizeAmount] = useState(0);
   const [cartelaPrice, setCartelaPrice] = useState(10);
   const [, setLangTick] = useState(0);
+  const [soldCount, setSoldCount] = useState(0);
+  const [hasPendingClaim, setHasPendingClaim] = useState(false);
   const user = useUser();
   const navigate = useNavigate();
   const players = useGamePresence(user?.id, displayName);
