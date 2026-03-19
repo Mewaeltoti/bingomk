@@ -1,20 +1,21 @@
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { z } from 'zod';
 
-interface InvokeOptions {
-  body: Record<string, any>;
+interface InvokeOptions<T> {
+  body: Record<string, unknown>;
   retries?: number;
   retryDelay?: number;
+  schema?: z.ZodType<T>;
 }
 
 /**
- * Invoke a Supabase edge function with automatic retry on failure.
+ * Invoke a Supabase edge function with automatic retry and optional Zod validation.
  * Returns { data, error } — error is null on success.
  */
-export async function invokeWithRetry(
+export async function invokeWithRetry<T = unknown>(
   functionName: string,
-  { body, retries = 2, retryDelay = 1500 }: InvokeOptions
-): Promise<{ data: any; error: string | null }> {
+  { body, retries = 2, retryDelay = 1500, schema }: InvokeOptions<T>
+): Promise<{ data: T | null; error: string | null }> {
   let lastError: string | null = null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -35,9 +36,20 @@ export async function invokeWithRetry(
         return { data, error: data.error };
       }
 
-      return { data, error: null };
-    } catch (e: any) {
-      lastError = e?.message || 'Network error';
+      // Validate response with schema if provided
+      if (schema) {
+        const result = schema.safeParse(data);
+        if (!result.success) {
+          console.warn(`[${functionName}] response validation failed`, result.error.flatten());
+          // Still return data but log the mismatch
+          return { data: data as T, error: null };
+        }
+        return { data: result.data, error: null };
+      }
+
+      return { data: data as T, error: null };
+    } catch (e: unknown) {
+      lastError = e instanceof Error ? e.message : 'Network error';
       if (attempt < retries) {
         await new Promise((r) => setTimeout(r, retryDelay * (attempt + 1)));
         continue;
