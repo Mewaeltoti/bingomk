@@ -685,22 +685,35 @@ export default function GamePage() {
           if (game.cartela_price !== undefined) setCartelaPrice(game.cartela_price);
         }
       )
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'bingo_claims' },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bingo_claims' },
         (payload: any) => {
           const claim = payload.new;
           if (claim.user_id !== user?.id) return;
           const cid = claim.cartela_id;
+          // Track pending state
+          if (claim.is_valid === null) {
+            setHasPendingClaim(true);
+          }
           if (claim.is_valid === false) {
             playClaimRejectedSound();
             toast.error(`❌ Claim rejected — Cartela #${cid} banned`, { duration: 6000 });
             setClaimedCartelas(prev => { const next = new Set(prev); next.delete(cid); return next; });
             setBannedCartelas(prev => new Set(prev).add(cid));
+            setHasPendingClaim(false);
           }
           if (claim.is_valid === true) {
             playClaimApprovedSound();
             toast.success('🏆 BINGO CONFIRMED! Prize credited to your wallet!', { duration: 8000 });
             setShowConfetti(true);
+            setHasPendingClaim(false);
             refreshGameData();
+          }
+        }
+      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cartelas' },
+        (payload: any) => {
+          if (payload.new.is_used && payload.new.owner_id) {
+            setSoldCount(prev => prev + 1);
           }
         }
       )
