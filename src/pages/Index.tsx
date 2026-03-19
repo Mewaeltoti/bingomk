@@ -14,7 +14,7 @@ export default function Index() {
         >
           <h1 className="font-display text-4xl font-black tracking-tight mb-2">
             <span className="text-primary">BINGO</span>{' '}
-            <span className="text-secondary">MK</span>
+            <span className="text-secondary">ETHIO</span>
           </h1>
           <p className="text-muted-foreground text-sm">Play. Win. Celebrate.</p>
         </motion.div>

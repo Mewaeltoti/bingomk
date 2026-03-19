@@ -1,4 +1,3 @@
-import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,25 +7,15 @@ import { RequireAuth, RequireAdmin } from "./components/AuthGuard";
 import { useGameNotifications } from "./hooks/useGameNotifications";
 import InstallPrompt from "./components/InstallPrompt";
 import Index from "./pages/Index";
+import GamePage from "./pages/GamePage";
+import Payment from "./pages/Payment";
+import Profile from "./pages/Profile";
+import Admin from "./pages/Admin";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
 
-// Lazy-loaded heavy pages
-const GamePage = lazy(() => import("./pages/GamePage"));
-const Payment = lazy(() => import("./pages/Payment"));
-const Profile = lazy(() => import("./pages/Profile"));
-const Admin = lazy(() => import("./pages/Admin"));
-
 const queryClient = new QueryClient();
-
-function LazyFallback() {
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
-}
 
 function AppContent() {
   useGameNotifications();
@@ -36,10 +25,10 @@ function AppContent() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/" element={<Index />} />
-        <Route path="/game" element={<RequireAuth><Suspense fallback={<LazyFallback />}><GamePage /></Suspense></RequireAuth>} />
-        <Route path="/payment" element={<RequireAuth><Suspense fallback={<LazyFallback />}><Payment /></Suspense></RequireAuth>} />
-        <Route path="/profile" element={<RequireAuth><Suspense fallback={<LazyFallback />}><Profile /></Suspense></RequireAuth>} />
-        <Route path="/admin" element={<RequireAdmin><Suspense fallback={<LazyFallback />}><Admin /></Suspense></RequireAdmin>} />
+        <Route path="/game" element={<RequireAuth><GamePage /></RequireAuth>} />
+        <Route path="/payment" element={<RequireAuth><Payment /></RequireAuth>} />
+        <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+        <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <InstallPrompt />

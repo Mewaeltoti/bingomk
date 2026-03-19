@@ -69,7 +69,21 @@ export function playClaimRejectedSound() {
   setTimeout(() => playTone(200, 0.3, 'sawtooth', 0.2), 300);
 }
 
-/** Number announcement — beep only, no voice */
-export function announceNumber(_num: number) {
-  // Voice mode removed — draw sound already plays a beep
+/** Announce a bingo number vocally in English using Web Speech API */
+export function announceNumber(num: number) {
+  if (_muted) return;
+  if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+  const letter =
+    num <= 15 ? 'B' : num <= 30 ? 'I' : num <= 45 ? 'N' : num <= 60 ? 'G' : 'O';
+
+  const utterance = new SpeechSynthesisUtterance(`${letter} ${num}`);
+  utterance.rate = 0.9;
+  utterance.pitch = 1.0;
+  utterance.volume = 1;
+  utterance.lang = 'en-US';
+
+  // Cancel any ongoing speech
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
 }
