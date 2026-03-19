@@ -528,6 +528,10 @@ export default function GamePage() {
     }
     setBannedCartelas(new Set((cartelasRes.data || []).filter((c: any) => c.banned_for_game).map((c: any) => c.id)));
     if (profileRes.data) setBalance((profileRes.data as any).balance || 0);
+    // Check pending claims
+    if (claimsRes.data && user?.id) {
+      setHasPendingClaim(claimsRes.data.some((c: any) => c.user_id === user.id && c.is_valid === null));
+    }
   }, [user?.id]);
 
   useEffect(() => {
