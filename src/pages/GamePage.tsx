@@ -623,8 +623,10 @@ export default function GamePage() {
             setShowConfetti(false);
             setMarkedMap(new Map());
             setClaimedCartelas(new Set());
+            setHasPendingClaim(false);
             setShowShop(true);
             setNextGameCountdown(0);
+            setSoldCount(0);
             if (nextGameTimerRef.current) clearInterval(nextGameTimerRef.current);
             if (user?.id) {
               supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true)
