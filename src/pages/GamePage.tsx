@@ -831,10 +831,24 @@ export default function GamePage() {
           {isSpectator && <span className="shrink-0 text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground"><Eye className="w-3 h-3 inline" /></span>}
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {/* Pending claim badge */}
+          {hasPendingClaim && (
+            <motion.div
+              initial={{ scale: 0 }} animate={{ scale: 1 }}
+              className="px-2 py-1 rounded-lg bg-accent/15 border border-accent/30 text-[10px] font-bold text-accent flex items-center gap-1"
+            >
+              <motion.span
+                animate={{ opacity: [1, 0.4, 1] }}
+                transition={{ repeat: Infinity, duration: 1.5 }}
+                className="w-1.5 h-1.5 rounded-full bg-accent inline-block"
+              />
+              Verifying
+            </motion.div>
+          )}
           <button onClick={() => navigate('/payment')} className="rounded-lg bg-primary/10 px-2 py-1.5 text-[11px] font-display font-bold text-primary flex items-center gap-1">
             <Wallet className="w-3.5 h-3.5" /> {balance}
           </button>
-          <button onClick={() => setSettingsOpen(true)} className="rounded-lg bg-muted p-2 text-muted-foreground hover:text-foreground">
+          <button onClick={() => setSettingsOpen(true)} className="relative rounded-lg bg-muted p-2 text-muted-foreground hover:text-foreground">
             <Settings className="w-4 h-4" />
           </button>
         </div>
@@ -850,9 +864,22 @@ export default function GamePage() {
                   {Math.floor(buyingCountdown / 60)}:{String(buyingCountdown % 60).padStart(2, '0')}
                 </div>
                 <p className="text-xs text-muted-foreground">{t('buying')} — game starts when timer ends</p>
+                {/* Live stats */}
+                <div className="flex items-center justify-center gap-4 mt-2">
+                  <motion.div key={`p-${players.length}`} initial={{ scale: 1.2 }} animate={{ scale: 1 }}
+                    className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Users className="w-3.5 h-3.5 text-primary" />
+                    <span className="font-bold text-foreground">{players.length}</span> online
+                  </motion.div>
+                  <motion.div key={`s-${soldCount}`} initial={{ scale: 1.3 }} animate={{ scale: 1 }}
+                    className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <ShoppingCart className="w-3.5 h-3.5 text-primary" />
+                    <span className="font-bold text-foreground">{soldCount}</span> sold
+                  </motion.div>
+                </div>
               </div>
             )}
-            <p className="text-sm text-muted-foreground mb-2">
+            <p className="text-sm text-muted-foreground mb-3">
               {gameStatus === 'buying' && buyingCountdown <= 0
                 ? 'Starting soon...'
                 : gameStatus === 'won' ? (nextGameCountdown > 0 ? `${t('nextGameIn')} ${nextGameCountdown} ${t('seconds')}` : t('roundOver'))
@@ -860,8 +887,8 @@ export default function GamePage() {
             </p>
             {(gameStatus === 'buying' || gameStatus === 'waiting') && (
               <button onClick={() => setShowShop(!showShop)}
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl gradient-neon text-primary-foreground text-sm font-bold active:scale-95">
-                <ShoppingCart className="w-4 h-4" />
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl gradient-neon text-primary-foreground text-sm font-bold active:scale-95 shadow-lg glow-neon">
+                <ShoppingCart className="w-5 h-5" />
                 {showShop ? t('hideShop') : t('buyCartelas')}
               </button>
             )}
