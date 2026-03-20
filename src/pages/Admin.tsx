@@ -388,9 +388,25 @@ export default function Admin() {
             />
           </div>
           
-          {/* Dynamic prize info */}
-          <div className="p-3 rounded-xl bg-primary/5 border border-primary/20">
-            <p className="text-xs text-muted-foreground">Prize = Sold × Price × 80% (auto-calculated)</p>
+          {/* Prize adjustment */}
+          <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 space-y-2">
+            <p className="text-xs text-muted-foreground">Prize = Sold × Price × 80% (auto) or override below</p>
+            <div className="flex gap-2 items-center">
+              <input
+                type="number" min={0} value={prizeAmount}
+                onChange={e => setPrizeAmount(Number(e.target.value) || 0)}
+                className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
+              />
+              <button
+                onClick={async () => {
+                  await invokeWithRetry('game-lifecycle', { body: { action: 'adjust_prize', prize_override: prizeAmount } });
+                  toast.success(`Prize set to ${prizeAmount} ETB`);
+                }}
+                className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold"
+              >
+                Set
+              </button>
+            </div>
           </div>
 
           {/* Sales info */}
