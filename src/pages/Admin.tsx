@@ -119,23 +119,15 @@ export default function Admin() {
 
     if (!isValid) {
       toast.warning(`❌ Invalid claim on #${claim.cartela_id}`);
-    } else if (data?.result === 'valid_pending_remaining') {
-      toast.success(`✅ Claim valid! ${data.remaining} more pending...`);
+    } else if (data?.result === 'rejected') {
+      toast.warning(`❌ Rejected — ${data.remaining} pending remaining`);
     } else if (data?.result === 'won') {
       setGameStatus('won');
       setDrawnNumbers([]);
-      if (data.winner_count === 2) {
-        toast.success(`🏆 2 winners — ${data.prize_per_winner} ETB each credited!`);
-      } else {
-        toast.success(`🏆 Winner gets ${data.prize_per_winner} ETB! Balance credited.`);
-      }
+      toast.success(`🏆 Winner gets ${data.prize} ETB! Balance credited.`);
       setTimeout(startNewGame, 10000);
-    } else if (data?.result === 'disqualified') {
-      setGameStatus('disqualified');
-      setDrawnNumbers([]);
-      setClaims([]);
-      toast.error(`🔄 ${data.winner_count} different winners — Round restart!`);
-      setTimeout(startNewGame, 3000);
+    } else if (data?.result === 'no_winners_resume') {
+      toast.warning('No valid claims — resuming draw');
     }
 
     const { data: claimsRefresh } = await supabase.from('bingo_claims').select('*').eq('game_id', 'current');
