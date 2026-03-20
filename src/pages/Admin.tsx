@@ -557,7 +557,7 @@ export default function Admin() {
                 </div>
               ))}
               <p className="text-[10px] text-muted-foreground text-center">
-                1 winner = full prize • 2 winners = split • 3+ = round restart
+                Single winner only — first approved claim wins the full prize
               </p>
             </div>
           )}
