@@ -17,7 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Eye, Hand, ShoppingCart, ChevronDown, ChevronUp,
   Wallet, Search, Shuffle, Settings, X, Volume2, VolumeX,
-  Moon, Sun, Globe, LogOut, User, MessageCircle, Send
+  Moon, Sun, Globe, LogOut, User, Send, Bell, Clock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -60,9 +60,9 @@ function Confetti() {
   );
 }
 
-// ─── Cartela Shop with Cart ─────────────────────────────────
-function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
-  onBuy: () => void; cartelaPrice: number; gameStatus: string; prizeAmount: number;
+// ─── Cartela Shop with Cart & foldable cards ────────────────
+function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount, bannedIds }: {
+  onBuy: () => void; cartelaPrice: number; gameStatus: string; prizeAmount: number; bannedIds: Set<number>;
 }) {
   const [cartelas, setCartelas] = useState<any[]>([]);
   const [cart, setCart] = useState<Set<number>>(new Set());
@@ -70,6 +70,7 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
   const [page, setPage] = useState(1);
   const [buying, setBuying] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const user = useUser();
   const pageSize = 30;
   const loaderRef = useRef<HTMLDivElement>(null);
@@ -182,23 +183,35 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
       </div>
       <p className="text-xs text-muted-foreground">{filtered.length} {t('available')} · {cartelaPrice} ETB {t('each')}</p>
 
-      <div className="grid grid-cols-3 gap-2 max-h-[40vh] overflow-y-auto">
-        {visible.map(c => (
-          <div key={c.id} onClick={() => toggleCart(c.id)} className="cursor-pointer">
-            <BingoCartela
-              numbers={c.numbers as number[][]}
-              size="xs"
-              label={`#${c.id}`}
-              selected={cart.has(c.id)}
-            />
-          </div>
-        ))}
-      </div>
-      <div ref={loaderRef} className="h-4" />
+      {/* Foldable cartela grid */}
+      <button onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50 text-sm font-medium text-foreground">
+        <span>📋 Available Cartelas ({filtered.length})</span>
+        {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+      </button>
 
-      {/* Cart bar */}
+      {expanded && (
+        <>
+          <div className="grid grid-cols-3 gap-1.5 max-h-[35vh] overflow-y-auto">
+            {visible.map(c => (
+              <div key={c.id} onClick={() => toggleCart(c.id)} className="cursor-pointer">
+                <BingoCartela
+                  numbers={c.numbers as number[][]}
+                  size="xs"
+                  label={`#${c.id}`}
+                  selected={cart.has(c.id)}
+                  banned={bannedIds.has(c.id)}
+                />
+              </div>
+            ))}
+          </div>
+          <div ref={loaderRef} className="h-4" />
+        </>
+      )}
+
+      {/* Checkout button — ALWAYS visible when cart has items */}
       {cart.size > 0 && (
-        <div className="sticky bottom-0 bg-card border-t border-border p-3 -mx-3 -mb-3 space-y-2">
+        <div className="sticky bottom-0 z-30 bg-card border-t border-border p-3 rounded-t-xl shadow-lg space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm font-bold text-foreground"><ShoppingCart className="w-4 h-4 inline mr-1" />{cart.size} in cart</span>
             <span className="text-sm font-display font-bold text-primary">{cost} ETB</span>
@@ -210,7 +223,7 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
             </button>
             <button onClick={() => setShowConfirm(true)}
               className="flex-1 py-2.5 rounded-lg gradient-neon text-primary-foreground text-sm font-bold active:scale-95 glow-neon">
-              Checkout
+              Checkout ({cart.size})
             </button>
           </div>
         </div>
@@ -230,7 +243,7 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
               className="bg-card border border-border rounded-xl p-4 max-w-sm w-full max-h-[70vh] overflow-y-auto space-y-3"
             >
               <h3 className="font-display font-bold text-foreground text-center">Confirm Purchase</h3>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-1.5">
                 {selectedCartelas.map(c => (
                   <div key={c.id} className="relative">
                     <BingoCartela numbers={c.numbers as number[][]} size="xs" label={`#${c.id}`} />
@@ -243,6 +256,7 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
                   </div>
                 ))}
               </div>
+              {cart.size === 0 && <p className="text-sm text-center text-muted-foreground">Cart is empty</p>}
               <div className="border-t border-border pt-2 flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">{cart.size} cartela(s)</span>
                 <span className="font-display font-bold text-primary text-lg">{cost} ETB</span>
@@ -252,7 +266,7 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
                   className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold text-sm">
                   Cancel
                 </button>
-                <button onClick={handleBuy} disabled={buying}
+                <button onClick={handleBuy} disabled={buying || cart.size === 0}
                   className="flex-1 py-3 rounded-xl gradient-neon text-primary-foreground font-bold text-sm disabled:opacity-50 active:scale-95">
                   {buying ? '...' : `Pay ${cost} ETB`}
                 </button>
@@ -292,16 +306,8 @@ function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () => void 
     toast.success('Name updated!');
   };
 
-  const handleToggleMute = () => {
-    const next = !muted;
-    setMuted(next);
-    setMutedLocal(next);
-  };
-
-  const handleToggleLang = () => {
-    toggleLang();
-    setTick(t => t + 1);
-  };
+  const handleToggleMute = () => { const next = !muted; setMuted(next); setMutedLocal(next); };
+  const handleToggleLang = () => { toggleLang(); setTick(t => t + 1); };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -328,15 +334,11 @@ function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () => void 
           <button onClick={onClose} className="p-2 rounded-lg bg-muted text-muted-foreground"><X className="w-4 h-4" /></button>
         </div>
 
-        {/* Profile */}
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground flex items-center gap-1"><User className="w-3 h-3" /> Display Name</label>
           <div className="flex gap-2">
-            <input
-              type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
-              className="flex-1 px-3 py-2 rounded-lg bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Your name"
-            />
+            <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
+              className="flex-1 px-3 py-2 rounded-lg bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary" placeholder="Your name" />
             <button onClick={handleSaveName} disabled={saving}
               className="px-3 py-2 rounded-lg gradient-neon text-primary-foreground text-xs font-bold disabled:opacity-50">
               {saving ? '...' : 'Save'}
@@ -348,54 +350,36 @@ function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () => void 
           </div>
         </div>
 
-        {/* Sound */}
         <button onClick={handleToggleMute}
           className="w-full flex items-center justify-between px-3 py-3 rounded-lg bg-muted text-foreground text-sm">
           <span className="flex items-center gap-2">
-            {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-            Sound
+            {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />} Sound
           </span>
-          <span className={cn('text-xs font-bold', muted ? 'text-destructive' : 'text-primary')}>
-            {muted ? 'OFF' : 'ON'}
-          </span>
+          <span className={cn('text-xs font-bold', muted ? 'text-destructive' : 'text-primary')}>{muted ? 'OFF' : 'ON'}</span>
         </button>
 
-        {/* Theme */}
         <button onClick={toggleTheme}
           className="w-full flex items-center justify-between px-3 py-3 rounded-lg bg-muted text-foreground text-sm">
           <span className="flex items-center gap-2">
-            {theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-            Theme
+            {theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />} Theme
           </span>
           <span className="text-xs font-bold text-primary">{theme === 'dark' ? 'Dark' : 'Light'}</span>
         </button>
 
-        {/* Language */}
         <button onClick={handleToggleLang}
           className="w-full flex items-center justify-between px-3 py-3 rounded-lg bg-muted text-foreground text-sm">
-          <span className="flex items-center gap-2">
-            <Globe className="w-4 h-4" />
-            Language
-          </span>
+          <span className="flex items-center gap-2"><Globe className="w-4 h-4" /> Language</span>
           <span className="text-xs font-bold text-primary">{getLang() === 'ti' ? 'ትግርኛ' : 'English'}</span>
         </button>
 
-        {/* Support */}
-        <a
-          href="https://t.me/+251978187178"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-full flex items-center gap-2 px-3 py-3 rounded-lg bg-primary/10 text-primary text-sm font-medium"
-        >
-          <Send className="w-4 h-4" />
-          Telegram Support
+        <a href="https://t.me/+251978187178" target="_blank" rel="noopener noreferrer"
+          className="w-full flex items-center gap-2 px-3 py-3 rounded-lg bg-primary/10 text-primary text-sm font-medium">
+          <Send className="w-4 h-4" /> Telegram Support
         </a>
 
-        {/* Logout */}
         <button onClick={handleLogout}
           className="w-full flex items-center justify-center gap-2 px-3 py-3 rounded-lg bg-destructive/10 text-destructive text-sm font-bold">
-          <LogOut className="w-4 h-4" />
-          Sign Out
+          <LogOut className="w-4 h-4" /> Sign Out
         </button>
       </motion.div>
     </motion.div>
@@ -404,9 +388,10 @@ function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () => void 
 
 // ─── Main Game Page ─────────────────────────────────────────
 type GameResult = {
-  type: 'winner' | 'split' | 'disqualified';
+  type: 'winner';
   message: string;
   winnerCartela?: number[][];
+  drawnNumbers?: number[];
 };
 
 export default function GamePage() {
@@ -419,10 +404,12 @@ export default function GamePage() {
   const [markedMap, setMarkedMap] = useState<Map<number, Set<string>>>(new Map());
   const [claimedCartelas, setClaimedCartelas] = useState<Set<number>>(new Set());
   const [bannedCartelas, setBannedCartelas] = useState<Set<number>>(new Set());
+  const [allBannedIds, setAllBannedIds] = useState<Set<number>>(new Set());
   const [gameStatus, setGameStatus] = useState<string>('waiting');
   const [sessionNumber, setSessionNumber] = useState(1);
   const [nextGameCountdown, setNextGameCountdown] = useState(0);
   const [buyingCountdown, setBuyingCountdown] = useState(0);
+  const [gameStartTime, setGameStartTime] = useState<string>('');
   const buyingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const nextGameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -434,6 +421,7 @@ export default function GamePage() {
   const [balance, setBalance] = useState(0);
   const [prizeAmount, setPrizeAmount] = useState(0);
   const [cartelaPrice, setCartelaPrice] = useState(10);
+  const [pendingClaimCount, setPendingClaimCount] = useState(0);
   const [, setLangTick] = useState(0);
   const user = useUser();
   const navigate = useNavigate();
@@ -442,7 +430,6 @@ export default function GamePage() {
   // Persist marked numbers to localStorage
   const MARKS_KEY = `bingo-marks-${sessionNumber}`;
 
-  // Load persisted marks on mount/session change
   useEffect(() => {
     try {
       const saved = localStorage.getItem(MARKS_KEY);
@@ -457,7 +444,6 @@ export default function GamePage() {
     } catch { /* ignore */ }
   }, [MARKS_KEY]);
 
-  // Save marks whenever they change
   useEffect(() => {
     if (markedMap.size === 0) return;
     const obj: Record<number, string[]> = {};
@@ -465,12 +451,12 @@ export default function GamePage() {
     localStorage.setItem(MARKS_KEY, JSON.stringify(obj));
   }, [markedMap, MARKS_KEY]);
 
-  // Clear old session marks
   useEffect(() => {
     const keys = Object.keys(localStorage).filter(k => k.startsWith('bingo-marks-') && k !== MARKS_KEY);
     keys.forEach(k => localStorage.removeItem(k));
   }, [MARKS_KEY]);
 
+  // Profile & balance
   useEffect(() => {
     if (!user?.id) return;
     supabase.from('profiles').select('display_name, balance, phone').eq('id', user.id).single()
@@ -487,6 +473,12 @@ export default function GamePage() {
       ).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [user?.id]);
+
+  // Fetch all banned cartelas (visible to all)
+  const fetchBannedCartelas = useCallback(async () => {
+    const { data } = await supabase.from('cartelas').select('id').eq('banned_for_game', true);
+    setAllBannedIds(new Set((data || []).map((c: any) => c.id)));
+  }, []);
 
   const refreshGameData = useCallback(async () => {
     if (!user?.id) return;
@@ -506,6 +498,7 @@ export default function GamePage() {
       setPrizeAmount((gameRes.data as any).prize_amount || 0);
       setCartelaPrice((gameRes.data as any).cartela_price || 10);
       setSessionNumber((gameRes.data as any).session_number || 1);
+      setGameStartTime(gameRes.data.created_at || '');
       if (gameRes.data.status === 'won') {
         setGameResult({ type: 'winner', message: t('winnerAnnounced') });
         setShowResult(true);
@@ -518,16 +511,21 @@ export default function GamePage() {
     if (claimsRes.data) {
       const userClaims = claimsRes.data.filter((c: any) => c.user_id === user.id);
       const claimed = new Set<number>();
+      let pending = 0;
       for (const claim of userClaims) {
         const cid = (claim as any).cartela_id;
         if (cid && claim.is_valid !== false) claimed.add(cid);
+        if (claim.is_valid === null) pending++;
       }
       setClaimedCartelas(claimed);
+      setPendingClaimCount(pending);
     }
     setBannedCartelas(new Set((cartelasRes.data || []).filter((c: any) => c.banned_for_game).map((c: any) => c.id)));
     if (profileRes.data) setBalance((profileRes.data as any).balance || 0);
-  }, [user?.id]);
+    fetchBannedCartelas();
+  }, [user?.id, fetchBannedCartelas]);
 
+  // Initial fetch
   useEffect(() => {
     if (!user?.id) return;
     supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true).order('id', { ascending: true })
@@ -548,6 +546,7 @@ export default function GamePage() {
         setPrizeAmount((gameRes.data as any).prize_amount || 0);
         setCartelaPrice((gameRes.data as any).cartela_price || 10);
         setSessionNumber((gameRes.data as any).session_number || 1);
+        setGameStartTime(gameRes.data.created_at || '');
         if (gameRes.data.status === 'won') {
           setGameResult({ type: 'winner', message: t('winnerAnnounced') });
           setShowResult(true);
@@ -556,7 +555,6 @@ export default function GamePage() {
             setShowConfetti(true);
           }
         }
-        // If buying, calculate remaining countdown
         if (gameRes.data.status === 'buying') {
           const createdAt = new Date(gameRes.data.created_at).getTime();
           const elapsed = Math.floor((Date.now() - createdAt) / 1000);
@@ -577,15 +575,19 @@ export default function GamePage() {
       if (claimsRes.data && user?.id) {
         const userClaims = claimsRes.data.filter((c: any) => c.user_id === user.id);
         const claimed = new Set<number>();
+        let pending = 0;
         for (const claim of userClaims) {
           const cid = (claim as any).cartela_id;
           if (cid && claim.is_valid !== false) claimed.add(cid);
+          if (claim.is_valid === null) pending++;
         }
         setClaimedCartelas(claimed);
+        setPendingClaimCount(pending);
       }
+      fetchBannedCartelas();
     }
     fetchGameState();
-  }, [user?.id]);
+  }, [user?.id, fetchBannedCartelas]);
 
   const drawnSet = useMemo(() => new Set(drawnNumbers), [drawnNumbers]);
 
@@ -601,11 +603,13 @@ export default function GamePage() {
           announceNumber(num);
         }
       )
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'games' },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: 'id=eq.current' },
         (payload: any) => {
           const game = payload.new;
+          if (!game) return;
           setGameStatus(game.status);
           setSessionNumber(game.session_number || 1);
+          setGameStartTime(game.created_at || '');
           if (game.status === 'buying') {
             setDrawnNumbers([]);
             setShowResult(false);
@@ -613,6 +617,7 @@ export default function GamePage() {
             setShowConfetti(false);
             setMarkedMap(new Map());
             setClaimedCartelas(new Set());
+            setPendingClaimCount(0);
             setShowShop(true);
             setNextGameCountdown(0);
             if (nextGameTimerRef.current) clearInterval(nextGameTimerRef.current);
@@ -638,27 +643,33 @@ export default function GamePage() {
               supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true)
                 .then(({ data }) => { setPlayerCartelas(data || []); setIsSpectator(!data || data.length === 0); });
             }
+            fetchBannedCartelas();
             toast(t('gameStarted'));
           }
           if (game.status === 'waiting') {
-            setDrawnNumbers([]); setShowResult(false); setGameResult(null); setShowConfetti(false); setMarkedMap(new Map()); setClaimedCartelas(new Set());
+            setDrawnNumbers([]); setShowResult(false); setGameResult(null); setShowConfetti(false); setMarkedMap(new Map()); setClaimedCartelas(new Set()); setPendingClaimCount(0);
           }
           if (game.status === 'won') {
-            setGameResult({ type: 'winner', message: t('winnerAnnounced') });
+            const dn = [...drawnNumbers]; // capture current drawn numbers for result display
+            setGameResult({ type: 'winner', message: t('winnerAnnounced'), drawnNumbers: dn });
             setShowResult(true);
             playWinSound();
             if (game.winner_id === user?.id) {
-              setGameResult({ type: 'winner', message: t('youWon') });
+              setGameResult({ type: 'winner', message: t('youWon'), drawnNumbers: dn });
               setShowConfetti(true);
+              // Win notification only for the winner
+              if ('Notification' in window && Notification.permission === 'granted') {
+                try {
+                  new Notification('🏆 You Won!', { body: `Prize credited to your wallet!`, icon: '/pwa-192.png' });
+                } catch { /* ignore */ }
+              }
             }
             fetchWinnerCartela();
-            // Auto-hide result after 30 seconds
             if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
             resultTimerRef.current = setTimeout(() => {
               setShowResult(false);
               setShowConfetti(false);
             }, 30000);
-            // Countdown to next game
             setNextGameCountdown(60);
             if (nextGameTimerRef.current) clearInterval(nextGameTimerRef.current);
             nextGameTimerRef.current = setInterval(() => {
@@ -673,9 +684,16 @@ export default function GamePage() {
           if (game.cartela_price !== undefined) setCartelaPrice(game.cartela_price);
         }
       )
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'bingo_claims' },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bingo_claims', filter: 'game_id=eq.current' },
         (payload: any) => {
           const claim = payload.new;
+          if (!claim) return;
+          
+          // Update banned cartelas for ALL users
+          if (claim.is_valid === false && claim.cartela_id) {
+            setAllBannedIds(prev => new Set(prev).add(claim.cartela_id));
+          }
+
           if (claim.user_id !== user?.id) return;
           const cid = claim.cartela_id;
           if (claim.is_valid === false) {
@@ -683,18 +701,23 @@ export default function GamePage() {
             toast.error(`❌ Claim rejected — Cartela #${cid} banned`, { duration: 6000 });
             setClaimedCartelas(prev => { const next = new Set(prev); next.delete(cid); return next; });
             setBannedCartelas(prev => new Set(prev).add(cid));
+            setPendingClaimCount(prev => Math.max(0, prev - 1));
           }
           if (claim.is_valid === true) {
             playClaimApprovedSound();
             toast.success('🏆 BINGO CONFIRMED! Prize credited to your wallet!', { duration: 8000 });
             setShowConfetti(true);
+            setPendingClaimCount(prev => Math.max(0, prev - 1));
             refreshGameData();
+          }
+          if (claim.is_valid === null) {
+            setPendingClaimCount(prev => prev + 1);
           }
         }
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user?.id]);
+  }, [user?.id, fetchBannedCartelas]);
 
   async function fetchWinnerCartela() {
     const { data: claims } = await supabase.from('bingo_claims').select('cartela_id').eq('game_id', 'current').eq('is_valid', true).limit(1);
@@ -708,8 +731,6 @@ export default function GamePage() {
       }
     }
   }
-
-  const lastNumber = drawnNumbers[drawnNumbers.length - 1];
 
   const handleMarkCell = useCallback((cartelaId: number, row: number, col: number) => {
     playMarkSound();
@@ -749,14 +770,21 @@ export default function GamePage() {
   const isGameActive = gameStatus === 'active';
   const showBuyPrompt = gameStatus === 'buying' || gameStatus === 'waiting' || gameStatus === 'stopped' || gameStatus === 'won';
 
+  const formattedStartTime = useMemo(() => {
+    if (!gameStartTime) return '';
+    try {
+      const d = new Date(gameStartTime);
+      return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch { return ''; }
+  }, [gameStartTime]);
+
   return (
     <div className="min-h-screen bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       <PullToRefresh onRefresh={refreshGameData}>
 
-      {/* Confetti */}
       <AnimatePresence>{showConfetti && <Confetti />}</AnimatePresence>
 
-      {/* Winner overlay — shown 30 seconds */}
+      {/* Winner overlay — 30 seconds, shows marked numbers on cartela */}
       <AnimatePresence>
         {showResult && gameResult && (
           <motion.div
@@ -768,14 +796,17 @@ export default function GamePage() {
               initial={{ scale: 0.8 }} animate={{ scale: 1 }}
               className="text-center p-6 rounded-xl bg-card border-2 border-primary max-w-xs mx-4 glow-neon"
             >
-              <div className="text-5xl mb-3">{gameResult.type === 'winner' ? '🏆' : '🔄'}</div>
-              <h2 className="text-xl font-display font-bold text-primary mb-1">
-                {gameResult.type === 'disqualified' ? 'RESTART' : t('bingo') + '!'}
-              </h2>
+              <div className="text-5xl mb-3">🏆</div>
+              <h2 className="text-xl font-display font-bold text-primary mb-1">{t('bingo')}!</h2>
               <p className="text-muted-foreground text-sm mb-3">{gameResult.message}</p>
               {gameResult.winnerCartela && (
                 <div className="flex justify-center">
-                  <BingoCartela numbers={gameResult.winnerCartela} drawnNumbers={drawnSet} size="sm" label="Winner's Card" />
+                  <BingoCartela
+                    numbers={gameResult.winnerCartela}
+                    drawnNumbers={gameResult.drawnNumbers ? new Set(gameResult.drawnNumbers) : drawnSet}
+                    size="sm"
+                    label="Winner's Card"
+                  />
                 </div>
               )}
               {nextGameCountdown > 0 && (
@@ -788,12 +819,11 @@ export default function GamePage() {
         )}
       </AnimatePresence>
 
-      {/* Settings drawer */}
       <AnimatePresence>
         {settingsOpen && <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />}
       </AnimatePresence>
 
-      {/* Top bar */}
+      {/* Top bar with pending claim badge */}
       <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border px-3 py-2 flex items-center justify-between gap-2">
         <div className="min-w-0 flex items-center gap-1.5">
           <h1 className="font-display text-sm font-bold text-primary leading-none">{t('bingo')}</h1>
@@ -804,6 +834,12 @@ export default function GamePage() {
             <Users className="w-3 h-3" /> {players.length}
           </span>
           {isSpectator && <span className="shrink-0 text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground"><Eye className="w-3 h-3 inline" /></span>}
+          {/* Pending claim badge */}
+          {pendingClaimCount > 0 && (
+            <span className="shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold animate-pulse">
+              <Bell className="w-3 h-3" /> {pendingClaimCount}
+            </span>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <button onClick={() => navigate('/payment')} className="rounded-lg bg-primary/10 px-2 py-1.5 text-[11px] font-display font-bold text-primary flex items-center gap-1">
@@ -815,9 +851,16 @@ export default function GamePage() {
         </div>
       </header>
 
+      {/* Game start time */}
+      {formattedStartTime && (gameStatus === 'buying' || gameStatus === 'active') && (
+        <div className="px-3 py-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+          <Clock className="w-3 h-3" /> Started: {formattedStartTime}
+        </div>
+      )}
+
       {/* Buying state with countdown */}
       {showBuyPrompt && !isGameActive && (
-        <div className="px-3 pt-3">
+        <div className="px-3 pt-2">
           <div className="p-4 rounded-xl bg-card border border-border text-center mb-3">
             {gameStatus === 'buying' && buyingCountdown > 0 && (
               <div className="mb-2">
@@ -847,6 +890,7 @@ export default function GamePage() {
               cartelaPrice={cartelaPrice}
               gameStatus={gameStatus}
               prizeAmount={prizeAmount}
+              bannedIds={allBannedIds}
             />
           )}
         </div>
@@ -857,12 +901,12 @@ export default function GamePage() {
         <div className="px-3 py-3 space-y-3">
           {/* Current number + pattern */}
           <div className="flex items-center gap-3">
-            {lastNumber ? (
-              <motion.div key={lastNumber}
+            {drawnNumbers.length > 0 ? (
+              <motion.div key={drawnNumbers[drawnNumbers.length - 1]}
                 initial={{ scale: 0 }} animate={{ scale: 1 }}
                 className="w-16 h-16 rounded-xl gradient-neon flex flex-col items-center justify-center text-primary-foreground shadow-lg glow-neon flex-shrink-0">
-                <span className="text-[10px] font-medium opacity-80">{getBingoLetter(lastNumber)}</span>
-                <span className="text-2xl font-display font-bold -mt-1">{lastNumber}</span>
+                <span className="text-[10px] font-medium opacity-80">{getBingoLetter(drawnNumbers[drawnNumbers.length - 1])}</span>
+                <span className="text-2xl font-display font-bold -mt-1">{drawnNumbers[drawnNumbers.length - 1]}</span>
               </motion.div>
             ) : (
               <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center text-muted-foreground text-xs flex-shrink-0">--</div>
@@ -934,15 +978,15 @@ export default function GamePage() {
             )}
           </div>
 
-          {/* Player's cartelas */}
+          {/* Player's cartelas — tight grid */}
           {playerCartelas.length > 0 ? (
-            <div className="grid grid-cols-2 gap-3">
+            <div className={cn('grid gap-2', playerCartelas.length <= 2 ? 'grid-cols-2' : 'grid-cols-2')}>
               {playerCartelas.map(c => {
                 const cellsMarked = markedMap.get(c.id) || new Set<string>();
                 const isClaimed = claimedCartelas.has(c.id);
-                const isBanned = bannedCartelas.has(c.id) || c.banned_for_game;
+                const isBanned = bannedCartelas.has(c.id) || c.banned_for_game || allBannedIds.has(c.id);
                 return (
-                  <div key={c.id} className="flex flex-col gap-2">
+                  <div key={c.id} className="flex flex-col gap-1.5">
                     <BingoCartela
                       numbers={c.numbers as number[][]}
                       drawnNumbers={drawnSet}
@@ -954,10 +998,10 @@ export default function GamePage() {
                     />
                     {!isSpectator && (
                       <button onClick={() => handleClaimBingo(c.id)} disabled={isClaimed || isBanned}
-                        className={cn('w-full py-3 rounded-xl font-display font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all',
+                        className={cn('w-full py-2.5 rounded-xl font-display font-bold text-xs flex items-center justify-center gap-1 active:scale-95 transition-all',
                           isBanned ? 'bg-destructive/15 text-destructive border border-destructive/30' : isClaimed ? 'bg-muted text-muted-foreground' : 'gradient-neon text-primary-foreground glow-neon'
                         )}>
-                        <Hand className="w-4 h-4" />
+                        <Hand className="w-3.5 h-3.5" />
                         {isBanned ? 'Banned' : isClaimed ? t('verifying') : t('bingo') + '!'}
                       </button>
                     )}
