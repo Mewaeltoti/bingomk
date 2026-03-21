@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders });
     }
 
-    const { action, pattern, cartela_price, prize_override } = await req.json();
+    const { action, pattern, cartela_price } = await req.json();
 
     if (action === "new_game") {
       await supabase.from("games").delete().eq("id", "current");
@@ -49,6 +49,7 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
+      // First session starts random (100-999), then increments
       let nextSession: number;
       if (currentHistory && (currentHistory as any).session_number) {
         nextSession = ((currentHistory as any).session_number || 0) + 1;
@@ -80,17 +81,12 @@ Deno.serve(async (req) => {
     if (action === "start_drawing") {
       const { count } = await supabase.from("cartelas").select("id", { count: "exact", head: true }).eq("is_used", true).not("owner_id", "is", null);
       const soldCount = count || 0;
-
-      const { data: currentGame } = await supabase.from("games").select("cartela_price, prize_amount").eq("id", "current").single();
-      const price = Number(currentGame?.cartela_price || cartela_price || 10);
       
-      // Use admin override if provided, otherwise calculate dynamically
-      let prize: number;
-      if (prize_override !== undefined && prize_override !== null) {
-        prize = Number(prize_override);
-      } else {
-        prize = Number((soldCount * price * HOUSE_PAYOUT_RATIO).toFixed(2));
-      }
+      // Allow starting even with 0 sold (admin decides when to start)
+      // But calculate prize from actual sales
+      const { data: currentGame } = await supabase.from("games").select("cartela_price").eq("id", "current").single();
+      const price = Number(currentGame?.cartela_price || cartela_price || 10);
+      const prize = Number((soldCount * price * HOUSE_PAYOUT_RATIO).toFixed(2));
 
       await supabase.from("games").update({
         status: "active",
@@ -105,12 +101,6 @@ Deno.serve(async (req) => {
       }).catch(() => {});
 
       return new Response(JSON.stringify({ ok: true, status: "active", sold: soldCount, prize_amount: prize }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    if (action === "adjust_prize") {
-      const newPrize = Number(prize_override || 0);
-      await supabase.from("games").update({ prize_amount: newPrize }).eq("id", "current");
-      return new Response(JSON.stringify({ ok: true, prize_amount: newPrize }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (action === "pause") {

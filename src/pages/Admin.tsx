@@ -119,15 +119,23 @@ export default function Admin() {
 
     if (!isValid) {
       toast.warning(`❌ Invalid claim on #${claim.cartela_id}`);
-    } else if (data?.result === 'rejected') {
-      toast.warning(`❌ Rejected — ${data.remaining} pending remaining`);
+    } else if (data?.result === 'valid_pending_remaining') {
+      toast.success(`✅ Claim valid! ${data.remaining} more pending...`);
     } else if (data?.result === 'won') {
       setGameStatus('won');
       setDrawnNumbers([]);
-      toast.success(`🏆 Winner gets ${data.prize} ETB! Balance credited.`);
+      if (data.winner_count === 2) {
+        toast.success(`🏆 2 winners — ${data.prize_per_winner} ETB each credited!`);
+      } else {
+        toast.success(`🏆 Winner gets ${data.prize_per_winner} ETB! Balance credited.`);
+      }
       setTimeout(startNewGame, 10000);
-    } else if (data?.result === 'no_winners_resume') {
-      toast.warning('No valid claims — resuming draw');
+    } else if (data?.result === 'disqualified') {
+      setGameStatus('disqualified');
+      setDrawnNumbers([]);
+      setClaims([]);
+      toast.error(`🔄 ${data.winner_count} different winners — Round restart!`);
+      setTimeout(startNewGame, 3000);
     }
 
     const { data: claimsRefresh } = await supabase.from('bingo_claims').select('*').eq('game_id', 'current');
@@ -152,8 +160,18 @@ export default function Admin() {
     } else if (data?.result === 'won') {
       setGameStatus('won');
       setDrawnNumbers([]);
-      toast.success(`🏆 Winner gets ${data.prize} ETB! Balance credited.`);
+      if (data.winner_count === 2) {
+        toast.success(`🏆 2 winners — ${data.prize_per_winner} ETB each!`);
+      } else {
+        toast.success(`🏆 Winner gets ${data.prize_per_winner} ETB! Balance credited.`);
+      }
       setTimeout(startNewGame, 10000);
+    } else if (data?.result === 'disqualified') {
+      setGameStatus('disqualified');
+      setDrawnNumbers([]);
+      setClaims([]);
+      toast.error(`🔄 ${data.winner_count} different winners — Round restart!`);
+      setTimeout(startNewGame, 3000);
     }
 
     const { data: claimsRefresh } = await supabase.from('bingo_claims').select('*').eq('game_id', 'current');
@@ -378,25 +396,9 @@ export default function Admin() {
             />
           </div>
           
-          {/* Prize adjustment */}
-          <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 space-y-2">
-            <p className="text-xs text-muted-foreground">Prize = Sold × Price × 80% (auto) or override below</p>
-            <div className="flex gap-2 items-center">
-              <input
-                type="number" min={0} value={prizeAmount}
-                onChange={e => setPrizeAmount(Number(e.target.value) || 0)}
-                className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
-              />
-              <button
-                onClick={async () => {
-                  await invokeWithRetry('game-lifecycle', { body: { action: 'adjust_prize', prize_override: prizeAmount } });
-                  toast.success(`Prize set to ${prizeAmount} ETB`);
-                }}
-                className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold"
-              >
-                Set
-              </button>
-            </div>
+          {/* Dynamic prize info */}
+          <div className="p-3 rounded-xl bg-primary/5 border border-primary/20">
+            <p className="text-xs text-muted-foreground">Prize = Sold × Price × 80% (auto-calculated)</p>
           </div>
 
           {/* Sales info */}
@@ -547,7 +549,7 @@ export default function Admin() {
                 </div>
               ))}
               <p className="text-[10px] text-muted-foreground text-center">
-                Single winner only — first approved claim wins the full prize
+                1 winner = full prize • 2 winners = split • 3+ = round restart
               </p>
             </div>
           )}

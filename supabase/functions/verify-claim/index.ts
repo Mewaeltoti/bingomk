@@ -1,10 +1,22 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 type PatternName =
-  | "Full House" | "Single Line H" | "Single Line V" | "Single Line D"
-  | "Two Lines" | "Four Corners" | "X Shape" | "T Shape" | "L Shape"
-  | "Cross" | "Frame" | "Postage Stamp" | "Small Diamond" | "Arrow Up"
-  | "Pyramid" | "U Shape";
+  | "Full House"
+  | "Single Line H"
+  | "Single Line V"
+  | "Single Line D"
+  | "Two Lines"
+  | "Four Corners"
+  | "X Shape"
+  | "T Shape"
+  | "L Shape"
+  | "Cross"
+  | "Frame"
+  | "Postage Stamp"
+  | "Small Diamond"
+  | "Arrow Up"
+  | "Pyramid"
+  | "U Shape";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,6 +32,7 @@ function checkWin(numbers: number[][], markedNumbers: Set<number>, pattern: Patt
     if (row === 2 && col === 2) return true;
     return markedNumbers.has(numbers[row]?.[col] ?? -1);
   };
+
   switch (pattern) {
     case "Full House":
       for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) if (!isMarked(r, c)) return false;
@@ -82,36 +95,48 @@ function checkWin(numbers: number[][], markedNumbers: Set<number>, pattern: Patt
 }
 
 async function archiveAndFinalizeGame(supabase: any, payload: {
-  winnerId: string | null;
+  winnerIds: string[];
   winnerCartela: number[][] | null;
   winningNumber: number | null;
   endedStatus: string;
   pattern: string;
-  prize: number;
+  prizePerWinner: number;
   playersCount: number;
   sessionNumber: number;
   drawnNumbersList: number[];
 }) {
-  await supabase.from("game_history").insert({
-    game_id: `session-${payload.sessionNumber}`,
-    winner_id: payload.winnerId,
-    pattern: payload.pattern,
-    players_count: payload.playersCount,
-    prize: payload.prize,
-    drawn_numbers: payload.drawnNumbersList,
-    session_number: payload.sessionNumber,
-    winner_cartela: payload.winnerCartela,
-    winning_number: payload.winningNumber,
-    ended_status: payload.endedStatus,
-  });
+  const historyRows = payload.winnerIds.length > 0
+    ? payload.winnerIds.map((winnerId) => ({
+        game_id: `session-${payload.sessionNumber}`,
+        winner_id: winnerId,
+        pattern: payload.pattern,
+        players_count: payload.playersCount,
+        prize: payload.prizePerWinner,
+        drawn_numbers: payload.drawnNumbersList,
+        session_number: payload.sessionNumber,
+        winner_cartela: payload.winnerCartela,
+        winning_number: payload.winningNumber,
+        ended_status: payload.endedStatus,
+      }))
+    : [{
+        game_id: `session-${payload.sessionNumber}`,
+        winner_id: null,
+        pattern: payload.pattern,
+        players_count: payload.playersCount,
+        prize: 0,
+        drawn_numbers: payload.drawnNumbersList,
+        session_number: payload.sessionNumber,
+        winner_cartela: payload.winnerCartela,
+        winning_number: payload.winningNumber,
+        ended_status: payload.endedStatus,
+      }];
+
+  await supabase.from("game_history").insert(historyRows);
   await supabase.from("games").update({
     status: payload.endedStatus,
-    winner_id: payload.winnerId,
+    winner_id: payload.winnerIds[0] ?? null,
     auto_draw: false,
   }).eq("id", "current");
-
-  // Clean up drawn numbers after game ends
-  await supabase.from("game_numbers").delete().eq("game_id", "current");
 }
 
 Deno.serve(async (req) => {
@@ -134,8 +159,10 @@ Deno.serve(async (req) => {
     const userId = claimsData.claims.sub as string;
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+
     const { action, claim_id, is_valid, cartela_id } = await req.json().catch(() => ({}));
 
+    // Admin actions
     if (action === "verify_single" || action === "verify_all") {
       const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle();
       if (!roleData) {
@@ -145,6 +172,7 @@ Deno.serve(async (req) => {
       return await verifyAll(supabase);
     }
 
+    // Player claim — submit for admin review (no auto-resolve)
     if (action === "claim") {
       return await submitClaim(supabase, userId, cartela_id);
     }
@@ -155,24 +183,30 @@ Deno.serve(async (req) => {
   }
 });
 
+/**
+ * Player submits a claim. We validate the pattern server-side.
+ * If invalid → ban the cartela immediately.
+ * If valid → insert as pending (is_valid = null) for admin confirmation.
+ * Also record the drawn_count at time of claim to enforce timing rules.
+ */
 async function submitClaim(supabase: any, userId: string, cartelaId: number) {
   const { data: game } = await supabase.from("games").select("pattern, prize_amount, session_number, status").eq("id", "current").single();
   if (!game || game.status !== "active") {
     return new Response(JSON.stringify({ error: "Game is not active" }), { status: 400, headers: corsHeaders });
   }
 
-  const { data: cartela } = await supabase.from("cartelas").select("id, owner_id, numbers, banned_for_game").eq("id", cartelaId).maybeSingle();
+  const { data: cartela } = await supabase
+    .from("cartelas")
+    .select("id, owner_id, numbers, banned_for_game")
+    .eq("id", cartelaId)
+    .maybeSingle();
+
   if (!cartela || cartela.owner_id !== userId) {
     return new Response(JSON.stringify({ error: "Cartela not found" }), { status: 404, headers: corsHeaders });
   }
+
   if (cartela.banned_for_game) {
     return new Response(JSON.stringify({ error: "This cartela is banned for this game" }), { status: 400, headers: corsHeaders });
-  }
-
-  // Check if already claimed this cartela
-  const { data: existingClaim } = await supabase.from("bingo_claims").select("id").eq("game_id", "current").eq("cartela_id", cartelaId).maybeSingle();
-  if (existingClaim) {
-    return new Response(JSON.stringify({ error: "Already claimed this cartela" }), { status: 400, headers: corsHeaders });
   }
 
   const { data: nums } = await supabase.from("game_numbers").select("number").eq("game_id", "current").order("id", { ascending: true });
@@ -180,9 +214,16 @@ async function submitClaim(supabase: any, userId: string, cartelaId: number) {
   const drawnSet = new Set(drawnNumbersList);
   const drawnCount = drawnNumbersList.length;
 
-  // Timing check: claims must be on same drawn count as first pending/valid claim
-  const { data: existingClaims } = await supabase.from("bingo_claims").select("user_id, strike_count").eq("game_id", "current").or("is_valid.is.null,is_valid.eq.true");
+  // Check if there's already a valid/pending claim from another user at an EARLIER drawn count
+  // Claims must be on the same ending drawn number — if new numbers were drawn after first claim, reject
+  const { data: existingClaims } = await supabase
+    .from("bingo_claims")
+    .select("user_id, strike_count")
+    .eq("game_id", "current")
+    .or("is_valid.is.null,is_valid.eq.true");
+  
   if (existingClaims && existingClaims.length > 0) {
+    // There are already pending/valid claims — check if they were made at a different drawn count
     const firstClaimDrawnCount = (existingClaims[0] as any).strike_count;
     if (firstClaimDrawnCount > 0 && drawnCount > firstClaimDrawnCount) {
       return new Response(JSON.stringify({ error: "Too late — numbers were drawn after the first claim" }), { status: 400, headers: corsHeaders });
@@ -192,8 +233,13 @@ async function submitClaim(supabase: any, userId: string, cartelaId: number) {
   const valid = checkWin(cartela.numbers as number[][], drawnSet, (game.pattern || "Full House") as PatternName);
 
   if (!valid) {
+    // Invalid claim — ban cartela, don't submit to admin
     await supabase.from("bingo_claims").insert({
-      game_id: "current", user_id: userId, cartela_id: cartelaId, is_valid: false, strike_count: drawnCount,
+      game_id: "current",
+      user_id: userId,
+      cartela_id: cartelaId,
+      is_valid: false,
+      strike_count: drawnCount,
     });
     await supabase.from("cartelas").update({ banned_for_game: true }).eq("id", cartelaId).eq("owner_id", userId);
     return new Response(JSON.stringify({ ok: true, result: "invalid_banned", cartela_id: cartelaId }), {
@@ -201,10 +247,15 @@ async function submitClaim(supabase: any, userId: string, cartelaId: number) {
     });
   }
 
-  // Valid — pause draw & submit for admin
+  // Valid pattern — pause auto-draw and submit for admin review
   await supabase.from("games").update({ auto_draw: false }).eq("id", "current");
+  
   await supabase.from("bingo_claims").insert({
-    game_id: "current", user_id: userId, cartela_id: cartelaId, is_valid: null, strike_count: drawnCount,
+    game_id: "current",
+    user_id: userId,
+    cartela_id: cartelaId,
+    is_valid: null, // pending admin confirmation
+    strike_count: drawnCount,
   });
 
   return new Response(JSON.stringify({ ok: true, result: "pending_review", cartela_id: cartelaId, drawn_count: drawnCount }), {
@@ -213,7 +264,7 @@ async function submitClaim(supabase: any, userId: string, cartelaId: number) {
 }
 
 /**
- * Admin verifies a single claim — SINGLE WINNER ONLY (no split)
+ * Admin verifies a single claim
  */
 async function verifySingle(supabase: any, claimId: string, isValid: boolean) {
   const { data: claim } = await supabase.from("bingo_claims").select("*").eq("id", claimId).single();
@@ -222,72 +273,117 @@ async function verifySingle(supabase: any, claimId: string, isValid: boolean) {
   }
 
   if (!isValid) {
+    // Admin rejects — ban cartela
     await supabase.from("bingo_claims").update({ is_valid: false }).eq("id", claimId);
     if (claim.cartela_id) {
       await supabase.from("cartelas").update({ banned_for_game: true }).eq("id", claim.cartela_id);
     }
+
+    // Check if there are remaining pending claims
     const { data: remaining } = await supabase.from("bingo_claims").select("id").eq("game_id", "current").is("is_valid", null);
     if (!remaining || remaining.length === 0) {
+      // No more pending — resume drawing
       await supabase.from("games").update({ auto_draw: true, draw_speed: 8 }).eq("id", "current");
       fetch(`${SUPABASE_URL}/functions/v1/auto-draw`, {
-        method: "POST", headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
+        method: "POST",
+        headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
       }).catch(() => {});
       return new Response(JSON.stringify({ ok: true, result: "no_winners_resume", remaining: 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    return new Response(JSON.stringify({ ok: true, result: "rejected", remaining: remaining.length }), {
+
+    return new Response(JSON.stringify({ ok: true, result: "valid_pending_remaining", remaining: remaining.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  // Admin approves — this user wins (all their valid claims count, single winner)
+  // Admin approves this claim
   await supabase.from("bingo_claims").update({ is_valid: true }).eq("id", claimId);
 
-  // Mark all other pending claims as rejected (only one winner allowed)
-  const { data: otherPending } = await supabase.from("bingo_claims").select("id, cartela_id").eq("game_id", "current").is("is_valid", null);
-  for (const p of (otherPending || [])) {
-    await supabase.from("bingo_claims").update({ is_valid: false }).eq("id", p.id);
-  }
+  // Now resolve: count all valid claims
+  const { data: allValidClaims } = await supabase.from("bingo_claims").select("user_id, cartela_id").eq("game_id", "current").eq("is_valid", true);
+  const uniqueWinnerIds = [...new Set((allValidClaims || []).map((c: any) => c.user_id))];
 
-  const winnerId = claim.user_id;
   const { data: game } = await supabase.from("games").select("pattern, prize_amount, session_number").eq("id", "current").single();
   const { data: nums } = await supabase.from("game_numbers").select("number").eq("game_id", "current").order("id", { ascending: true });
   const drawnNumbersList = (nums || []).map((n: any) => n.number);
+  const winningNumber = drawnNumbersList[drawnNumbersList.length - 1] ?? null;
   const { count: playersCount } = await supabase.from("cartelas").select("owner_id", { count: "exact", head: true }).eq("is_used", true).not("owner_id", "is", null);
 
+  // Check if there are still pending claims
+  const { data: pendingClaims } = await supabase.from("bingo_claims").select("id").eq("game_id", "current").is("is_valid", null);
+  if (pendingClaims && pendingClaims.length > 0) {
+    return new Response(JSON.stringify({ ok: true, result: "valid_pending_remaining", remaining: pendingClaims.length }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // All claims resolved — finalize
   const prizeAmount = Number(game?.prize_amount || 0);
 
-  // Credit winner wallet
-  const { data: profile } = await supabase.from("profiles").select("balance").eq("id", winnerId).single();
-  if (profile) {
-    await supabase.from("profiles").update({ balance: Number(profile.balance || 0) + prizeAmount }).eq("id", winnerId);
+  if (uniqueWinnerIds.length >= 3) {
+    await archiveAndFinalizeGame(supabase, {
+      winnerIds: [],
+      winnerCartela: null,
+      winningNumber,
+      endedStatus: "disqualified",
+      pattern: game?.pattern || "Full House",
+      prizePerWinner: 0,
+      playersCount: playersCount || 0,
+      sessionNumber: game?.session_number || 1,
+      drawnNumbersList,
+    });
+    return new Response(JSON.stringify({ ok: true, result: "disqualified", winner_count: uniqueWinnerIds.length }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const prizePerWinner = uniqueWinnerIds.length === 2 ? prizeAmount / 2 : prizeAmount;
+
+  // Credit winners
+  for (const winnerId of uniqueWinnerIds) {
+    const { data: profile } = await supabase.from("profiles").select("balance").eq("id", winnerId).single();
+    if (profile) {
+      await supabase.from("profiles").update({ balance: Number(profile.balance || 0) + prizePerWinner }).eq("id", winnerId);
+    }
   }
 
   // Get winner cartela for broadcast
   let winnerCartela = null;
-  if (claim.cartela_id) {
-    const { data: c } = await supabase.from("cartelas").select("numbers").eq("id", claim.cartela_id).single();
-    if (c) winnerCartela = c.numbers;
+  if (allValidClaims && allValidClaims.length > 0) {
+    const cid = allValidClaims[0].cartela_id;
+    if (cid) {
+      const { data: c } = await supabase.from("cartelas").select("numbers").eq("id", cid).single();
+      if (c) winnerCartela = c.numbers;
+    }
   }
 
   await archiveAndFinalizeGame(supabase, {
-    winnerId,
+    winnerIds: uniqueWinnerIds,
     winnerCartela,
-    winningNumber: drawnNumbersList[drawnNumbersList.length - 1] ?? null,
+    winningNumber,
     endedStatus: "won",
     pattern: game?.pattern || "Full House",
-    prize: prizeAmount,
+    prizePerWinner,
     playersCount: playersCount || 0,
     sessionNumber: game?.session_number || 1,
     drawnNumbersList,
   });
 
   return new Response(JSON.stringify({
-    ok: true, result: "won", winner_id: winnerId, prize: prizeAmount, winner_cartela: winnerCartela,
-  }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    ok: true,
+    result: "won",
+    winner_ids: uniqueWinnerIds,
+    winner_count: uniqueWinnerIds.length,
+    prize_per_winner: prizePerWinner,
+    winning_number: winningNumber,
+    winner_cartela: winnerCartela,
+  }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 
 /**
- * Admin verifies all pending claims — single winner only
+ * Admin verifies all pending claims at once
  */
 async function verifyAll(supabase: any) {
   const { data: pendingClaims } = await supabase.from("bingo_claims").select("id, cartela_id, user_id").eq("game_id", "current").is("is_valid", null);
@@ -295,13 +391,15 @@ async function verifyAll(supabase: any) {
     return new Response(JSON.stringify({ ok: true, result: "no_pending" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
+  // Server-side validate each pending claim
   const { data: game } = await supabase.from("games").select("pattern, prize_amount, session_number").eq("id", "current").single();
   const { data: nums } = await supabase.from("game_numbers").select("number").eq("game_id", "current").order("id", { ascending: true });
   const drawnNumbersList = (nums || []).map((n: any) => n.number);
   const drawnSet = new Set(drawnNumbersList);
+  const winningNumber = drawnNumbersList[drawnNumbersList.length - 1] ?? null;
   const { count: playersCount } = await supabase.from("cartelas").select("owner_id", { count: "exact", head: true }).eq("is_used", true).not("owner_id", "is", null);
 
-  let winnerId: string | null = null;
+  const validWinners: string[] = [];
   let winnerCartela: any = null;
 
   for (const claim of pendingClaims) {
@@ -311,48 +409,74 @@ async function verifyAll(supabase: any) {
       continue;
     }
     const valid = checkWin(cartela.numbers as number[][], drawnSet, (game?.pattern || "Full House") as PatternName);
-    if (valid && !winnerId) {
-      // First valid claim wins
+    if (valid) {
       await supabase.from("bingo_claims").update({ is_valid: true }).eq("id", claim.id);
-      winnerId = claim.user_id;
-      winnerCartela = cartela.numbers;
+      if (!validWinners.includes(claim.user_id)) validWinners.push(claim.user_id);
+      if (!winnerCartela) winnerCartela = cartela.numbers;
     } else {
       await supabase.from("bingo_claims").update({ is_valid: false }).eq("id", claim.id);
-      if (!valid) {
-        await supabase.from("cartelas").update({ banned_for_game: true }).eq("id", claim.cartela_id);
-      }
+      await supabase.from("cartelas").update({ banned_for_game: true }).eq("id", claim.cartela_id);
     }
   }
 
-  if (!winnerId) {
+  if (validWinners.length === 0) {
+    // Resume drawing
     await supabase.from("games").update({ auto_draw: true, draw_speed: 8 }).eq("id", "current");
     fetch(`${SUPABASE_URL}/functions/v1/auto-draw`, {
-      method: "POST", headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
+      method: "POST",
+      headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
     }).catch(() => {});
     return new Response(JSON.stringify({ ok: true, result: "no_winners_resume" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   const prizeAmount = Number(game?.prize_amount || 0);
 
-  // Credit winner
-  const { data: profile } = await supabase.from("profiles").select("balance").eq("id", winnerId).single();
-  if (profile) {
-    await supabase.from("profiles").update({ balance: Number(profile.balance || 0) + prizeAmount }).eq("id", winnerId);
+  if (validWinners.length >= 3) {
+    await archiveAndFinalizeGame(supabase, {
+      winnerIds: [],
+      winnerCartela: null,
+      winningNumber,
+      endedStatus: "disqualified",
+      pattern: game?.pattern || "Full House",
+      prizePerWinner: 0,
+      playersCount: playersCount || 0,
+      sessionNumber: game?.session_number || 1,
+      drawnNumbersList,
+    });
+    return new Response(JSON.stringify({ ok: true, result: "disqualified", winner_count: validWinners.length }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const prizePerWinner = validWinners.length === 2 ? prizeAmount / 2 : prizeAmount;
+
+  for (const winnerId of validWinners) {
+    const { data: profile } = await supabase.from("profiles").select("balance").eq("id", winnerId).single();
+    if (profile) {
+      await supabase.from("profiles").update({ balance: Number(profile.balance || 0) + prizePerWinner }).eq("id", winnerId);
+    }
   }
 
   await archiveAndFinalizeGame(supabase, {
-    winnerId,
+    winnerIds: validWinners,
     winnerCartela,
-    winningNumber: drawnNumbersList[drawnNumbersList.length - 1] ?? null,
+    winningNumber,
     endedStatus: "won",
     pattern: game?.pattern || "Full House",
-    prize: prizeAmount,
+    prizePerWinner,
     playersCount: playersCount || 0,
     sessionNumber: game?.session_number || 1,
     drawnNumbersList,
   });
 
   return new Response(JSON.stringify({
-    ok: true, result: "won", winner_id: winnerId, prize: prizeAmount, winner_cartela: winnerCartela,
-  }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    ok: true,
+    result: "won",
+    winner_ids: validWinners,
+    winner_count: validWinners.length,
+    prize_per_winner: prizePerWinner,
+    winner_cartela: winnerCartela,
+  }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
