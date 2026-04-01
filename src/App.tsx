@@ -23,7 +23,7 @@ function AppContent() {
     <>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
         <Route path="/" element={<Index />} />
         <Route path="/game" element={<RequireAuth><GamePage /></RequireAuth>} />
         <Route path="/payment" element={<RequireAuth><Payment /></RequireAuth>} />
