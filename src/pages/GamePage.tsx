@@ -16,8 +16,8 @@ import { useTheme } from '@/hooks/useTheme';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Eye, Hand, ShoppingCart, ChevronDown, ChevronUp,
-  Wallet, Search, Shuffle, Settings, X, Volume2, VolumeX,
-  Moon, Sun, Globe, LogOut, User, MessageCircle, Send
+  Wallet, Settings, X, Volume2, VolumeX,
+  Moon, Sun, Globe, LogOut, User, Send
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
