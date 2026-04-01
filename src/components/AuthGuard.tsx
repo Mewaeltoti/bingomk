@@ -2,7 +2,7 @@ import { Navigate } from 'react-router-dom';
 import { ReactNode, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
-import { checkSessionValidity } from '@/lib/sessionGuard';
+import { checkSessionValidity, registerSession } from '@/lib/sessionGuard';
 import { toast } from 'sonner';
 
 function AuthLoading() {
