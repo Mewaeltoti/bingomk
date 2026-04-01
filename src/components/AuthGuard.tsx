@@ -2,6 +2,8 @@ import { Navigate } from 'react-router-dom';
 import { ReactNode, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
+import { checkSessionValidity } from '@/lib/sessionGuard';
+import { toast } from 'sonner';
 
 function AuthLoading() {
   return (
@@ -15,10 +17,19 @@ function AuthLoading() {
 }
 
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<any>(undefined); // undefined = loading
+  const [user, setUser] = useState<any>(undefined);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const valid = await checkSessionValidity(session.user.id);
+        if (!valid) {
+          toast.error('Signed in on another device');
+          await supabase.auth.signOut();
+          setUser(null);
+          return;
+        }
+      }
       setUser(session?.user ?? null);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -26,6 +37,20 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     );
     return () => subscription.unsubscribe();
   }, []);
+
+  // Periodic session check every 30s
+  useEffect(() => {
+    if (!user?.id) return;
+    const interval = setInterval(async () => {
+      const valid = await checkSessionValidity(user.id);
+      if (!valid) {
+        toast.error('Session ended — signed in on another device');
+        await supabase.auth.signOut();
+        setUser(null);
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
 
   if (user === undefined) return <AuthLoading />;
   if (!user) return <Navigate to="/login" replace />;
