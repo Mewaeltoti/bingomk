@@ -22,12 +22,18 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        const valid = await checkSessionValidity(session.user.id);
-        if (!valid) {
-          toast.error('Signed in on another device');
-          await supabase.auth.signOut();
-          setUser(null);
-          return;
+        const localToken = localStorage.getItem('bingo-session-token');
+        if (!localToken) {
+          // First visit after OAuth redirect — register this device
+          await registerSession(session.user.id);
+        } else {
+          const valid = await checkSessionValidity(session.user.id);
+          if (!valid) {
+            toast.error('Signed in on another device');
+            await supabase.auth.signOut();
+            setUser(null);
+            return;
+          }
         }
       }
       setUser(session?.user ?? null);
