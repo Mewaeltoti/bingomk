@@ -1,117 +1,43 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate, Link } from 'react-router-dom';
+import { lovable } from '@/integrations/lovable/index';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { invokeWithRetry } from '@/lib/edgeFn';
-
-// Detect Telegram Mini App environment
-function getTelegramWebApp(): any {
-  return (window as any).Telegram?.WebApp;
-}
 
 export default function Login() {
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [tgLoading, setTgLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Auto-login via Telegram if in Mini App
   useEffect(() => {
-    const tg = getTelegramWebApp();
-    if (tg?.initDataUnsafe?.user) {
-      handleTelegramLogin(tg);
-    }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        registerSession(session.user.id).then(() => navigate('/game'));
+      }
+    });
   }, []);
 
-  const handleTelegramLogin = async (tg: any) => {
-    setTgLoading(true);
-    const telegramUser = tg.initDataUnsafe.user;
-    
-    const { data, error } = await invokeWithRetry('telegram-auth', {
-      body: {
-        initData: tg.initData,
-        telegramUser: {
-          id: telegramUser.id,
-          first_name: telegramUser.first_name,
-          last_name: telegramUser.last_name,
-          username: telegramUser.username,
-          phone_number: telegramUser.phone_number,
-        },
-      },
-    });
-
-    if (error || !data?.ok) {
-      toast.error('Telegram login failed');
-      setTgLoading(false);
-      return;
-    }
-
-    // Sign in with the credentials
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    });
-
-    setTgLoading(false);
-    if (signInError) {
-      toast.error('Authentication failed');
-      return;
-    }
-
-    toast.success(`Welcome, ${data.displayName}!`);
-    navigate('/game');
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    const formattedPhone = phone.startsWith('+') ? phone : `+251${phone.replace(/^0/, '')}`;
-    const fakeEmail = `${formattedPhone.replace('+', '')}@bingo.local`;
-
-    const { data: signInData, error } = await supabase.auth.signInWithPassword({
-      email: fakeEmail,
-      password,
-    });
-
-    setLoading(false);
-
-    if (error) {
-      toast.error('Invalid phone or password');
-      return;
-    }
-
-    if (signInData.user) {
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', signInData.user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
-
-      if (roleData) {
-        toast.success('Welcome, Admin!');
-        navigate('/admin');
-        return;
-      }
-    }
-
-    toast.success('Welcome back!');
-    navigate('/game');
-  };
-
-  if (tgLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground text-sm">Signing in via Telegram...</p>
-        </div>
-      </div>
+  const registerSession = async (userId: string) => {
+    const token = crypto.randomUUID();
+    localStorage.setItem('bingo-session-token', token);
+    // Upsert: replace any existing session for this user
+    await supabase.from('user_sessions' as any).upsert(
+      { user_id: userId, session_token: token, created_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
     );
-  }
+  };
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    const { error } = await lovable.auth.signInWithOAuth('google', {
+      redirect_uri: window.location.origin,
+    });
+    if (error) {
+      toast.error('Google sign-in failed');
+      setLoading(false);
+    }
+    // Redirect happens automatically
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
@@ -129,53 +55,26 @@ export default function Login() {
             <p className="text-muted-foreground text-sm mt-2">Sign in to play</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Phone Number</label>
-              <div className="flex gap-2">
-                <span className="flex items-center px-3 rounded-xl bg-muted text-muted-foreground text-sm font-medium">+251</span>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="9XXXXXXXX"
-                  className="flex-1 px-4 py-3.5 rounded-xl bg-muted text-foreground text-base outline-none focus:ring-2 focus:ring-primary"
-                  required
-                />
-              </div>
-            </div>
+          <button
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            className="w-full py-4 rounded-xl font-display font-bold text-lg bg-white text-gray-800 border border-gray-300 active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-3 shadow-sm"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            {loading ? 'Signing in...' : 'Sign in with Google'}
+          </button>
 
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-4 py-3.5 rounded-xl bg-muted text-foreground text-base outline-none focus:ring-2 focus:ring-primary"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-4 rounded-xl font-display font-bold text-lg gradient-neon text-primary-foreground active:scale-95 transition-transform disabled:opacity-50"
-            >
-              {loading ? 'Signing in...' : 'Sign In'}
-            </button>
-          </form>
-
-          <div className="text-center mt-4">
+          <div className="text-center mt-6">
             <p className="text-xs text-muted-foreground">
-              Forgot password? Contact an admin to reset it.
+              By signing in, you agree to our terms. Support: 
+              <a href="https://t.me/+251978187178" target="_blank" rel="noopener noreferrer" className="text-primary ml-1">Telegram</a>
             </p>
           </div>
-
-          <p className="text-center text-sm text-muted-foreground mt-8">
-            Don't have an account?{' '}
-            <Link to="/signup" className="text-primary font-bold">Sign up</Link>
-          </p>
         </motion.div>
       </div>
     </div>

@@ -16,8 +16,8 @@ import { useTheme } from '@/hooks/useTheme';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Eye, Hand, ShoppingCart, ChevronDown, ChevronUp,
-  Wallet, Search, Shuffle, Settings, X, Volume2, VolumeX,
-  Moon, Sun, Globe, LogOut, User, MessageCircle, Send
+  Wallet, Settings, X, Volume2, VolumeX,
+  Moon, Sun, Globe, LogOut, User, Send
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -60,71 +60,45 @@ function Confetti() {
   );
 }
 
-// ─── Cartela Shop with Cart ─────────────────────────────────
+// ─── Cartela Shop with + Button ─────────────────────────────
 function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
   onBuy: () => void; cartelaPrice: number; gameStatus: string; prizeAmount: number;
 }) {
-  const [cartelas, setCartelas] = useState<any[]>([]);
-  const [cart, setCart] = useState<Set<number>>(new Set());
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const [cart, setCart] = useState<any[]>([]);
   const [buying, setBuying] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [adding, setAdding] = useState(false);
   const user = useUser();
-  const pageSize = 30;
-  const loaderRef = useRef<HTMLDivElement>(null);
 
-  const loadCartelas = useCallback(() => {
-    supabase.from('cartelas').select('*').eq('is_used', false).eq('banned_for_game', false).order('id', { ascending: false })
-      .then(({ data }) => setCartelas((data || []).sort(() => Math.random() - 0.5)));
-  }, []);
-
-  useEffect(() => { loadCartelas(); }, [loadCartelas]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => { if (entries[0].isIntersecting) setPage(p => p + 1); },
-      { threshold: 0.1 }
-    );
-    if (loaderRef.current) observer.observe(loaderRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  const filtered = useMemo(() => {
-    let list = cartelas;
-    if (search.trim()) list = list.filter(c => String(c.id).includes(search.trim()));
-    return list;
-  }, [cartelas, search]);
-
-  const visible = useMemo(() => filtered.slice(0, page * pageSize), [filtered, page]);
-
-  const toggleCart = (id: number) => {
-    setCart(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  const addRandomCartela = async () => {
+    setAdding(true);
+    const existingIds = cart.map(c => c.id);
+    let query = supabase.from('cartelas').select('*').eq('is_used', false).eq('banned_for_game', false);
+    if (existingIds.length > 0) {
+      // Exclude already-in-cart cartelas
+      for (const id of existingIds) {
+        query = query.neq('id', id);
+      }
+    }
+    const { data } = await query.limit(50);
+    if (data && data.length > 0) {
+      const random = data[Math.floor(Math.random() * data.length)];
+      setCart(prev => [...prev, random]);
+    } else {
+      toast.info('No more cartelas available');
+    }
+    setAdding(false);
   };
 
-  const quickPick = (count: number) => {
-    const available = filtered.filter(c => !cart.has(c.id));
-    const shuffled = [...available].sort(() => Math.random() - 0.5);
-    const picks = shuffled.slice(0, count);
-    setCart(prev => { const next = new Set(prev); picks.forEach(c => next.add(c.id)); return next; });
-    if (picks.length > 0) toast.success(`${picks.length} cartela(s) added to cart!`);
-  };
-
-  const changeCartelas = () => {
-    setCart(new Set());
-    loadCartelas();
-    toast.success('Cartelas reshuffled!');
+  const removeFromCart = (id: number) => {
+    setCart(prev => prev.filter(c => c.id !== id));
   };
 
   const handleBuy = async () => {
-    if (!user?.id || cart.size === 0) return;
+    if (!user?.id || cart.length === 0) return;
     setBuying(true);
     const { data, error } = await invokeWithRetry('purchase-cartela', {
-      body: { cartela_ids: Array.from(cart) },
+      body: { cartela_ids: cart.map(c => c.id) },
     });
     if (error || data?.error) {
       toast.error(data?.error || t('purchaseFailed'));
@@ -132,16 +106,14 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
       setShowConfirm(false);
       return;
     }
-    setCartelas(prev => prev.filter(c => !cart.has(c.id)));
-    setCart(new Set());
+    setCart([]);
     setBuying(false);
     setShowConfirm(false);
     toast.success(t('purchased'));
     onBuy();
   };
 
-  const cost = cart.size * cartelaPrice;
-  const selectedCartelas = cartelas.filter(c => cart.has(c.id));
+  const cost = cart.length * cartelaPrice;
 
   return (
     <div className="space-y-3">
@@ -156,63 +128,51 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
         <div className="text-2xl font-display font-bold text-primary">🏆 {prizeAmount} ETB</div>
       </motion.div>
 
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text" value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder={t('search')}
-            className="w-full pl-9 pr-4 py-2.5 rounded-lg bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
-          />
+      <p className="text-xs text-muted-foreground text-center">{cartelaPrice} ETB each — tap + to get a random cartela</p>
+
+      {/* Cart items */}
+      {cart.length > 0 && (
+        <div className="grid grid-cols-2 gap-2">
+          {cart.map(c => (
+            <div key={c.id} className="relative">
+              <BingoCartela numbers={c.numbers as number[][]} size="xs" label={`#${c.id}`} selected />
+              <button
+                onClick={() => removeFromCart(c.id)}
+                className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
         </div>
-        <button onClick={changeCartelas} className="px-3 py-2 rounded-lg bg-muted text-muted-foreground text-xs font-bold active:scale-95">
-          <Shuffle className="w-4 h-4" />
-        </button>
-      </div>
+      )}
 
-      <div className="flex gap-2 flex-wrap">
-        <span className="text-xs text-muted-foreground flex items-center gap-1"><Shuffle className="w-3.5 h-3.5" /> {t('quick')}:</span>
-        {[1, 3, 5].map(n => (
-          <button key={n} onClick={() => quickPick(n)}
-            className="px-3 py-1.5 rounded bg-primary/10 text-primary text-xs font-bold active:scale-95">
-            {n} {t('cards')}
+      {/* Add random cartela button */}
+      <button
+        onClick={addRandomCartela}
+        disabled={adding}
+        className="w-full py-4 rounded-xl border-2 border-dashed border-primary/40 text-primary font-display font-bold text-lg flex items-center justify-center gap-2 active:scale-95 transition-all hover:border-primary hover:bg-primary/5 disabled:opacity-50"
+      >
+        {adding ? (
+          <span className="animate-spin w-5 h-5 border-2 border-primary border-t-transparent rounded-full" />
+        ) : (
+          <>
+            <span className="text-2xl">+</span> Add Cartela
+          </>
+        )}
+      </button>
+
+      {/* Buy bar */}
+      {cart.length > 0 && (
+        <div className="flex gap-2">
+          <button onClick={() => setCart([])}
+            className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold text-sm active:scale-95">
+            Clear ({cart.length})
           </button>
-        ))}
-      </div>
-      <p className="text-xs text-muted-foreground">{filtered.length} {t('available')} · {cartelaPrice} ETB {t('each')}</p>
-
-      <div className="grid grid-cols-3 gap-2 max-h-[40vh] overflow-y-auto">
-        {visible.map(c => (
-          <div key={c.id} onClick={() => toggleCart(c.id)} className="cursor-pointer">
-            <BingoCartela
-              numbers={c.numbers as number[][]}
-              size="xs"
-              label={`#${c.id}`}
-              selected={cart.has(c.id)}
-            />
-          </div>
-        ))}
-      </div>
-      <div ref={loaderRef} className="h-4" />
-
-      {/* Cart bar */}
-      {cart.size > 0 && (
-        <div className="sticky bottom-0 bg-card border-t border-border p-3 -mx-3 -mb-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-foreground"><ShoppingCart className="w-4 h-4 inline mr-1" />{cart.size} in cart</span>
-            <span className="text-sm font-display font-bold text-primary">{cost} ETB</span>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => setCart(new Set())}
-              className="flex-1 py-2.5 rounded-lg bg-muted text-muted-foreground text-sm font-bold active:scale-95">
-              Clear
-            </button>
-            <button onClick={() => setShowConfirm(true)}
-              className="flex-1 py-2.5 rounded-lg gradient-neon text-primary-foreground text-sm font-bold active:scale-95 glow-neon">
-              Checkout
-            </button>
-          </div>
+          <button onClick={() => setShowConfirm(true)}
+            className="flex-1 py-3 rounded-xl gradient-neon text-primary-foreground font-bold text-sm active:scale-95 glow-neon">
+            Buy {cart.length} — {cost} ETB
+          </button>
         </div>
       )}
 
@@ -231,11 +191,11 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
             >
               <h3 className="font-display font-bold text-foreground text-center">Confirm Purchase</h3>
               <div className="grid grid-cols-3 gap-2">
-                {selectedCartelas.map(c => (
+                {cart.map(c => (
                   <div key={c.id} className="relative">
                     <BingoCartela numbers={c.numbers as number[][]} size="xs" label={`#${c.id}`} />
                     <button
-                      onClick={() => toggleCart(c.id)}
+                      onClick={() => removeFromCart(c.id)}
                       className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-[10px]"
                     >
                       <X className="w-3 h-3" />
@@ -244,7 +204,7 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
                 ))}
               </div>
               <div className="border-t border-border pt-2 flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">{cart.size} cartela(s)</span>
+                <span className="text-sm text-muted-foreground">{cart.length} cartela(s)</span>
                 <span className="font-display font-bold text-primary text-lg">{cost} ETB</span>
               </div>
               <div className="flex gap-2">

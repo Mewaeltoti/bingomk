@@ -12,7 +12,6 @@ import Payment from "./pages/Payment";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import Login from "./pages/Login";
-import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,7 +22,7 @@ function AppContent() {
     <>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+        <Route path="/signup" element={<Login />} />
         <Route path="/" element={<Index />} />
         <Route path="/game" element={<RequireAuth><GamePage /></RequireAuth>} />
         <Route path="/payment" element={<RequireAuth><Payment /></RequireAuth>} />
