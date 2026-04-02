@@ -94,6 +94,9 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
     setCart(prev => prev.filter(c => c.id !== id));
   };
 
+  const [showDepositPrompt, setShowDepositPrompt] = useState(false);
+  const navigate = useNavigate();
+
   const handleBuy = async () => {
     if (!user?.id || cart.length === 0) return;
     setBuying(true);
@@ -101,7 +104,12 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
       body: { cartela_ids: cart.map(c => c.id) },
     });
     if (error || data?.error) {
-      toast.error(data?.error || t('purchaseFailed'));
+      const msg = data?.error || t('purchaseFailed');
+      if (msg.toLowerCase().includes('insufficient')) {
+        setShowDepositPrompt(true);
+      } else {
+        toast.error(msg);
+      }
       setBuying(false);
       setShowConfirm(false);
       return;
@@ -215,6 +223,36 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
                 <button onClick={handleBuy} disabled={buying}
                   className="flex-1 py-3 rounded-xl gradient-neon text-primary-foreground font-bold text-sm disabled:opacity-50 active:scale-95">
                   {buying ? '...' : `Pay ${cost} ETB`}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Insufficient balance modal */}
+      <AnimatePresence>
+        {showDepositPrompt && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4"
+            onClick={() => setShowDepositPrompt(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-card border border-border rounded-xl p-5 max-w-xs w-full text-center space-y-4"
+            >
+              <div className="text-4xl">💰</div>
+              <h3 className="font-display font-bold text-foreground text-lg">Insufficient Balance</h3>
+              <p className="text-sm text-muted-foreground">You don't have enough balance to buy these cartelas. Deposit now to continue playing!</p>
+              <div className="flex gap-2">
+                <button onClick={() => setShowDepositPrompt(false)}
+                  className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold text-sm">
+                  Cancel
+                </button>
+                <button onClick={() => { setShowDepositPrompt(false); navigate('/payment'); }}
+                  className="flex-1 py-3 rounded-xl gradient-neon text-primary-foreground font-bold text-sm active:scale-95 glow-neon">
+                  <Wallet className="w-4 h-4 inline mr-1" /> Deposit
                 </button>
               </div>
             </motion.div>
@@ -818,6 +856,12 @@ export default function GamePage() {
       {showBuyPrompt && !isGameActive && (
         <div className="px-3 pt-3">
           <div className="p-4 rounded-xl bg-card border border-border text-center mb-3">
+            {/* Game info */}
+            <div className="flex items-center justify-center gap-3 mb-2 text-xs text-muted-foreground">
+              <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-display font-bold">Game #{sessionNumber}</span>
+              <span className="flex items-center gap-1">🎯 {gamePattern}</span>
+              <span className="flex items-center gap-1">🎫 {cartelaPrice} ETB</span>
+            </div>
             {gameStatus === 'buying' && buyingCountdown > 0 && (
               <div className="mb-2">
                 <div className="text-3xl font-display font-bold text-primary">
