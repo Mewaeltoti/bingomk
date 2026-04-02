@@ -9,7 +9,7 @@ import { checkWin, getPatternCells } from '@/lib/winDetection';
 import { PATTERNS } from '@/lib/bingo';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { playDrawSound, playWinSound, playMarkSound, playClaimApprovedSound, playClaimRejectedSound, announceNumber, isMuted, setMuted } from '@/lib/sounds';
+import { playDrawSound, playWinSound, playMarkSound, playClaimApprovedSound, playClaimRejectedSound, isMuted, setMuted } from '@/lib/sounds';
 import { invokeWithRetry } from '@/lib/edgeFn';
 import { t, getLang, toggleLang } from '@/lib/i18n';
 import { useTheme } from '@/hooks/useTheme';
@@ -617,7 +617,6 @@ export default function GamePage() {
             return [...prev, num];
           });
           playDrawSound();
-          announceNumber(num);
         }
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: 'id=eq.current' },
@@ -671,13 +670,18 @@ export default function GamePage() {
             setDrawnNumbers([]); setShowResult(false); setGameResult(null); setShowConfetti(false); setMarkedMap(new Map()); setClaimedCartelas(new Set());
           }
           if (game.status === 'won') {
-            setGameResult({ type: 'winner', message: t('winnerAnnounced') });
-            setShowResult(true);
-            playWinSound();
-            if (game.winner_id === user?.id) {
+            if (game.winner_id && game.winner_id === user?.id) {
               setGameResult({ type: 'winner', message: t('youWon') });
               setShowConfetti(true);
+              playWinSound();
+            } else if (game.winner_id) {
+              setGameResult({ type: 'winner', message: t('winnerAnnounced') });
+              playWinSound();
+            } else {
+              // House win — no player won
+              setGameResult({ type: 'winner', message: 'Better luck next time! 🎰' });
             }
+            setShowResult(true);
             fetchWinnerCartela();
             if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
             resultTimerRef.current = setTimeout(() => {
@@ -692,10 +696,6 @@ export default function GamePage() {
                 return prev - 1;
               });
             }, 1000);
-          }
-          if (game.status === 'disqualified') {
-            setGameResult({ type: 'disqualified', message: 'Round restarting — multiple winners detected' });
-            setShowResult(true);
           }
           if (game.pattern) setGamePattern(game.pattern);
           if (game.prize_amount !== undefined) setPrizeAmount(game.prize_amount);
