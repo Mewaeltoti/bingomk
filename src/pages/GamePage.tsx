@@ -155,18 +155,16 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount, balance }: 
         </div>
       )}
 
-      {/* Add random cartela button */}
+      {/* Floating circle add button — bottom left */}
       <button
         onClick={addRandomCartela}
         disabled={adding}
-        className="w-full py-4 rounded-xl border-2 border-dashed border-primary/40 text-primary font-display font-bold text-lg flex items-center justify-center gap-2 active:scale-95 transition-all hover:border-primary hover:bg-primary/5 disabled:opacity-50"
+        className="fixed bottom-20 left-4 z-40 w-14 h-14 rounded-full gradient-neon text-primary-foreground shadow-xl glow-neon flex items-center justify-center active:scale-90 transition-transform disabled:opacity-50"
       >
         {adding ? (
-          <span className="animate-spin w-5 h-5 border-2 border-primary border-t-transparent rounded-full" />
+          <span className="animate-spin w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full" />
         ) : (
-          <>
-            <span className="text-2xl">+</span> Add Cartela
-          </>
+          <span className="text-3xl font-bold leading-none">+</span>
         )}
       </button>
 
