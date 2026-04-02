@@ -229,6 +229,36 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Insufficient balance modal */}
+      <AnimatePresence>
+        {showDepositPrompt && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4"
+            onClick={() => setShowDepositPrompt(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-card border border-border rounded-xl p-5 max-w-xs w-full text-center space-y-4"
+            >
+              <div className="text-4xl">💰</div>
+              <h3 className="font-display font-bold text-foreground text-lg">Insufficient Balance</h3>
+              <p className="text-sm text-muted-foreground">You don't have enough balance to buy these cartelas. Deposit now to continue playing!</p>
+              <div className="flex gap-2">
+                <button onClick={() => setShowDepositPrompt(false)}
+                  className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold text-sm">
+                  Cancel
+                </button>
+                <button onClick={() => { setShowDepositPrompt(false); navigate('/payment'); }}
+                  className="flex-1 py-3 rounded-xl gradient-neon text-primary-foreground font-bold text-sm active:scale-95 glow-neon">
+                  <Wallet className="w-4 h-4 inline mr-1" /> Deposit
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
