@@ -9,7 +9,7 @@ import { checkWin, getPatternCells } from '@/lib/winDetection';
 import { PATTERNS } from '@/lib/bingo';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { playDrawSound, playWinSound, playMarkSound, playClaimApprovedSound, playClaimRejectedSound, announceNumber, isMuted, setMuted } from '@/lib/sounds';
+import { playDrawSound, playWinSound, playMarkSound, playClaimApprovedSound, playClaimRejectedSound, isMuted, setMuted } from '@/lib/sounds';
 import { invokeWithRetry } from '@/lib/edgeFn';
 import { t, getLang, toggleLang } from '@/lib/i18n';
 import { useTheme } from '@/hooks/useTheme';
