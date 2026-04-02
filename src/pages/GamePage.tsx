@@ -155,18 +155,16 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount, balance }: 
         </div>
       )}
 
-      {/* Add random cartela button */}
+      {/* Floating circle add button — bottom left */}
       <button
         onClick={addRandomCartela}
         disabled={adding}
-        className="w-full py-4 rounded-xl border-2 border-dashed border-primary/40 text-primary font-display font-bold text-lg flex items-center justify-center gap-2 active:scale-95 transition-all hover:border-primary hover:bg-primary/5 disabled:opacity-50"
+        className="fixed bottom-20 left-4 z-40 w-14 h-14 rounded-full gradient-neon text-primary-foreground shadow-xl glow-neon flex items-center justify-center active:scale-90 transition-transform disabled:opacity-50"
       >
         {adding ? (
-          <span className="animate-spin w-5 h-5 border-2 border-primary border-t-transparent rounded-full" />
+          <span className="animate-spin w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full" />
         ) : (
-          <>
-            <span className="text-2xl">+</span> Add Cartela
-          </>
+          <span className="text-3xl font-bold leading-none">+</span>
         )}
       </button>
 
@@ -924,15 +922,25 @@ export default function GamePage() {
         <div className="px-3 py-3 space-y-3">
           {/* Current number + pattern */}
           <div className="flex items-center gap-3">
-            {lastNumber ? (
+          {lastNumber ? (
               <motion.div key={lastNumber}
-                initial={{ scale: 0 }} animate={{ scale: 1 }}
-                className="w-16 h-16 rounded-xl gradient-neon flex flex-col items-center justify-center text-primary-foreground shadow-lg glow-neon flex-shrink-0">
-                <span className="text-[10px] font-medium opacity-80">{getBingoLetter(lastNumber)}</span>
-                <span className="text-2xl font-display font-bold -mt-1">{lastNumber}</span>
+                initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: 'spring', damping: 12, stiffness: 200 }}
+                className="w-16 h-16 rounded-full gradient-neon flex flex-col items-center justify-center text-primary-foreground shadow-lg glow-neon flex-shrink-0 border-2 border-primary-foreground/20">
+                <motion.span
+                  initial={{ opacity: 1 }}
+                  animate={{ opacity: 1 }}
+                  className="text-lg font-display font-black leading-none"
+                >{getBingoLetter(lastNumber)}</motion.span>
+                <motion.span
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.2, duration: 0.3 }}
+                  className="text-xl font-display font-bold -mt-0.5 leading-none"
+                >{lastNumber}</motion.span>
               </motion.div>
             ) : (
-              <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center text-muted-foreground text-xs flex-shrink-0">--</div>
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-xs flex-shrink-0">--</div>
             )}
             <div className="flex-1 flex items-center gap-2">
               <PatternGrid pattern={gamePattern} />
@@ -946,7 +954,7 @@ export default function GamePage() {
 
           {/* Drawn numbers */}
           {drawnNumbers.length > 0 && (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-[3px]">
               {drawnNumbers.map((num, i) => {
                 const rowIdx = Math.floor((num - 1) / 15);
                 const colors = ['bg-neon-blue', 'bg-neon-pink', 'bg-neon-green', 'bg-neon-yellow', 'bg-neon-purple'];
@@ -955,7 +963,7 @@ export default function GamePage() {
                     key={num}
                     initial={i === drawnNumbers.length - 1 ? { scale: 0 } : false}
                     animate={{ scale: 1 }}
-                    className={cn('w-7 h-7 flex items-center justify-center text-[9px] font-bold rounded text-white shadow', colors[rowIdx])}
+                    className={cn('w-6 h-6 flex items-center justify-center text-[8px] font-bold rounded text-white shadow-sm', colors[rowIdx])}
                   >
                     {num}
                   </motion.div>
