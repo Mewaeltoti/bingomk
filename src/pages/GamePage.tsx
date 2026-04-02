@@ -94,6 +94,9 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
     setCart(prev => prev.filter(c => c.id !== id));
   };
 
+  const [showDepositPrompt, setShowDepositPrompt] = useState(false);
+  const navigate = useNavigate();
+
   const handleBuy = async () => {
     if (!user?.id || cart.length === 0) return;
     setBuying(true);
@@ -101,7 +104,12 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
       body: { cartela_ids: cart.map(c => c.id) },
     });
     if (error || data?.error) {
-      toast.error(data?.error || t('purchaseFailed'));
+      const msg = data?.error || t('purchaseFailed');
+      if (msg.toLowerCase().includes('insufficient')) {
+        setShowDepositPrompt(true);
+      } else {
+        toast.error(msg);
+      }
       setBuying(false);
       setShowConfirm(false);
       return;
