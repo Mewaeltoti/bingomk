@@ -22,6 +22,18 @@ export async function invokeWithRetry(
       const { data, error } = await supabase.functions.invoke(functionName, { body });
 
       if (error) {
+        // Try to parse the response body from FunctionsHttpError (400/4xx)
+        try {
+          const context = (error as any).context;
+          if (context && typeof context.json === 'function') {
+            const errBody = await context.json();
+            if (errBody?.error) {
+              // Don't retry client errors (4xx) — return immediately
+              return { data: errBody, error: errBody.error };
+            }
+          }
+        } catch { /* ignore parse errors */ }
+
         lastError = error.message || 'Request failed';
         if (attempt < retries) {
           await new Promise((r) => setTimeout(r, retryDelay * (attempt + 1)));
