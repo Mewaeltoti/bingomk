@@ -617,7 +617,6 @@ export default function GamePage() {
             return [...prev, num];
           });
           playDrawSound();
-          announceNumber(num);
         }
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: 'id=eq.current' },
