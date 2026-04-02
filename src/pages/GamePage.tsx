@@ -172,15 +172,25 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount, balance }: 
 
       {/* Buy bar */}
       {cart.length > 0 && (
-        <div className="flex gap-2">
-          <button onClick={() => setCart([])}
-            className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold text-sm active:scale-95">
-            Clear ({cart.length})
-          </button>
-          <button onClick={() => setShowConfirm(true)}
-            className="flex-1 py-3 rounded-xl gradient-neon text-primary-foreground font-bold text-sm active:scale-95 glow-neon">
-            Buy {cart.length} — {cost} ETB
-          </button>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between px-1 text-xs">
+            <span className="text-muted-foreground">Cart: <span className="font-bold text-foreground">{cost} ETB</span></span>
+            <span className={cn('font-bold', balance >= cost ? 'text-primary' : 'text-destructive')}>
+              Balance: {balance} ETB {balance < cost ? '⚠️' : '✓'}
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setCart([])}
+              className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold text-sm active:scale-95">
+              Clear ({cart.length})
+            </button>
+            <button onClick={() => setShowConfirm(true)}
+              className={cn('flex-1 py-3 rounded-xl font-bold text-sm active:scale-95',
+                balance >= cost ? 'gradient-neon text-primary-foreground glow-neon' : 'bg-destructive/80 text-destructive-foreground'
+              )}>
+              {balance >= cost ? `Buy ${cart.length} — ${cost} ETB` : `Need ${cost - balance} more ETB`}
+            </button>
+          </div>
         </div>
       )}
 
