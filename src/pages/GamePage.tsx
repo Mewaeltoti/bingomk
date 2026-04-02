@@ -670,13 +670,18 @@ export default function GamePage() {
             setDrawnNumbers([]); setShowResult(false); setGameResult(null); setShowConfetti(false); setMarkedMap(new Map()); setClaimedCartelas(new Set());
           }
           if (game.status === 'won') {
-            setGameResult({ type: 'winner', message: t('winnerAnnounced') });
-            setShowResult(true);
-            playWinSound();
-            if (game.winner_id === user?.id) {
+            if (game.winner_id && game.winner_id === user?.id) {
               setGameResult({ type: 'winner', message: t('youWon') });
               setShowConfetti(true);
+              playWinSound();
+            } else if (game.winner_id) {
+              setGameResult({ type: 'winner', message: t('winnerAnnounced') });
+              playWinSound();
+            } else {
+              // House win — no player won
+              setGameResult({ type: 'winner', message: 'Better luck next time! 🎰' });
             }
+            setShowResult(true);
             fetchWinnerCartela();
             if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
             resultTimerRef.current = setTimeout(() => {
@@ -691,10 +696,6 @@ export default function GamePage() {
                 return prev - 1;
               });
             }, 1000);
-          }
-          if (game.status === 'disqualified') {
-            setGameResult({ type: 'disqualified', message: 'Round restarting — multiple winners detected' });
-            setShowResult(true);
           }
           if (game.pattern) setGamePattern(game.pattern);
           if (game.prize_amount !== undefined) setPrizeAmount(game.prize_amount);
