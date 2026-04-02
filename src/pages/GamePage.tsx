@@ -954,7 +954,7 @@ export default function GamePage() {
 
           {/* Drawn numbers */}
           {drawnNumbers.length > 0 && (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-[3px]">
               {drawnNumbers.map((num, i) => {
                 const rowIdx = Math.floor((num - 1) / 15);
                 const colors = ['bg-neon-blue', 'bg-neon-pink', 'bg-neon-green', 'bg-neon-yellow', 'bg-neon-purple'];
@@ -963,7 +963,7 @@ export default function GamePage() {
                     key={num}
                     initial={i === drawnNumbers.length - 1 ? { scale: 0 } : false}
                     animate={{ scale: 1 }}
-                    className={cn('w-7 h-7 flex items-center justify-center text-[9px] font-bold rounded text-white shadow', colors[rowIdx])}
+                    className={cn('w-6 h-6 flex items-center justify-center text-[8px] font-bold rounded text-white shadow-sm', colors[rowIdx])}
                   >
                     {num}
                   </motion.div>
