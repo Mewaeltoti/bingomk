@@ -609,7 +609,141 @@ export default function GamePage() {
   useEffect(() => {
     const channel = supabase
       .channel('game-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_numbers' },
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_numbers', filter: 'game_id=eq.current' },
+        (payload: any) => {
+          const num = payload.new.number;
+          setDrawnNumbers(prev => {
+            if (prev.includes(num)) return prev;
+            return [...prev, num];
+          });
+          playDrawSound();
+          announceNumber(num);
+        }
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: 'id=eq.current' },
+        (payload: any) => {
+          const game = payload.new;
+          if (!game) return;
+          setGameStatus(game.status);
+          setSessionNumber(game.session_number || 1);
+          if (game.status === 'buying') {
+            setDrawnNumbers([]);
+            setShowResult(false);
+            setGameResult(null);
+            setShowConfetti(false);
+            setMarkedMap(new Map());
+            setClaimedCartelas(new Set());
+            setHasPendingClaim(false);
+            setShowShop(true);
+            setNextGameCountdown(0);
+            setSoldCount(0);
+            if (nextGameTimerRef.current) clearInterval(nextGameTimerRef.current);
+            if (user?.id) {
+              supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true)
+                .then(({ data }) => { setPlayerCartelas(data || []); setIsSpectator(!data || data.length === 0); });
+            }
+            setBuyingCountdown(120);
+            if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
+            buyingTimerRef.current = setInterval(() => {
+              setBuyingCountdown(prev => {
+                if (prev <= 1) { if (buyingTimerRef.current) clearInterval(buyingTimerRef.current); return 0; }
+                return prev - 1;
+              });
+            }, 1000);
+            toast(t('newGameStarting'));
+          }
+          if (game.status === 'active') {
+            setBuyingCountdown(0);
+            setShowShop(false);
+            if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
+            // Re-fetch drawn numbers to ensure sync
+            supabase.from('game_numbers').select('number').eq('game_id', 'current').order('id', { ascending: true })
+              .then(({ data }) => {
+                if (data) setDrawnNumbers(data.map((n: any) => n.number));
+              });
+            if (user?.id) {
+              supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true)
+                .then(({ data }) => { setPlayerCartelas(data || []); setIsSpectator(!data || data.length === 0); });
+            }
+            toast(t('gameStarted'));
+          }
+          if (game.status === 'waiting') {
+            setDrawnNumbers([]); setShowResult(false); setGameResult(null); setShowConfetti(false); setMarkedMap(new Map()); setClaimedCartelas(new Set());
+          }
+          if (game.status === 'won') {
+            setGameResult({ type: 'winner', message: t('winnerAnnounced') });
+            setShowResult(true);
+            playWinSound();
+            if (game.winner_id === user?.id) {
+              setGameResult({ type: 'winner', message: t('youWon') });
+              setShowConfetti(true);
+            }
+            fetchWinnerCartela();
+            if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
+            resultTimerRef.current = setTimeout(() => {
+              setShowResult(false);
+              setShowConfetti(false);
+            }, 30000);
+            setNextGameCountdown(60);
+            if (nextGameTimerRef.current) clearInterval(nextGameTimerRef.current);
+            nextGameTimerRef.current = setInterval(() => {
+              setNextGameCountdown(prev => {
+                if (prev <= 1) { if (nextGameTimerRef.current) clearInterval(nextGameTimerRef.current); return 0; }
+                return prev - 1;
+              });
+            }, 1000);
+          }
+          if (game.status === 'disqualified') {
+            setGameResult({ type: 'disqualified', message: 'Round restarting — multiple winners detected' });
+            setShowResult(true);
+          }
+          if (game.pattern) setGamePattern(game.pattern);
+          if (game.prize_amount !== undefined) setPrizeAmount(game.prize_amount);
+          if (game.cartela_price !== undefined) setCartelaPrice(game.cartela_price);
+        }
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bingo_claims', filter: 'game_id=eq.current' },
+        (payload: any) => {
+          const claim = payload.new;
+          if (!claim || claim.user_id !== user?.id) return;
+          const cid = claim.cartela_id;
+          if (claim.is_valid === null) {
+            setHasPendingClaim(true);
+          }
+          if (claim.is_valid === false) {
+            playClaimRejectedSound();
+            toast.error(`❌ Claim rejected — Cartela #${cid} banned`, { duration: 6000 });
+            setClaimedCartelas(prev => { const next = new Set(prev); next.delete(cid); return next; });
+            setBannedCartelas(prev => new Set(prev).add(cid));
+            setHasPendingClaim(false);
+          }
+          if (claim.is_valid === true) {
+            playClaimApprovedSound();
+            toast.success('🏆 BINGO CONFIRMED! Prize credited to your wallet!', { duration: 8000 });
+            setShowConfetti(true);
+            setHasPendingClaim(false);
+            refreshGameData();
+          }
+        }
+      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cartelas' },
+        (payload: any) => {
+          const prev = payload.old;
+          const next = payload.new;
+          if (!prev?.is_used && next?.is_used && next?.owner_id) {
+            setSoldCount(c => c + 1);
+          }
+          if (next?.is_used && next?.owner_id) {
+            supabase.from('games').select('prize_amount').eq('id', 'current').maybeSingle()
+              .then(({ data }) => {
+                if (data?.prize_amount !== undefined) setPrizeAmount(data.prize_amount);
+              });
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
         (payload: any) => {
           const num = payload.new.number;
           setDrawnNumbers(prev => [...prev, num]);
