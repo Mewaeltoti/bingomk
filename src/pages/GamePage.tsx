@@ -61,8 +61,8 @@ function Confetti() {
 }
 
 // ─── Cartela Shop with + Button ─────────────────────────────
-function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount }: {
-  onBuy: () => void; cartelaPrice: number; gameStatus: string; prizeAmount: number;
+function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount, balance }: {
+  onBuy: () => void; cartelaPrice: number; gameStatus: string; prizeAmount: number; balance: number;
 }) {
   const [cart, setCart] = useState<any[]>([]);
   const [buying, setBuying] = useState(false);
