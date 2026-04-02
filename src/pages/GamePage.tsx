@@ -856,6 +856,12 @@ export default function GamePage() {
       {showBuyPrompt && !isGameActive && (
         <div className="px-3 pt-3">
           <div className="p-4 rounded-xl bg-card border border-border text-center mb-3">
+            {/* Game info */}
+            <div className="flex items-center justify-center gap-3 mb-2 text-xs text-muted-foreground">
+              <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-display font-bold">Game #{sessionNumber}</span>
+              <span className="flex items-center gap-1">🎯 {gamePattern}</span>
+              <span className="flex items-center gap-1">🎫 {cartelaPrice} ETB</span>
+            </div>
             {gameStatus === 'buying' && buyingCountdown > 0 && (
               <div className="mb-2">
                 <div className="text-3xl font-display font-bold text-primary">
