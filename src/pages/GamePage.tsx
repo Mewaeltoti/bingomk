@@ -903,6 +903,7 @@ export default function GamePage() {
               cartelaPrice={cartelaPrice}
               gameStatus={gameStatus}
               prizeAmount={prizeAmount}
+              balance={balance}
             />
           )}
         </div>
