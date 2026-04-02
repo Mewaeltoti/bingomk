@@ -924,15 +924,25 @@ export default function GamePage() {
         <div className="px-3 py-3 space-y-3">
           {/* Current number + pattern */}
           <div className="flex items-center gap-3">
-            {lastNumber ? (
+          {lastNumber ? (
               <motion.div key={lastNumber}
-                initial={{ scale: 0 }} animate={{ scale: 1 }}
-                className="w-16 h-16 rounded-xl gradient-neon flex flex-col items-center justify-center text-primary-foreground shadow-lg glow-neon flex-shrink-0">
-                <span className="text-[10px] font-medium opacity-80">{getBingoLetter(lastNumber)}</span>
-                <span className="text-2xl font-display font-bold -mt-1">{lastNumber}</span>
+                initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: 'spring', damping: 12, stiffness: 200 }}
+                className="w-16 h-16 rounded-full gradient-neon flex flex-col items-center justify-center text-primary-foreground shadow-lg glow-neon flex-shrink-0 border-2 border-primary-foreground/20">
+                <motion.span
+                  initial={{ opacity: 1 }}
+                  animate={{ opacity: 1 }}
+                  className="text-lg font-display font-black leading-none"
+                >{getBingoLetter(lastNumber)}</motion.span>
+                <motion.span
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.2, duration: 0.3 }}
+                  className="text-xl font-display font-bold -mt-0.5 leading-none"
+                >{lastNumber}</motion.span>
               </motion.div>
             ) : (
-              <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center text-muted-foreground text-xs flex-shrink-0">--</div>
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-xs flex-shrink-0">--</div>
             )}
             <div className="flex-1 flex items-center gap-2">
               <PatternGrid pattern={gamePattern} />
