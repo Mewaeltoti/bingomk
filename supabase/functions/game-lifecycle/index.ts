@@ -64,6 +64,8 @@ Deno.serve(async (req) => {
         nextSession = Math.floor(Math.random() * 900) + 100;
       }
 
+      const nextPattern = ALL_PATTERNS[(nextSession - 1) % ALL_PATTERNS.length];
+
       await Promise.all([
         supabase.from("game_numbers").delete().eq("game_id", "current"),
         supabase.from("bingo_claims").delete().eq("game_id", "current"),
@@ -72,7 +74,7 @@ Deno.serve(async (req) => {
 
       await supabase.from("games").insert({
         id: "current",
-        pattern: pattern || "Full House",
+        pattern: nextPattern,
         status: "buying",
         winner_id: null,
         draw_speed: FIXED_DRAW_SPEED,
