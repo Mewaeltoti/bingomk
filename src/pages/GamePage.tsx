@@ -953,7 +953,7 @@ export default function GamePage() {
                 <motion.span
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.2, duration: 0.3 }}
+                  transition={{ duration: 0.3 }}
                   className="text-xl font-display font-bold -mt-0.5 leading-none"
                 >{lastNumber}</motion.span>
               </motion.div>
