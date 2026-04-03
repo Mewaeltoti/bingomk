@@ -983,7 +983,11 @@ export default function GamePage() {
                     animate={{ scale: 1 }}
                     className={cn('w-6 h-6 flex items-center justify-center text-[8px] font-bold rounded text-white shadow-sm', colors[rowIdx])}
                   >
-                    {num}
+                    <motion.span
+                      initial={i === drawnNumbers.length - 1 ? { opacity: 0 } : false}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 1.2, duration: 0.3 }}
+                    >{num}</motion.span>
                   </motion.div>
                 );
               })}
