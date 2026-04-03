@@ -11,6 +11,13 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const FIXED_DRAW_SPEED = 8;
 const HOUSE_PAYOUT_RATIO = 0.8;
 
+const ALL_PATTERNS = [
+  "Full House", "Single Line H", "Single Line V", "Single Line D",
+  "Two Lines", "Four Corners", "X Shape", "T Shape", "L Shape",
+  "Cross", "Frame", "Postage Stamp", "Small Diamond", "Arrow Up",
+  "Pyramid", "U Shape",
+];
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -57,6 +64,8 @@ Deno.serve(async (req) => {
         nextSession = Math.floor(Math.random() * 900) + 100;
       }
 
+      const nextPattern = ALL_PATTERNS[(nextSession - 1) % ALL_PATTERNS.length];
+
       await Promise.all([
         supabase.from("game_numbers").delete().eq("game_id", "current"),
         supabase.from("bingo_claims").delete().eq("game_id", "current"),
@@ -65,7 +74,7 @@ Deno.serve(async (req) => {
 
       await supabase.from("games").insert({
         id: "current",
-        pattern: pattern || "Full House",
+        pattern: nextPattern,
         status: "buying",
         winner_id: null,
         draw_speed: FIXED_DRAW_SPEED,
