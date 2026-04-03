@@ -943,17 +943,18 @@ export default function GamePage() {
           {lastNumber ? (
               <motion.div key={lastNumber}
                 initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: 'spring', damping: 12, stiffness: 200 }}
+                transition={{ type: 'spring', damping: 12, stiffness: 200, delay: 1.2 }}
                 className="w-16 h-16 rounded-full gradient-neon flex flex-col items-center justify-center text-primary-foreground shadow-lg glow-neon flex-shrink-0 border-2 border-primary-foreground/20">
                 <motion.span
-                  initial={{ opacity: 1 }}
+                  initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
+                  transition={{ delay: 1.2, duration: 0.3 }}
                   className="text-lg font-display font-black leading-none"
                 >{getBingoLetter(lastNumber)}</motion.span>
                 <motion.span
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
+                  transition={{ delay: 1.2, duration: 0.3 }}
                   className="text-xl font-display font-bold -mt-0.5 leading-none"
                 >{lastNumber}</motion.span>
               </motion.div>
