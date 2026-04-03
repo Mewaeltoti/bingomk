@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
       }
 
       const nextSession = (game.session_number || 1) + 1;
+      const nextPattern = ALL_PATTERNS[(nextSession - 1) % ALL_PATTERNS.length];
 
       await Promise.all([
         supabase.from("game_numbers").delete().eq("game_id", "current"),
@@ -80,11 +81,11 @@ Deno.serve(async (req) => {
       await supabase.from("games").insert({
         id: "current",
         status: "buying",
-        pattern: game.pattern || "Full House",
+        pattern: nextPattern,
         session_number: nextSession,
         draw_speed: FIXED_DRAW_SPEED,
         cartela_price: game.cartela_price || 10,
-        prize_amount: game.prize_amount || 0,
+        prize_amount: 0,
         auto_draw: false,
         winner_id: null,
       });
