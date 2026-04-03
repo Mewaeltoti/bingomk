@@ -13,6 +13,13 @@ const NEXT_GAME_DELAY_MS = 60 * 1000;
 const FIXED_DRAW_SPEED = 8;
 const HOUSE_PAYOUT_RATIO = 0.8;
 
+const ALL_PATTERNS = [
+  "Full House", "Single Line H", "Single Line V", "Single Line D",
+  "Two Lines", "Four Corners", "X Shape", "T Shape", "L Shape",
+  "Cross", "Frame", "Postage Stamp", "Small Diamond", "Arrow Up",
+  "Pyramid", "U Shape",
+];
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
