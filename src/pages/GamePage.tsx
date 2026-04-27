@@ -1031,6 +1031,7 @@ export default function GamePage() {
                       size="sm"
                       label={`#${c.id}`}
                       banned={isBanned}
+                      lastDrawn={lastNumber}
                     />
                     {!isSpectator && (
                       <button onClick={() => handleClaimBingo(c.id)} disabled={isClaimed || isBanned}
