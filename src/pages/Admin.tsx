@@ -587,39 +587,104 @@ export default function Admin() {
       )}
 
       {tab === 'deposits' && (
-        <div className="space-y-2">
-          {deposits.length === 0 && <p className="text-center text-muted-foreground py-8">No deposits yet</p>}
-          {deposits.map((d) => (
-            <div key={d.id} className="p-3 rounded-xl bg-muted/50 space-y-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-medium text-foreground">{d.bank} — {d.amount} ETB</div>
-                  <div className="text-xs text-muted-foreground">
-                    Ref: {d.reference} · {d.profile?.display_name || d.profile?.phone || 'Unknown'}
-                  </div>
-                </div>
-                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                  d.status === 'approved' ? 'bg-secondary/20 text-secondary' :
-                  d.status === 'pending' ? 'bg-primary/20 text-primary' :
-                  'bg-destructive/20 text-destructive'
-                }`}>{d.status}</span>
-              </div>
-              {d.status === 'pending' && (
-                <div className="flex gap-2">
-                  <button onClick={() => handleDeposit(d.id, 'approved', d.user_id, d.amount)}
-                    disabled={actionLoading === `dep-${d.id}`}
-                    className="flex-1 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium flex items-center justify-center gap-1 disabled:opacity-50">
-                    {actionLoading === `dep-${d.id}` ? '⏳...' : <><Check className="w-4 h-4" /> Approve</>}
-                  </button>
-                  <button onClick={() => handleDeposit(d.id, 'rejected', d.user_id, d.amount)}
-                    disabled={actionLoading === `dep-${d.id}`}
-                    className="flex-1 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium flex items-center justify-center gap-1 disabled:opacity-50">
-                    {actionLoading === `dep-${d.id}` ? '⏳...' : <><X className="w-4 h-4" /> Decline</>}
-                  </button>
-                </div>
-              )}
+        <div className="space-y-3">
+          {/* Bank SMS auto-match panel */}
+          <div className="p-3 rounded-xl border border-border bg-card space-y-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <MessageSquare className="w-4 h-4 text-primary" />
+              Paste bank SMS to auto-match
             </div>
-          ))}
+            <textarea
+              value={smsText}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSmsText(v);
+                setParsedSms(v.trim() ? parseBankSms(v) : null);
+              }}
+              placeholder="Paste the full bank SMS message here…"
+              rows={3}
+              className="w-full p-2.5 rounded-lg bg-muted text-foreground text-sm focus:ring-2 focus:ring-primary outline-none resize-none"
+            />
+            {parsedSms && (
+              <div className="flex flex-wrap gap-1.5 text-[11px]">
+                <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                  Bank: <span className="text-foreground font-semibold">{parsedSms.bank || '—'}</span>
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                  Ref: <span className="text-foreground font-semibold">{parsedSms.reference || '—'}</span>
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                  Amount: <span className="text-foreground font-semibold">{parsedSms.amount ?? '—'} ETB</span>
+                </span>
+                {smsText && (
+                  <button
+                    onClick={() => { setSmsText(''); setParsedSms(null); }}
+                    className="ml-auto px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:text-foreground"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {deposits.length === 0 && <p className="text-center text-muted-foreground py-8">No deposits yet</p>}
+          {deposits.map((d) => {
+            const refMatch = parsedSms ? referencesMatch(parsedSms.reference, d.reference) : false;
+            const amountMatch = parsedSms?.amount != null && Number(parsedSms.amount) === Number(d.amount);
+            const isMatch = d.status === 'pending' && (refMatch || amountMatch);
+            const isStrongMatch = d.status === 'pending' && refMatch && amountMatch;
+            return (
+              <div
+                key={d.id}
+                className={`p-3 rounded-xl space-y-2 transition-all ${
+                  isStrongMatch ? 'bg-primary/15 border-2 border-primary shadow-lg shadow-primary/20' :
+                  isMatch ? 'bg-primary/5 border border-primary/40' :
+                  'bg-muted/50'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                      {d.bank} — {d.amount} ETB
+                      {isStrongMatch && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+                          <Sparkles className="w-3 h-3" /> SMS MATCH
+                        </span>
+                      )}
+                      {isMatch && !isStrongMatch && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-primary/20 text-primary text-[10px] font-bold">
+                          PARTIAL MATCH
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Ref: <span className={refMatch ? 'text-primary font-semibold' : ''}>{d.reference}</span> · {d.profile?.display_name || d.profile?.phone || 'Unknown'}
+                    </div>
+                  </div>
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                    d.status === 'approved' ? 'bg-secondary/20 text-secondary' :
+                    d.status === 'pending' ? 'bg-primary/20 text-primary' :
+                    'bg-destructive/20 text-destructive'
+                  }`}>{d.status}</span>
+                </div>
+                {d.status === 'pending' && (
+                  <div className="flex gap-2">
+                    <button onClick={() => handleDeposit(d.id, 'approved', d.user_id, d.amount)}
+                      disabled={actionLoading === `dep-${d.id}`}
+                      className="flex-1 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium flex items-center justify-center gap-1 disabled:opacity-50">
+                      {actionLoading === `dep-${d.id}` ? '⏳...' : <><Check className="w-4 h-4" /> Approve</>}
+                    </button>
+                    <button onClick={() => handleDeposit(d.id, 'rejected', d.user_id, d.amount)}
+                      disabled={actionLoading === `dep-${d.id}`}
+                      className="flex-1 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium flex items-center justify-center gap-1 disabled:opacity-50">
+                      {actionLoading === `dep-${d.id}` ? '⏳...' : <><X className="w-4 h-4" /> Decline</>}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
