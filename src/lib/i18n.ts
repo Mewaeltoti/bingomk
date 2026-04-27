@@ -117,6 +117,18 @@ const translations = {
     purchased: 'Cartelas purchased! 🎉',
     noCartelas: 'Spectating — no cartelas',
     lastWinNumber: 'Last winning number',
+    depositTitle: 'Bingo 10:20 Deposit',
+    depositInstructions: 'Follow the "How to Deposit" instructions below to easily make a deposit, or watch the video below for guidance.',
+    depositAccountsTitle: 'Telebirr Deposit Accounts',
+    yourPhone: 'Your Phone',
+    minDeposit: 'Minimum Amount',
+    payVia: 'Pay via',
+    transactionNumber: 'Transaction Number',
+    transactionNumberPlaceholder: 'Enter Transaction Number here',
+    withdrawMethod: 'Withdraw Method',
+    insufficientBalance: 'Insufficient withdrawable balance',
+    minMaxLimit: 'Min',
+    maxLimit: 'Max',
   },
 } as const;
 
