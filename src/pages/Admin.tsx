@@ -38,6 +38,8 @@ export default function Admin() {
   const [resetPasswordPlayer, setResetPasswordPlayer] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [smsText, setSmsText] = useState('');
+  const [parsedSms, setParsedSms] = useState<ParsedSms | null>(null);
 
   const user = useUser();
   const navigate = useNavigate();
