@@ -935,96 +935,79 @@ export default function GamePage() {
         </div>
       )}
 
-      {/* ACTIVE GAME */}
+      {/* ACTIVE GAME — redesigned to match reference UI */}
       {isGameActive && (
         <div className="px-3 py-3 space-y-3">
-          {/* Current number + pattern */}
-          <div className="flex items-center gap-3">
-          {lastNumber ? (
-              <motion.div key={lastNumber}
-                initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: 'spring', damping: 12, stiffness: 200 }}
-                className="w-16 h-16 rounded-full gradient-neon flex flex-col items-center justify-center text-primary-foreground shadow-lg glow-neon flex-shrink-0 border-2 border-primary-foreground/20">
-                <motion.span
-                  initial={{ opacity: 1 }}
-                  animate={{ opacity: 1 }}
-                  className="text-lg font-display font-black leading-none"
-                >{getBingoLetter(lastNumber)}</motion.span>
-                <motion.span
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.2, duration: 0.3 }}
-                  className="text-xl font-display font-bold -mt-0.5 leading-none"
-                >{lastNumber}</motion.span>
-              </motion.div>
-            ) : (
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-xs flex-shrink-0">--</div>
-            )}
-            <div className="flex-1 flex items-center gap-2">
-              <PatternGrid pattern={gamePattern} />
-              <div>
-                <div className="text-sm font-display font-bold text-foreground">{gamePattern}</div>
-                <div className="text-xs text-muted-foreground">{drawnNumbers.length}/75 {t('drawn')}</div>
-                {prizeAmount > 0 && <div className="text-xs font-bold text-primary">🏆 {prizeAmount} ETB</div>}
-              </div>
-            </div>
+          {/* Show More / Less toggle */}
+          <div className="flex justify-end">
+            <button
+              onClick={() => setBoardOpen(prev => !prev)}
+              className="flex items-center gap-1 text-rose-500 text-sm font-bold active:scale-95"
+            >
+              {boardOpen ? (
+                <><ChevronUp className="w-4 h-4" /> Show Less</>
+              ) : (
+                <><ChevronDown className="w-4 h-4" /> Show More</>
+              )}
+            </button>
           </div>
 
-          {/* Drawn numbers */}
-          {drawnNumbers.length > 0 && (
-            <div className="flex flex-wrap gap-[3px]">
-              {drawnNumbers.map((num, i) => {
-                const rowIdx = Math.floor((num - 1) / 15);
-                const colors = ['bg-neon-blue', 'bg-neon-pink', 'bg-neon-green', 'bg-neon-yellow', 'bg-neon-purple'];
-                return (
-                  <motion.div
-                    key={num}
-                    initial={i === drawnNumbers.length - 1 ? { scale: 0 } : false}
-                    animate={{ scale: 1 }}
-                    className={cn('w-6 h-6 flex items-center justify-center text-[8px] font-bold rounded text-white shadow-sm', colors[rowIdx])}
-                  >
-                    <motion.span
-                      initial={i === drawnNumbers.length - 1 ? { opacity: 0 } : false}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 1.2, duration: 0.3 }}
-                    >{num}</motion.span>
-                  </motion.div>
-                );
-              })}
+          {/* Collapsible game info — only when boardOpen */}
+          {boardOpen && (
+            <div className="rounded-2xl border border-border bg-card overflow-hidden">
+              <div className="px-4 py-3 border-b border-border flex items-center gap-2 text-sm">
+                <span className="text-primary">✦</span>
+                <span className="text-muted-foreground">Game:</span>
+                <span className="font-bold text-foreground">{gamePattern}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 px-4 py-3 text-xs border-b border-border">
+                <div><span className="text-muted-foreground">ID: </span><span className="font-mono text-foreground">#{sessionNumber}</span></div>
+                <div><span className="text-muted-foreground">Players: </span><span className="font-bold text-foreground">{players.length}</span></div>
+                <div className="text-right"><span className="text-muted-foreground">Status: </span><span className="font-bold text-emerald-600">Playing</span></div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 px-4 py-3 text-xs">
+                <div><span className="text-muted-foreground">Price: </span><span className="font-bold text-emerald-600">${cartelaPrice}</span></div>
+                <div><span className="text-muted-foreground">Cards: </span><span className="font-bold text-foreground">{playerCartelas.length}</span></div>
+                <div className="text-right"><span className="text-muted-foreground">Prize: </span><span className="font-bold text-amber-500">${prizeAmount}</span></div>
+              </div>
             </div>
           )}
 
-          {/* 1-75 board */}
-          <div className="rounded-xl overflow-hidden bg-muted/30 border border-border">
-            <button onClick={() => setBoardOpen(prev => !prev)}
-              className="w-full flex items-center justify-between px-3 py-2 bg-gradient-to-r from-primary/80 to-secondary/80 text-primary-foreground text-xs font-bold">
-              <span>{t('board')} ({drawnNumbers.length}/75)</span>
-              {boardOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
-            {boardOpen && (
-              <div className="p-1.5">
-                {['B', 'I', 'N', 'G', 'O'].map((letter, rowIdx) => {
-                  const colorClasses = ['bg-neon-blue', 'bg-neon-pink', 'bg-neon-green', 'bg-neon-yellow', 'bg-neon-purple'];
+          {/* Called Numbers panel */}
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-bold text-foreground text-sm">Called Numbers:</span>
+              <span className="text-muted-foreground text-sm">Drawn: {drawnNumbers.length}</span>
+            </div>
+
+            {drawnNumbers.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-2">Not called yet</p>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                {drawnNumbers.slice().reverse().map((num, i) => {
+                  const rowIdx = Math.floor((num - 1) / 15);
+                  const ballGradients = [
+                    'bg-gradient-to-br from-blue-400 to-blue-700',
+                    'bg-gradient-to-br from-rose-400 to-rose-700',
+                    'bg-gradient-to-br from-teal-400 to-teal-700',
+                    'bg-gradient-to-br from-purple-400 to-purple-700',
+                    'bg-gradient-to-br from-orange-400 to-orange-700',
+                  ];
+                  const isLatest = i === 0;
                   return (
-                    <div key={letter} className="flex items-center gap-[2px] mb-[3px] last:mb-0">
-                      <div className={cn('w-5 h-5 flex-shrink-0 flex items-center justify-center font-display font-bold text-[10px] text-white rounded-sm', colorClasses[rowIdx])}>
-                        {letter}
-                      </div>
-                      <div className="flex flex-1 gap-[2px] justify-between">
-                        {Array.from({ length: 15 }, (_, i) => {
-                          const num = rowIdx * 15 + i + 1;
-                          const isDrawn = drawnSet.has(num);
-                          return (
-                            <div key={num}
-                              className={cn('w-[20px] h-[20px] flex items-center justify-center text-[7px] font-bold border border-border/30 rounded-sm',
-                                isDrawn ? `${colorClasses[rowIdx]} text-white` : 'bg-muted/30 text-muted-foreground'
-                              )}>
-                              {num}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                    <motion.div
+                      key={num}
+                      initial={isLatest ? { scale: 0, rotate: -180 } : false}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ type: 'spring', damping: 14, stiffness: 200 }}
+                      className={cn(
+                        'flex items-center justify-center rounded-full text-white font-display font-bold shadow-lg',
+                        ballGradients[rowIdx],
+                        isLatest ? 'w-14 h-14 text-base ring-4 ring-white/40' : 'w-10 h-10 text-xs'
+                      )}
+                    >
+                      {isLatest ? `${getBingoLetter(num)}-${num}` : num}
+                    </motion.div>
                   );
                 })}
               </div>
@@ -1048,6 +1031,7 @@ export default function GamePage() {
                       size="sm"
                       label={`#${c.id}`}
                       banned={isBanned}
+                      lastDrawn={lastNumber}
                     />
                     {!isSpectator && (
                       <button onClick={() => handleClaimBingo(c.id)} disabled={isClaimed || isBanned}

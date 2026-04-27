@@ -1,12 +1,13 @@
 import { BINGO_LETTERS } from '@/lib/bingo';
 import { cn } from '@/lib/utils';
 
+// Bold, professional bingo header colors — match reference UI exactly.
 const HEADER_COLORS = [
-  'bg-neon-blue text-white',
-  'bg-neon-pink text-white',
-  'bg-neon-green text-primary-foreground',
-  'bg-neon-yellow text-primary-foreground',
-  'bg-neon-purple text-white',
+  'bg-emerald-500 text-white',  // B
+  'bg-rose-500 text-white',     // I
+  'bg-teal-500 text-white',     // N
+  'bg-blue-500 text-white',     // G
+  'bg-orange-500 text-white',   // O
 ];
 
 interface BingoCartelaProps {
@@ -19,6 +20,8 @@ interface BingoCartelaProps {
   selected?: boolean;
   label?: string;
   banned?: boolean;
+  /** Last drawn number — gets a special highlight ring */
+  lastDrawn?: number | null;
 }
 
 export default function BingoCartela({
@@ -31,18 +34,20 @@ export default function BingoCartela({
   selected,
   label,
   banned,
+  lastDrawn = null,
 }: BingoCartelaProps) {
+  // Bigger, rounder cells to match the reference circle UI.
   const cellSize =
-    size === 'xs' ? 'text-[8px] w-5 h-5' :
-    size === 'sm' ? 'text-xs w-9 h-9' :
-    size === 'lg' ? 'text-base w-12 h-12' :
-    'text-sm w-10 h-10';
+    size === 'xs' ? 'text-[9px] w-6 h-6' :
+    size === 'sm' ? 'text-xs w-10 h-10' :
+    size === 'lg' ? 'text-lg w-14 h-14' :
+    'text-sm w-11 h-11';
 
   const headerSize =
-    size === 'xs' ? 'text-[8px] w-5 h-5' :
-    size === 'sm' ? 'text-[10px] w-9 h-6' :
-    size === 'lg' ? 'text-sm w-12 h-8' :
-    'text-xs w-10 h-7';
+    size === 'xs' ? 'text-[9px] w-6 h-5' :
+    size === 'sm' ? 'text-xs w-10 h-7' :
+    size === 'lg' ? 'text-base w-14 h-9' :
+    'text-sm w-11 h-8';
 
   const handleCellClick = (num: number, row: number, col: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -55,25 +60,28 @@ export default function BingoCartela({
   return (
     <div
       className={cn(
-        'relative p-1.5 transition-all duration-200 rounded-lg',
-        // Wood texture feel
-        'bg-gradient-to-br from-amber-800/90 via-amber-700/80 to-amber-900/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_4px_12px_rgba(0,0,0,0.3)]',
-        selected ? 'ring-2 ring-primary glow-neon' : 'ring-1 ring-amber-600/50',
+        'relative p-2 transition-all duration-200 rounded-2xl',
+        // Clean white card look (matches reference screenshots)
+        'bg-card border shadow-sm',
+        selected ? 'border-primary ring-2 ring-primary/40' : 'border-border',
         banned && 'opacity-50 grayscale',
         onClick && 'cursor-pointer active:scale-[0.98]'
       )}
       onClick={onClick}
     >
       {label && (
-        <div className="text-center text-[10px] font-display font-bold text-amber-200 mb-0.5 drop-shadow">{label}</div>
+        <div className="text-center text-[11px] font-display font-bold text-foreground mb-1">
+          {label}
+        </div>
       )}
-      {/* BINGO Header */}
-      <div className="grid grid-cols-5 gap-px mb-px">
+
+      {/* BINGO Header — colored pills */}
+      <div className="grid grid-cols-5 gap-1 mb-1.5">
         {BINGO_LETTERS.map((l, i) => (
           <div
             key={l}
             className={cn(
-              'flex items-center justify-center font-display font-bold rounded-sm',
+              'flex items-center justify-center font-display font-bold rounded-md shadow-sm',
               headerSize,
               HEADER_COLORS[i]
             )}
@@ -82,15 +90,17 @@ export default function BingoCartela({
           </div>
         ))}
       </div>
-      {/* Grid */}
-      <div className="bg-amber-950/30 rounded-sm overflow-hidden">
+
+      {/* Number grid — circular cells */}
+      <div className="space-y-1">
         {Array.from({ length: 5 }, (_, row) => (
-          <div key={row} className="grid grid-cols-5 gap-px mb-px last:mb-0">
+          <div key={row} className="grid grid-cols-5 gap-1">
             {Array.from({ length: 5 }, (_, col) => {
               const num = numbers[row]?.[col] ?? 0;
               const isFree = row === 2 && col === 2;
               const isMarked = isFree || markedCells.has(`${row}-${col}`);
               const isDrawn = drawnNumbers.has(num);
+              const isLast = !isFree && lastDrawn != null && num === lastDrawn;
               const isClickable = onMarkCell && isDrawn && !isFree;
 
               return (
@@ -98,17 +108,19 @@ export default function BingoCartela({
                   key={`${row}-${col}`}
                   onClick={(e) => handleCellClick(num, row, col, e)}
                   className={cn(
-                    'flex items-center justify-center font-display font-bold transition-colors',
+                    'relative flex items-center justify-center font-display font-bold rounded-full transition-all',
                     cellSize,
                     isClickable && 'cursor-pointer active:scale-90',
                     isFree
-                      ? 'bg-secondary text-secondary-foreground'
+                      ? 'bg-orange-500 text-white shadow-md'
+                      : isLast
+                      ? 'bg-orange-500 text-white shadow-[0_0_0_3px_hsl(0_84%_60%)] ring-2 ring-rose-500'
                       : isMarked
-                      ? 'bg-primary text-primary-foreground shadow-[0_0_8px_hsl(160_100%_50%/0.4)]'
-                      : 'bg-amber-100/90 dark:bg-amber-950/60 text-amber-900 dark:text-amber-100'
+                      ? 'bg-emerald-500 text-white shadow-md'
+                      : 'bg-muted/60 text-foreground border border-border'
                   )}
                 >
-                  {isFree ? '★' : num}
+                  {isFree ? 'FREE' : num}
                 </div>
               );
             })}
