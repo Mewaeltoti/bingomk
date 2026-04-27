@@ -1014,43 +1014,6 @@ export default function GamePage() {
             )}
           </div>
 
-          {/* 1-75 board */}
-          <div className="rounded-xl overflow-hidden bg-muted/30 border border-border">
-            <button onClick={() => setBoardOpen(prev => !prev)}
-              className="w-full flex items-center justify-between px-3 py-2 bg-gradient-to-r from-primary/80 to-secondary/80 text-primary-foreground text-xs font-bold">
-              <span>{t('board')} ({drawnNumbers.length}/75)</span>
-              {boardOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
-            {boardOpen && (
-              <div className="p-1.5">
-                {['B', 'I', 'N', 'G', 'O'].map((letter, rowIdx) => {
-                  const colorClasses = ['bg-neon-blue', 'bg-neon-pink', 'bg-neon-green', 'bg-neon-yellow', 'bg-neon-purple'];
-                  return (
-                    <div key={letter} className="flex items-center gap-[2px] mb-[3px] last:mb-0">
-                      <div className={cn('w-5 h-5 flex-shrink-0 flex items-center justify-center font-display font-bold text-[10px] text-white rounded-sm', colorClasses[rowIdx])}>
-                        {letter}
-                      </div>
-                      <div className="flex flex-1 gap-[2px] justify-between">
-                        {Array.from({ length: 15 }, (_, i) => {
-                          const num = rowIdx * 15 + i + 1;
-                          const isDrawn = drawnSet.has(num);
-                          return (
-                            <div key={num}
-                              className={cn('w-[20px] h-[20px] flex items-center justify-center text-[7px] font-bold border border-border/30 rounded-sm',
-                                isDrawn ? `${colorClasses[rowIdx]} text-white` : 'bg-muted/30 text-muted-foreground'
-                              )}>
-                              {num}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
           {/* Player's cartelas */}
           {playerCartelas.length > 0 ? (
             <div className="grid grid-cols-2 gap-3">
