@@ -1,6 +1,9 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import PullToRefresh from '@/components/PullToRefresh';
 import BingoCartela from '@/components/BingoCartela';
+import CalledNumbersGrid from '@/components/CalledNumbersGrid';
+import CartelaDetailModal from '@/components/CartelaDetailModal';
+import WinnerSummaryPanel, { FloatingBallsStack } from '@/components/WinnerSummaryPanel';
 import { supabase } from '@/integrations/supabase/client';
 import { useUser } from '@/lib/auth';
 import { useGamePresence } from '@/hooks/useGamePresence';
