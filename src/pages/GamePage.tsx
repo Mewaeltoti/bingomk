@@ -772,15 +772,38 @@ export default function GamePage() {
 
   const handleMarkCell = useCallback((cartelaId: number, row: number, col: number) => {
     playMarkSound();
+    // Find the tapped number, then toggle it across every owned cartela that has it.
+    const sourceCartela = playerCartelas.find(c => c.id === cartelaId);
+    const tappedNumber = sourceCartela?.numbers?.[row]?.[col];
+    if (tappedNumber == null) return;
+
+    // Determine new marked state from the source cell so all cards stay in sync.
+    const sourceMarked = markedMap.get(cartelaId)?.has(`${row}-${col}`) ?? false;
+    const shouldMark = !sourceMarked;
+
     setMarkedMap(prev => {
       const next = new Map(prev);
-      const cells = new Set(next.get(cartelaId) || []);
-      const key = `${row}-${col}`;
-      cells.has(key) ? cells.delete(key) : cells.add(key);
-      next.set(cartelaId, cells);
+      for (const c of playerCartelas) {
+        const grid = c.numbers as number[][];
+        if (!grid) continue;
+        const cells = new Set(next.get(c.id) || []);
+        let touched = false;
+        for (let r = 0; r < 5; r++) {
+          for (let col2 = 0; col2 < 5; col2++) {
+            if (r === 2 && col2 === 2) continue; // FREE
+            if (grid[r]?.[col2] === tappedNumber) {
+              const k = `${r}-${col2}`;
+              if (shouldMark) cells.add(k);
+              else cells.delete(k);
+              touched = true;
+            }
+          }
+        }
+        if (touched) next.set(c.id, cells);
+      }
       return next;
     });
-  }, []);
+  }, [playerCartelas, markedMap]);
 
   const handleClaimBingo = async (cartelaId: number) => {
     if (!user?.id || isSpectator || claimedCartelas.has(cartelaId) || bannedCartelas.has(cartelaId)) return;
