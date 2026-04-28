@@ -753,9 +753,11 @@ export default function GamePage() {
   }, [user?.id]);
 
   async function fetchWinnerCartela() {
-    const { data: claims } = await supabase.from('bingo_claims').select('cartela_id').eq('game_id', 'current').eq('is_valid', true).limit(1);
+    const { data: claims } = await supabase.from('bingo_claims').select('cartela_id').eq('game_id', 'current').eq('is_valid', true);
     if (claims && claims.length > 0) {
-      const cid = (claims[0] as any).cartela_id;
+      const ids = claims.map((c: any) => c.cartela_id).filter(Boolean);
+      setWinnerCartelaIds(ids);
+      const cid = ids[0];
       if (cid) {
         const { data: cartela } = await supabase.from('cartelas').select('numbers').eq('id', cid).single();
         if (cartela) {
