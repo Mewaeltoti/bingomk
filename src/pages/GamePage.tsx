@@ -1,10 +1,13 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import PullToRefresh from '@/components/PullToRefresh';
 import BingoCartela from '@/components/BingoCartela';
+import CalledNumbersGrid from '@/components/CalledNumbersGrid';
+import CartelaDetailModal from '@/components/CartelaDetailModal';
+import WinnerSummaryPanel, { FloatingBallsStack } from '@/components/WinnerSummaryPanel';
 import { supabase } from '@/integrations/supabase/client';
 import { useUser } from '@/lib/auth';
 import { useGamePresence } from '@/hooks/useGamePresence';
-import { getBingoLetter } from '@/lib/bingoEngine';
+
 import { checkWin, getPatternCells } from '@/lib/winDetection';
 import { PATTERNS } from '@/lib/bingo';
 import { toast } from 'sonner';
@@ -443,6 +446,9 @@ export default function GamePage() {
   const [, setLangTick] = useState(0);
   const [soldCount, setSoldCount] = useState(0);
   const [hasPendingClaim, setHasPendingClaim] = useState(false);
+  const [detailCartelaId, setDetailCartelaId] = useState<number | null>(null);
+  const [winnerCartelaIds, setWinnerCartelaIds] = useState<number[]>([]);
+  const [phone, setPhone] = useState<string>('');
   const user = useUser();
   const navigate = useNavigate();
   const players = useGamePresence(user?.id, displayName);
@@ -486,6 +492,7 @@ export default function GamePage() {
         if (data) {
           setDisplayName((data as any).phone || (data as any).display_name || '');
           setBalance((data as any).balance || 0);
+          setPhone((data as any).phone || '');
         }
       });
     const ch = supabase
@@ -633,6 +640,7 @@ export default function GamePage() {
             setMarkedMap(new Map());
             setClaimedCartelas(new Set());
             setHasPendingClaim(false);
+            setWinnerCartelaIds([]);
             setShowShop(true);
             setNextGameCountdown(0);
             setSoldCount(0);
@@ -746,9 +754,11 @@ export default function GamePage() {
   }, [user?.id]);
 
   async function fetchWinnerCartela() {
-    const { data: claims } = await supabase.from('bingo_claims').select('cartela_id').eq('game_id', 'current').eq('is_valid', true).limit(1);
+    const { data: claims } = await supabase.from('bingo_claims').select('cartela_id').eq('game_id', 'current').eq('is_valid', true);
     if (claims && claims.length > 0) {
-      const cid = (claims[0] as any).cartela_id;
+      const ids = claims.map((c: any) => c.cartela_id).filter(Boolean);
+      setWinnerCartelaIds(ids);
+      const cid = ids[0];
       if (cid) {
         const { data: cartela } = await supabase.from('cartelas').select('numbers').eq('id', cid).single();
         if (cartela) {
@@ -973,46 +983,27 @@ export default function GamePage() {
             </div>
           )}
 
-          {/* Called Numbers panel */}
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <span className="font-bold text-foreground text-sm">Called Numbers:</span>
-              <span className="text-muted-foreground text-sm">Drawn: {drawnNumbers.length}</span>
+          {/* Called Numbers — full 1-75 grid */}
+          {drawnNumbers.length === 0 ? (
+            <div className="rounded-2xl border border-border bg-card p-4 shadow-sm text-center text-sm text-muted-foreground">
+              Not called yet
             </div>
+          ) : (
+            <CalledNumbersGrid drawnNumbers={drawnNumbers} />
+          )}
 
-            {drawnNumbers.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-2">Not called yet</p>
-            ) : (
-              <div className="flex flex-wrap items-center gap-2">
-                {drawnNumbers.slice().reverse().map((num, i) => {
-                  const rowIdx = Math.floor((num - 1) / 15);
-                  const ballGradients = [
-                    'bg-gradient-to-br from-blue-400 to-blue-700',
-                    'bg-gradient-to-br from-rose-400 to-rose-700',
-                    'bg-gradient-to-br from-teal-400 to-teal-700',
-                    'bg-gradient-to-br from-purple-400 to-purple-700',
-                    'bg-gradient-to-br from-orange-400 to-orange-700',
-                  ];
-                  const isLatest = i === 0;
-                  return (
-                    <motion.div
-                      key={num}
-                      initial={isLatest ? { scale: 0, rotate: -180 } : false}
-                      animate={{ scale: 1, rotate: 0 }}
-                      transition={{ type: 'spring', damping: 14, stiffness: 200 }}
-                      className={cn(
-                        'flex items-center justify-center rounded-full text-white font-display font-bold shadow-lg',
-                        ballGradients[rowIdx],
-                        isLatest ? 'w-14 h-14 text-base ring-4 ring-white/40' : 'w-10 h-10 text-xs'
-                      )}
-                    >
-                      {isLatest ? `${getBingoLetter(num)}-${num}` : num}
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          {/* Post-game summary panel (after a winner is announced) */}
+          {showResult && (
+            <>
+              <WinnerSummaryPanel
+                ownedCartelas={playerCartelas.map(c => c.id).filter(id => !bannedCartelas.has(id))}
+                bannedCartelas={Array.from(bannedCartelas)}
+                winnerCartelas={winnerCartelaIds}
+                finished={true}
+              />
+              <FloatingBallsStack />
+            </>
+          )}
 
           {/* Player's cartelas */}
           {playerCartelas.length > 0 ? (
@@ -1028,6 +1019,7 @@ export default function GamePage() {
                       drawnNumbers={drawnSet}
                       markedCells={cellsMarked}
                       onMarkCell={isSpectator || isBanned ? undefined : (row, col) => handleMarkCell(c.id, row, col)}
+                      onClick={() => setDetailCartelaId(c.id)}
                       size="sm"
                       label={`#${c.id}`}
                       banned={isBanned}
@@ -1052,6 +1044,29 @@ export default function GamePage() {
               <p className="text-sm">{t('noCartelas')}</p>
             </div>
           )}
+
+          {/* Cartela detail popup */}
+          <AnimatePresence>
+            {detailCartelaId !== null && (() => {
+              const c = playerCartelas.find(x => x.id === detailCartelaId);
+              if (!c) return null;
+              const cellsMarked = markedMap.get(c.id) || new Set<string>();
+              const isBanned = bannedCartelas.has(c.id) || c.banned_for_game;
+              return (
+                <CartelaDetailModal
+                  open={true}
+                  onClose={() => setDetailCartelaId(null)}
+                  cartelaId={c.id}
+                  numbers={c.numbers as number[][]}
+                  phone={phone}
+                  drawnNumbers={drawnSet}
+                  markedCells={cellsMarked}
+                  lastDrawn={lastNumber}
+                  onMarkCell={isSpectator || isBanned ? undefined : (row, col) => handleMarkCell(c.id, row, col)}
+                />
+              );
+            })()}
+          </AnimatePresence>
         </div>
       )}
       </PullToRefresh>
