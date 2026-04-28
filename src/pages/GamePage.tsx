@@ -7,7 +7,7 @@ import WinnerSummaryPanel, { FloatingBallsStack } from '@/components/WinnerSumma
 import { supabase } from '@/integrations/supabase/client';
 import { useUser } from '@/lib/auth';
 import { useGamePresence } from '@/hooks/useGamePresence';
-import { getBingoLetter } from '@/lib/bingoEngine';
+
 import { checkWin, getPatternCells } from '@/lib/winDetection';
 import { PATTERNS } from '@/lib/bingo';
 import { toast } from 'sonner';
