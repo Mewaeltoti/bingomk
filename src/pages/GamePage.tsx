@@ -492,6 +492,7 @@ export default function GamePage() {
         if (data) {
           setDisplayName((data as any).phone || (data as any).display_name || '');
           setBalance((data as any).balance || 0);
+          setPhone((data as any).phone || '');
         }
       });
     const ch = supabase
