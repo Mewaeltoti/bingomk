@@ -107,7 +107,7 @@ export default function CartelaDetailModal({
                       }}
                       disabled={!isClickable && !isFree}
                       className={cn(
-                        'aspect-square w-full rounded-full flex items-center justify-center font-display font-bold text-base shadow-md transition-all',
+                        'aspect-square w-full rounded-lg flex items-center justify-center font-display font-bold text-base shadow-md transition-all',
                         isClickable && 'active:scale-90 cursor-pointer',
                         isFree
                           ? 'bg-orange-500 text-white text-sm'
