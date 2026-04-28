@@ -1000,7 +1000,7 @@ export default function GamePage() {
                 <span className="font-bold text-foreground text-sm">Called Numbers:</span>
                 <span className="text-muted-foreground text-sm">Drawn: {drawnNumbers.length}</span>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 max-h-44 overflow-y-auto pr-1 scroll-smooth">
                 {drawnNumbers.slice().reverse().map((num, i) => {
                   const rowIdx = Math.floor((num - 1) / 15);
                   const ballGradients = [
@@ -1019,7 +1019,7 @@ export default function GamePage() {
                       animate={{ scale: 1, rotate: 0 }}
                       transition={{ type: 'spring', damping: 14, stiffness: 200 }}
                       className={cn(
-                        'flex items-center justify-center rounded-full text-white font-display font-bold shadow-lg',
+                        'shrink-0 flex items-center justify-center rounded-full text-white font-display font-bold shadow-lg',
                         ballGradients[rowIdx],
                         isLatest ? 'w-14 h-14 text-base ring-4 ring-white/40' : 'w-10 h-10 text-xs'
                       )}
