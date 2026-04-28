@@ -983,13 +983,53 @@ export default function GamePage() {
             </div>
           )}
 
-          {/* Called Numbers — full 1-75 grid */}
+          {/* Called Numbers — full 1-75 grid (Show More) or rolling balls (Show Less) */}
           {drawnNumbers.length === 0 ? (
-            <div className="rounded-2xl border border-border bg-card p-4 shadow-sm text-center text-sm text-muted-foreground">
-              Not called yet
+            <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-bold text-foreground text-sm">Called Numbers:</span>
+                <span className="text-muted-foreground text-sm">Drawn: 0</span>
+              </div>
+              <p className="text-center text-sm text-muted-foreground py-2">Not called yet</p>
             </div>
-          ) : (
+          ) : boardOpen ? (
             <CalledNumbersGrid drawnNumbers={drawnNumbers} />
+          ) : (
+            <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-bold text-foreground text-sm">Called Numbers:</span>
+                <span className="text-muted-foreground text-sm">Drawn: {drawnNumbers.length}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {drawnNumbers.slice().reverse().map((num, i) => {
+                  const rowIdx = Math.floor((num - 1) / 15);
+                  const ballGradients = [
+                    'bg-gradient-to-br from-blue-400 to-blue-700',
+                    'bg-gradient-to-br from-rose-400 to-rose-700',
+                    'bg-gradient-to-br from-emerald-400 to-emerald-700',
+                    'bg-gradient-to-br from-purple-400 to-purple-700',
+                    'bg-gradient-to-br from-orange-400 to-orange-700',
+                  ];
+                  const letters = ['B', 'I', 'N', 'G', 'O'];
+                  const isLatest = i === 0;
+                  return (
+                    <motion.div
+                      key={num}
+                      initial={isLatest ? { scale: 0, rotate: -180 } : false}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ type: 'spring', damping: 14, stiffness: 200 }}
+                      className={cn(
+                        'flex items-center justify-center rounded-full text-white font-display font-bold shadow-lg',
+                        ballGradients[rowIdx],
+                        isLatest ? 'w-14 h-14 text-base ring-4 ring-white/40' : 'w-10 h-10 text-xs'
+                      )}
+                    >
+                      {isLatest ? `${letters[rowIdx]}-${num}` : num}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
           )}
 
           {/* Post-game summary panel (after a winner is announced) */}
