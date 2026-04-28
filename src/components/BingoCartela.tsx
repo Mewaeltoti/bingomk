@@ -108,7 +108,7 @@ export default function BingoCartela({
                   key={`${row}-${col}`}
                   onClick={(e) => handleCellClick(num, row, col, e)}
                   className={cn(
-                    'relative flex items-center justify-center font-display font-bold rounded-full transition-all',
+                    'relative flex items-center justify-center font-display font-bold rounded-md transition-all',
                     cellSize,
                     isClickable && 'cursor-pointer active:scale-90',
                     isFree
