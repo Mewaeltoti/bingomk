@@ -640,6 +640,7 @@ export default function GamePage() {
             setMarkedMap(new Map());
             setClaimedCartelas(new Set());
             setHasPendingClaim(false);
+            setWinnerCartelaIds([]);
             setShowShop(true);
             setNextGameCountdown(0);
             setSoldCount(0);
