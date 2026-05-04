@@ -3,6 +3,7 @@ import PullToRefresh from '@/components/PullToRefresh';
 import BingoCartela from '@/components/BingoCartela';
 import CalledNumbersGrid from '@/components/CalledNumbersGrid';
 import CartelaDetailModal from '@/components/CartelaDetailModal';
+import PublicCartelaModal from '@/components/PublicCartelaModal';
 import WinnerSummaryPanel, { FloatingBallsStack } from '@/components/WinnerSummaryPanel';
 import { supabase } from '@/integrations/supabase/client';
 import { useUser } from '@/lib/auth';
@@ -448,6 +449,10 @@ export default function GamePage() {
   const [hasPendingClaim, setHasPendingClaim] = useState(false);
   const [detailCartelaId, setDetailCartelaId] = useState<number | null>(null);
   const [winnerCartelaIds, setWinnerCartelaIds] = useState<number[]>([]);
+  const [publicBannedIds, setPublicBannedIds] = useState<number[]>([]);
+  const [activeClaimId, setActiveClaimId] = useState<number | null>(null);
+  const [activeWinnerId, setActiveWinnerId] = useState<number | null>(null);
+  const [publicModal, setPublicModal] = useState<{ id: number; status: 'banned' | 'claimed' | 'winner' } | null>(null);
   const [phone, setPhone] = useState<string>('');
   const user = useUser();
   const navigate = useNavigate();
