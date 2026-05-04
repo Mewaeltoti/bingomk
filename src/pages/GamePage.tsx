@@ -882,13 +882,9 @@ export default function GamePage() {
           <span className="shrink-0 text-[10px] font-display font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded leading-none">
             #{sessionNumber}
           </span>
-          <span className="shrink-0 text-[10px] text-muted-foreground flex items-center gap-0.5 leading-none">
-            <Users className="w-3 h-3" /> {players.length}
-          </span>
           {isSpectator && <span className="shrink-0 text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground"><Eye className="w-3 h-3 inline" /></span>}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {/* Pending claim badge */}
           {hasPendingClaim && (
             <motion.div
               initial={{ scale: 0 }} animate={{ scale: 1 }}
@@ -927,19 +923,6 @@ export default function GamePage() {
                   {Math.floor(buyingCountdown / 60)}:{String(buyingCountdown % 60).padStart(2, '0')}
                 </div>
                 <p className="text-xs text-muted-foreground">{t('buying')} — game starts when timer ends</p>
-                {/* Live stats */}
-                <div className="flex items-center justify-center gap-4 mt-2">
-                  <motion.div key={`p-${players.length}`} initial={{ scale: 1.2 }} animate={{ scale: 1 }}
-                    className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Users className="w-3.5 h-3.5 text-primary" />
-                    <span className="font-bold text-foreground">{players.length}</span> online
-                  </motion.div>
-                  <motion.div key={`s-${soldCount}`} initial={{ scale: 1.3 }} animate={{ scale: 1 }}
-                    className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <ShoppingCart className="w-3.5 h-3.5 text-primary" />
-                    <span className="font-bold text-foreground">{soldCount}</span> sold
-                  </motion.div>
-                </div>
               </div>
             )}
             <p className="text-sm text-muted-foreground mb-3">
@@ -993,14 +976,10 @@ export default function GamePage() {
                 <span className="text-muted-foreground">Game:</span>
                 <span className="font-bold text-foreground">{gamePattern}</span>
               </div>
-              <div className="grid grid-cols-3 gap-2 px-4 py-3 text-xs border-b border-border">
+              <div className="grid grid-cols-2 gap-2 px-4 py-3 text-xs">
                 <div><span className="text-muted-foreground">ID: </span><span className="font-mono text-foreground">#{sessionNumber}</span></div>
-                <div><span className="text-muted-foreground">Players: </span><span className="font-bold text-foreground">{players.length}</span></div>
                 <div className="text-right"><span className="text-muted-foreground">Status: </span><span className="font-bold text-emerald-600">Playing</span></div>
-              </div>
-              <div className="grid grid-cols-3 gap-2 px-4 py-3 text-xs">
                 <div><span className="text-muted-foreground">Price: </span><span className="font-bold text-emerald-600">${cartelaPrice}</span></div>
-                <div><span className="text-muted-foreground">Cards: </span><span className="font-bold text-foreground">{playerCartelas.length}</span></div>
                 <div className="text-right"><span className="text-muted-foreground">Prize: </span><span className="font-bold text-amber-500">${prizeAmount}</span></div>
               </div>
             </div>
