@@ -718,11 +718,26 @@ export default function GamePage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bingo_claims', filter: 'game_id=eq.current' },
         (payload: any) => {
           const claim = payload.new;
-          if (!claim || claim.user_id !== user?.id) return;
-          const cid = claim.cartela_id;
-          if (claim.is_valid === null) {
-            setHasPendingClaim(true);
+          if (!claim) return;
+
+          // GLOBAL broadcast: any pending claim shows BINGO banner to all players
+          if (claim.is_valid === null && claim.cartela_id) {
+            setActiveClaimId(claim.cartela_id);
           }
+          // Confirmed winner: announce to all
+          if (claim.is_valid === true && claim.cartela_id) {
+            setActiveWinnerId(claim.cartela_id);
+            setActiveClaimId(null);
+          }
+          // Rejected: clear active claim banner
+          if (claim.is_valid === false) {
+            setActiveClaimId(prev => prev === claim.cartela_id ? null : prev);
+          }
+
+          // Personal feedback
+          if (claim.user_id !== user?.id) return;
+          const cid = claim.cartela_id;
+          if (claim.is_valid === null) setHasPendingClaim(true);
           if (claim.is_valid === false) {
             playClaimRejectedSound();
             toast.error(`❌ Claim rejected — Cartela #${cid} banned`, { duration: 6000 });
@@ -746,11 +761,9 @@ export default function GamePage() {
           if (!prev?.is_used && next?.is_used && next?.owner_id) {
             setSoldCount(c => c + 1);
           }
-          if (next?.is_used && next?.owner_id) {
-            supabase.from('games').select('prize_amount').eq('id', 'current').maybeSingle()
-              .then(({ data }) => {
-                if (data?.prize_amount !== undefined) setPrizeAmount(data.prize_amount);
-              });
+          // GLOBAL: track newly banned cartelas for everyone
+          if (next?.banned_for_game && !prev?.banned_for_game && next?.id) {
+            setPublicBannedIds(ids => ids.includes(next.id) ? ids : [...ids, next.id]);
           }
         }
       )
