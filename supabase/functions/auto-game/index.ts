@@ -117,13 +117,11 @@ Deno.serve(async (req) => {
         });
       }
 
-      const prizeAmount = Number((soldCount * Number(game.cartela_price || 10) * HOUSE_PAYOUT_RATIO).toFixed(2));
-
+      // Prize pool is admin-set; do NOT recalculate from sales.
       await supabase.from("games").update({
         status: "active",
         auto_draw: true,
         draw_speed: FIXED_DRAW_SPEED,
-        prize_amount: prizeAmount,
       }).eq("id", "current");
 
       fetch(`${SUPABASE_URL}/functions/v1/auto-draw`, {
