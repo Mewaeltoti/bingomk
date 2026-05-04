@@ -36,18 +36,18 @@ export default function BingoCartela({
   banned,
   lastDrawn = null,
 }: BingoCartelaProps) {
-  // Bigger, rounder cells to match the reference circle UI.
-  const cellSize =
-    size === 'xs' ? 'text-[9px] w-6 h-6' :
-    size === 'sm' ? 'text-xs w-10 h-10' :
-    size === 'lg' ? 'text-lg w-14 h-14' :
-    'text-sm w-11 h-11';
+  // Use aspect-square so cells form a perfect square grid regardless of width.
+  const cellText =
+    size === 'xs' ? 'text-[9px]' :
+    size === 'sm' ? 'text-xs' :
+    size === 'lg' ? 'text-lg' :
+    'text-sm';
 
-  const headerSize =
-    size === 'xs' ? 'text-[9px] w-6 h-5' :
-    size === 'sm' ? 'text-xs w-10 h-7' :
-    size === 'lg' ? 'text-base w-14 h-9' :
-    'text-sm w-11 h-8';
+  const headerText =
+    size === 'xs' ? 'text-[9px] py-1' :
+    size === 'sm' ? 'text-xs py-1.5' :
+    size === 'lg' ? 'text-base py-2' :
+    'text-sm py-1.5';
 
   const handleCellClick = (num: number, row: number, col: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -75,14 +75,14 @@ export default function BingoCartela({
         </div>
       )}
 
-      {/* BINGO Header — colored pills */}
+      {/* BINGO Header */}
       <div className="grid grid-cols-5 gap-1 mb-1.5">
         {BINGO_LETTERS.map((l, i) => (
           <div
             key={l}
             className={cn(
               'flex items-center justify-center font-display font-bold rounded-md shadow-sm',
-              headerSize,
+              headerText,
               HEADER_COLORS[i]
             )}
           >
@@ -91,40 +91,38 @@ export default function BingoCartela({
         ))}
       </div>
 
-      {/* Number grid — circular cells */}
-      <div className="space-y-1">
+      {/* Number grid — perfect-square cells */}
+      <div className="grid grid-cols-5 gap-1">
         {Array.from({ length: 5 }, (_, row) => (
-          <div key={row} className="grid grid-cols-5 gap-1">
-            {Array.from({ length: 5 }, (_, col) => {
-              const num = numbers[row]?.[col] ?? 0;
-              const isFree = row === 2 && col === 2;
-              const isMarked = isFree || markedCells.has(`${row}-${col}`);
-              const isDrawn = drawnNumbers.has(num);
-              const isLast = !isFree && lastDrawn != null && num === lastDrawn;
-              const isClickable = onMarkCell && isDrawn && !isFree;
+          Array.from({ length: 5 }, (_, col) => {
+            const num = numbers[row]?.[col] ?? 0;
+            const isFree = row === 2 && col === 2;
+            const isMarked = isFree || markedCells.has(`${row}-${col}`);
+            const isDrawn = drawnNumbers.has(num);
+            const isLast = !isFree && lastDrawn != null && num === lastDrawn;
+            const isClickable = onMarkCell && isDrawn && !isFree;
 
-              return (
-                <div
-                  key={`${row}-${col}`}
-                  onClick={(e) => handleCellClick(num, row, col, e)}
-                  className={cn(
-                    'relative flex items-center justify-center font-display font-bold rounded-md transition-all',
-                    cellSize,
-                    isClickable && 'cursor-pointer active:scale-90',
-                    isFree
-                      ? 'bg-orange-500 text-white shadow-md'
-                      : isLast
-                      ? 'bg-orange-500 text-white shadow-[0_0_0_3px_hsl(0_84%_60%)] ring-2 ring-rose-500'
-                      : isMarked
-                      ? 'bg-emerald-500 text-white shadow-md'
-                      : 'bg-muted/60 text-foreground border border-border'
-                  )}
-                >
-                  {isFree ? 'FREE' : num}
-                </div>
-              );
-            })}
-          </div>
+            return (
+              <div
+                key={`${row}-${col}`}
+                onClick={(e) => handleCellClick(num, row, col, e)}
+                className={cn(
+                  'relative aspect-square w-full flex items-center justify-center font-display font-bold rounded-md transition-all',
+                  cellText,
+                  isClickable && 'cursor-pointer active:scale-90',
+                  isFree
+                    ? 'bg-orange-500 text-white shadow-md'
+                    : isLast
+                    ? 'bg-orange-500 text-white shadow-[0_0_0_3px_hsl(0_84%_60%)] ring-2 ring-rose-500'
+                    : isMarked
+                    ? 'bg-emerald-500 text-white shadow-md'
+                    : 'bg-muted/60 text-foreground border border-border'
+                )}
+              >
+                {isFree ? 'FREE' : num}
+              </div>
+            );
+          })
         ))}
       </div>
     </div>

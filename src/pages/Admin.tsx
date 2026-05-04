@@ -231,7 +231,7 @@ export default function Admin() {
     if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
 
     const { error } = await invokeWithRetry('game-lifecycle', {
-      body: { action: 'new_game', pattern, draw_speed: drawSpeed, cartela_price: cartelaPrice },
+      body: { action: 'new_game', pattern, draw_speed: drawSpeed, cartela_price: cartelaPrice, prize_amount: prizeAmount },
     });
     if (error) { toast.error(`Failed: ${error}`); setActionLoading(null); return; }
     setActionLoading(null);
@@ -398,10 +398,29 @@ export default function Admin() {
               className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
             />
           </div>
-          
-          {/* Dynamic prize info */}
-          <div className="p-3 rounded-xl bg-primary/5 border border-primary/20">
-            <p className="text-xs text-muted-foreground">Prize = Sold × Price × 80% (auto-calculated)</p>
+
+          {/* Admin-set Prize Pool */}
+          <div>
+            <label className="text-sm text-muted-foreground mb-1 block">Prize Pool (ETB) — admin set</label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min={0}
+                value={prizeAmount}
+                onChange={(e) => setPrizeAmount(Number(e.target.value) || 0)}
+                className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
+              />
+              <button
+                onClick={async () => {
+                  const { error } = await invokeWithRetry('game-lifecycle', { body: { action: 'set_prize', prize_amount: prizeAmount } });
+                  if (error) toast.error(error); else toast.success(`Prize updated → ${prizeAmount} ETB`);
+                }}
+                className="px-4 py-2 rounded-lg gradient-gold text-primary-foreground text-xs font-bold"
+              >
+                Save
+              </button>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">Independent of cartela price/sales.</p>
           </div>
 
           {/* Sales info */}

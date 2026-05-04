@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders });
     }
 
-    const { action, pattern, cartela_price } = await req.json();
+    const { action, pattern, cartela_price, prize_amount } = await req.json();
 
     if (action === "new_game") {
       await supabase.from("games").delete().eq("id", "current");
@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
         status: "buying",
         winner_id: null,
         draw_speed: FIXED_DRAW_SPEED,
-        prize_amount: 0,
+        prize_amount: Number(prize_amount) || 0,
         cartela_price: cartela_price || 10,
         auto_draw: false,
         session_number: nextSession,
@@ -90,26 +90,32 @@ Deno.serve(async (req) => {
     if (action === "start_drawing") {
       const { count } = await supabase.from("cartelas").select("id", { count: "exact", head: true }).eq("is_used", true).not("owner_id", "is", null);
       const soldCount = count || 0;
-      
-      // Allow starting even with 0 sold (admin decides when to start)
-      // But calculate prize from actual sales
-      const { data: currentGame } = await supabase.from("games").select("cartela_price").eq("id", "current").single();
-      const price = Number(currentGame?.cartela_price || cartela_price || 10);
-      const prize = Number((soldCount * price * HOUSE_PAYOUT_RATIO).toFixed(2));
 
-      await supabase.from("games").update({
+      // Prize is admin-set; do not derive from sales
+      const updatePayload: Record<string, unknown> = {
         status: "active",
-        prize_amount: prize,
         auto_draw: true,
         draw_speed: FIXED_DRAW_SPEED,
-      }).eq("id", "current");
+      };
+      if (prize_amount !== undefined && prize_amount !== null) {
+        updatePayload.prize_amount = Number(prize_amount);
+      }
+
+      await supabase.from("games").update(updatePayload).eq("id", "current");
+      const prize = Number(prize_amount) || 0;
 
       fetch(`${SUPABASE_URL}/functions/v1/auto-draw`, {
         method: "POST",
         headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
       }).catch(() => {});
 
-      return new Response(JSON.stringify({ ok: true, status: "active", sold: soldCount, prize_amount: prize }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ ok: true, status: "active", bought: soldCount, prize_amount: prize }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (action === "set_prize") {
+      const amt = Number(prize_amount) || 0;
+      await supabase.from("games").update({ prize_amount: amt }).eq("id", "current");
+      return new Response(JSON.stringify({ ok: true, prize_amount: amt }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (action === "pause") {

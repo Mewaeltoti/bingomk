@@ -3,6 +3,7 @@ import PullToRefresh from '@/components/PullToRefresh';
 import BingoCartela from '@/components/BingoCartela';
 import CalledNumbersGrid from '@/components/CalledNumbersGrid';
 import CartelaDetailModal from '@/components/CartelaDetailModal';
+import PublicCartelaModal from '@/components/PublicCartelaModal';
 import WinnerSummaryPanel, { FloatingBallsStack } from '@/components/WinnerSummaryPanel';
 import { supabase } from '@/integrations/supabase/client';
 import { useUser } from '@/lib/auth';
@@ -448,6 +449,10 @@ export default function GamePage() {
   const [hasPendingClaim, setHasPendingClaim] = useState(false);
   const [detailCartelaId, setDetailCartelaId] = useState<number | null>(null);
   const [winnerCartelaIds, setWinnerCartelaIds] = useState<number[]>([]);
+  const [publicBannedIds, setPublicBannedIds] = useState<number[]>([]);
+  const [activeClaimId, setActiveClaimId] = useState<number | null>(null);
+  const [activeWinnerId, setActiveWinnerId] = useState<number | null>(null);
+  const [publicModal, setPublicModal] = useState<{ id: number; status: 'banned' | 'claimed' | 'winner' } | null>(null);
   const [phone, setPhone] = useState<string>('');
   const user = useUser();
   const navigate = useNavigate();
@@ -606,8 +611,19 @@ export default function GamePage() {
     }
     fetchGameState();
     // Fetch sold count
-    supabase.from('cartelas').select('id', { count: 'exact', head: true }).eq('is_used', true).not('owner_id', 'is', null)
-      .then(({ count }) => setSoldCount(count || 0));
+    supabase.from('cartelas').select('id, banned_for_game, is_used, owner_id').eq('is_used', true).not('owner_id', 'is', null)
+      .then(({ data }) => {
+        setSoldCount((data || []).length);
+        setPublicBannedIds((data || []).filter((c: any) => c.banned_for_game).map((c: any) => c.id));
+      });
+    // Initial: any pending claim?
+    supabase.from('bingo_claims').select('cartela_id, is_valid').eq('game_id', 'current')
+      .then(({ data }) => {
+        const pending = (data || []).find((c: any) => c.is_valid === null);
+        const winner = (data || []).find((c: any) => c.is_valid === true);
+        if (pending?.cartela_id) setActiveClaimId(pending.cartela_id);
+        if (winner?.cartela_id) setActiveWinnerId(winner.cartela_id);
+      });
   }, [user?.id]);
 
   const drawnSet = useMemo(() => new Set(drawnNumbers), [drawnNumbers]);
@@ -644,6 +660,9 @@ export default function GamePage() {
             setShowShop(true);
             setNextGameCountdown(0);
             setSoldCount(0);
+            setPublicBannedIds([]);
+            setActiveClaimId(null);
+            setActiveWinnerId(null);
             if (nextGameTimerRef.current) clearInterval(nextGameTimerRef.current);
             if (user?.id) {
               supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true)
@@ -713,11 +732,26 @@ export default function GamePage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bingo_claims', filter: 'game_id=eq.current' },
         (payload: any) => {
           const claim = payload.new;
-          if (!claim || claim.user_id !== user?.id) return;
-          const cid = claim.cartela_id;
-          if (claim.is_valid === null) {
-            setHasPendingClaim(true);
+          if (!claim) return;
+
+          // GLOBAL broadcast: any pending claim shows BINGO banner to all players
+          if (claim.is_valid === null && claim.cartela_id) {
+            setActiveClaimId(claim.cartela_id);
           }
+          // Confirmed winner: announce to all
+          if (claim.is_valid === true && claim.cartela_id) {
+            setActiveWinnerId(claim.cartela_id);
+            setActiveClaimId(null);
+          }
+          // Rejected: clear active claim banner
+          if (claim.is_valid === false) {
+            setActiveClaimId(prev => prev === claim.cartela_id ? null : prev);
+          }
+
+          // Personal feedback
+          if (claim.user_id !== user?.id) return;
+          const cid = claim.cartela_id;
+          if (claim.is_valid === null) setHasPendingClaim(true);
           if (claim.is_valid === false) {
             playClaimRejectedSound();
             toast.error(`❌ Claim rejected — Cartela #${cid} banned`, { duration: 6000 });
@@ -741,11 +775,9 @@ export default function GamePage() {
           if (!prev?.is_used && next?.is_used && next?.owner_id) {
             setSoldCount(c => c + 1);
           }
-          if (next?.is_used && next?.owner_id) {
-            supabase.from('games').select('prize_amount').eq('id', 'current').maybeSingle()
-              .then(({ data }) => {
-                if (data?.prize_amount !== undefined) setPrizeAmount(data.prize_amount);
-              });
+          // GLOBAL: track newly banned cartelas for everyone
+          if (next?.banned_for_game && !prev?.banned_for_game && next?.id) {
+            setPublicBannedIds(ids => ids.includes(next.id) ? ids : [...ids, next.id]);
           }
         }
       )
@@ -882,13 +914,9 @@ export default function GamePage() {
           <span className="shrink-0 text-[10px] font-display font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded leading-none">
             #{sessionNumber}
           </span>
-          <span className="shrink-0 text-[10px] text-muted-foreground flex items-center gap-0.5 leading-none">
-            <Users className="w-3 h-3" /> {players.length}
-          </span>
           {isSpectator && <span className="shrink-0 text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground"><Eye className="w-3 h-3 inline" /></span>}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {/* Pending claim badge */}
           {hasPendingClaim && (
             <motion.div
               initial={{ scale: 0 }} animate={{ scale: 1 }}
@@ -927,19 +955,6 @@ export default function GamePage() {
                   {Math.floor(buyingCountdown / 60)}:{String(buyingCountdown % 60).padStart(2, '0')}
                 </div>
                 <p className="text-xs text-muted-foreground">{t('buying')} — game starts when timer ends</p>
-                {/* Live stats */}
-                <div className="flex items-center justify-center gap-4 mt-2">
-                  <motion.div key={`p-${players.length}`} initial={{ scale: 1.2 }} animate={{ scale: 1 }}
-                    className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Users className="w-3.5 h-3.5 text-primary" />
-                    <span className="font-bold text-foreground">{players.length}</span> online
-                  </motion.div>
-                  <motion.div key={`s-${soldCount}`} initial={{ scale: 1.3 }} animate={{ scale: 1 }}
-                    className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <ShoppingCart className="w-3.5 h-3.5 text-primary" />
-                    <span className="font-bold text-foreground">{soldCount}</span> sold
-                  </motion.div>
-                </div>
               </div>
             )}
             <p className="text-sm text-muted-foreground mb-3">
@@ -971,6 +986,51 @@ export default function GamePage() {
       {/* ACTIVE GAME — redesigned to match reference UI */}
       {isGameActive && (
         <div className="px-3 py-3 space-y-3">
+          {/* GLOBAL BINGO claim banner — visible to ALL players */}
+          {activeClaimId !== null && (
+            <motion.button
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              onClick={() => setPublicModal({ id: activeClaimId, status: 'claimed' })}
+              className="w-full p-3 rounded-xl bg-amber-500/15 border-2 border-amber-500 text-left flex items-center gap-3 active:scale-95"
+            >
+              <motion.span animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="text-2xl">🎯</motion.span>
+              <div className="flex-1">
+                <div className="font-display font-bold text-amber-600 text-sm">BINGO claimed — verifying!</div>
+                <div className="text-xs text-muted-foreground">Tap to view Cartela #{activeClaimId}</div>
+              </div>
+            </motion.button>
+          )}
+          {activeWinnerId !== null && (
+            <motion.button
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              onClick={() => setPublicModal({ id: activeWinnerId, status: 'winner' })}
+              className="w-full p-3 rounded-xl bg-emerald-500/15 border-2 border-emerald-500 text-left flex items-center gap-3 active:scale-95"
+            >
+              <span className="text-2xl">🏆</span>
+              <div className="flex-1">
+                <div className="font-display font-bold text-emerald-600 text-sm">Winner confirmed!</div>
+                <div className="text-xs text-muted-foreground">Tap to view Cartela #{activeWinnerId}</div>
+              </div>
+            </motion.button>
+          )}
+          {/* Banned cartelas — visible to ALL players */}
+          {publicBannedIds.length > 0 && (
+            <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30">
+              <div className="text-xs font-bold text-destructive mb-2">🚫 Banned cartelas this round:</div>
+              <div className="flex flex-wrap gap-1.5">
+                {publicBannedIds.map(id => (
+                  <button
+                    key={id}
+                    onClick={() => setPublicModal({ id, status: 'banned' })}
+                    className="px-2 py-1 rounded-md bg-destructive/20 text-destructive text-xs font-bold active:scale-95"
+                  >
+                    #{id}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Show More / Less toggle */}
           <div className="flex justify-end">
             <button
@@ -993,14 +1053,10 @@ export default function GamePage() {
                 <span className="text-muted-foreground">Game:</span>
                 <span className="font-bold text-foreground">{gamePattern}</span>
               </div>
-              <div className="grid grid-cols-3 gap-2 px-4 py-3 text-xs border-b border-border">
+              <div className="grid grid-cols-2 gap-2 px-4 py-3 text-xs">
                 <div><span className="text-muted-foreground">ID: </span><span className="font-mono text-foreground">#{sessionNumber}</span></div>
-                <div><span className="text-muted-foreground">Players: </span><span className="font-bold text-foreground">{players.length}</span></div>
                 <div className="text-right"><span className="text-muted-foreground">Status: </span><span className="font-bold text-emerald-600">Playing</span></div>
-              </div>
-              <div className="grid grid-cols-3 gap-2 px-4 py-3 text-xs">
                 <div><span className="text-muted-foreground">Price: </span><span className="font-bold text-emerald-600">${cartelaPrice}</span></div>
-                <div><span className="text-muted-foreground">Cards: </span><span className="font-bold text-foreground">{playerCartelas.length}</span></div>
                 <div className="text-right"><span className="text-muted-foreground">Prize: </span><span className="font-bold text-amber-500">${prizeAmount}</span></div>
               </div>
             </div>
@@ -1132,6 +1188,18 @@ export default function GamePage() {
           </AnimatePresence>
         </div>
       )}
+
+      {/* Public cartela modal — visible to all players */}
+      <AnimatePresence>
+        {publicModal && (
+          <PublicCartelaModal
+            cartelaId={publicModal.id}
+            status={publicModal.status}
+            drawnNumbers={drawnSet}
+            onClose={() => setPublicModal(null)}
+          />
+        )}
+      </AnimatePresence>
       </PullToRefresh>
     </div>
   );
