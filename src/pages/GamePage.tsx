@@ -986,6 +986,51 @@ export default function GamePage() {
       {/* ACTIVE GAME — redesigned to match reference UI */}
       {isGameActive && (
         <div className="px-3 py-3 space-y-3">
+          {/* GLOBAL BINGO claim banner — visible to ALL players */}
+          {activeClaimId !== null && (
+            <motion.button
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              onClick={() => setPublicModal({ id: activeClaimId, status: 'claimed' })}
+              className="w-full p-3 rounded-xl bg-amber-500/15 border-2 border-amber-500 text-left flex items-center gap-3 active:scale-95"
+            >
+              <motion.span animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="text-2xl">🎯</motion.span>
+              <div className="flex-1">
+                <div className="font-display font-bold text-amber-600 text-sm">BINGO claimed — verifying!</div>
+                <div className="text-xs text-muted-foreground">Tap to view Cartela #{activeClaimId}</div>
+              </div>
+            </motion.button>
+          )}
+          {activeWinnerId !== null && (
+            <motion.button
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              onClick={() => setPublicModal({ id: activeWinnerId, status: 'winner' })}
+              className="w-full p-3 rounded-xl bg-emerald-500/15 border-2 border-emerald-500 text-left flex items-center gap-3 active:scale-95"
+            >
+              <span className="text-2xl">🏆</span>
+              <div className="flex-1">
+                <div className="font-display font-bold text-emerald-600 text-sm">Winner confirmed!</div>
+                <div className="text-xs text-muted-foreground">Tap to view Cartela #{activeWinnerId}</div>
+              </div>
+            </motion.button>
+          )}
+          {/* Banned cartelas — visible to ALL players */}
+          {publicBannedIds.length > 0 && (
+            <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30">
+              <div className="text-xs font-bold text-destructive mb-2">🚫 Banned cartelas this round:</div>
+              <div className="flex flex-wrap gap-1.5">
+                {publicBannedIds.map(id => (
+                  <button
+                    key={id}
+                    onClick={() => setPublicModal({ id, status: 'banned' })}
+                    className="px-2 py-1 rounded-md bg-destructive/20 text-destructive text-xs font-bold active:scale-95"
+                  >
+                    #{id}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Show More / Less toggle */}
           <div className="flex justify-end">
             <button
@@ -1143,6 +1188,18 @@ export default function GamePage() {
           </AnimatePresence>
         </div>
       )}
+
+      {/* Public cartela modal — visible to all players */}
+      <AnimatePresence>
+        {publicModal && (
+          <PublicCartelaModal
+            cartelaId={publicModal.id}
+            status={publicModal.status}
+            drawnNumbers={drawnSet}
+            onClose={() => setPublicModal(null)}
+          />
+        )}
+      </AnimatePresence>
       </PullToRefresh>
     </div>
   );
