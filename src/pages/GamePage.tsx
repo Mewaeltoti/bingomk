@@ -611,8 +611,19 @@ export default function GamePage() {
     }
     fetchGameState();
     // Fetch sold count
-    supabase.from('cartelas').select('id', { count: 'exact', head: true }).eq('is_used', true).not('owner_id', 'is', null)
-      .then(({ count }) => setSoldCount(count || 0));
+    supabase.from('cartelas').select('id, banned_for_game, is_used, owner_id').eq('is_used', true).not('owner_id', 'is', null)
+      .then(({ data }) => {
+        setSoldCount((data || []).length);
+        setPublicBannedIds((data || []).filter((c: any) => c.banned_for_game).map((c: any) => c.id));
+      });
+    // Initial: any pending claim?
+    supabase.from('bingo_claims').select('cartela_id, is_valid').eq('game_id', 'current')
+      .then(({ data }) => {
+        const pending = (data || []).find((c: any) => c.is_valid === null);
+        const winner = (data || []).find((c: any) => c.is_valid === true);
+        if (pending?.cartela_id) setActiveClaimId(pending.cartela_id);
+        if (winner?.cartela_id) setActiveWinnerId(winner.cartela_id);
+      });
   }, [user?.id]);
 
   const drawnSet = useMemo(() => new Set(drawnNumbers), [drawnNumbers]);
@@ -649,6 +660,9 @@ export default function GamePage() {
             setShowShop(true);
             setNextGameCountdown(0);
             setSoldCount(0);
+            setPublicBannedIds([]);
+            setActiveClaimId(null);
+            setActiveWinnerId(null);
             if (nextGameTimerRef.current) clearInterval(nextGameTimerRef.current);
             if (user?.id) {
               supabase.from('cartelas').select('*').eq('owner_id', user.id).eq('is_used', true)
