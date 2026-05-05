@@ -8,6 +8,7 @@ import { PATTERNS } from '@/lib/bingo';
 import { getBingoLetter } from '@/lib/bingoEngine';
 import { supabase } from '@/integrations/supabase/client';
 import { invokeWithRetry } from '@/lib/edgeFn';
+import DepositFilterAndList from '@/components/admin/DepositFilterAndList';
 import { useGamePresence } from '@/hooks/useGamePresence';
 import { useUser } from '@/lib/auth';
 import { toast } from 'sonner';
