@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.purchase-cartela]
 verify_jwt = false
+
+[functions.receive-sms]
+verify_jwt = false
