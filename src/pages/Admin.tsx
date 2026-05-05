@@ -647,11 +647,12 @@ export default function Admin() {
             )}
           </div>
 
-          <DepositsList
+          {/* Status filter chips */}
+          <DepositFilterAndList
             deposits={deposits}
             parsedSms={parsedSms}
             actionLoading={actionLoading}
-            handleDeposit={handleDeposit}
+            onAction={handleDeposit}
           />
         </div>
       )}
