@@ -242,6 +242,36 @@ export type Database = {
         }
         Relationships: []
       }
+      processed_tx: {
+        Row: {
+          amount: number | null
+          bank: string | null
+          deposit_id: string | null
+          id: string
+          processed_at: string
+          raw_message: string | null
+          tx_id: string
+        }
+        Insert: {
+          amount?: number | null
+          bank?: string | null
+          deposit_id?: string | null
+          id?: string
+          processed_at?: string
+          raw_message?: string | null
+          tx_id: string
+        }
+        Update: {
+          amount?: number | null
+          bank?: string | null
+          deposit_id?: string | null
+          id?: string
+          processed_at?: string
+          raw_message?: string | null
+          tx_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           balance: number
