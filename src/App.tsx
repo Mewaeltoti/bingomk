@@ -7,7 +7,9 @@ import { RequireAuth, RequireAdmin } from "./components/AuthGuard";
 import { useGameNotifications } from "./hooks/useGameNotifications";
 import InstallPrompt from "./components/InstallPrompt";
 import Index from "./pages/Index";
+import Home from "./pages/Home";
 import GamePage from "./pages/GamePage";
+import CartelaSelection from "./pages/CartelaSelection";
 import Payment from "./pages/Payment";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
@@ -25,7 +27,9 @@ function AppContent() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/" element={<Index />} />
+        <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/game" element={<RequireAuth><GamePage /></RequireAuth>} />
+        <Route path="/cards" element={<RequireAuth><CartelaSelection /></RequireAuth>} />
         <Route path="/payment" element={<RequireAuth><Payment /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
         <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />

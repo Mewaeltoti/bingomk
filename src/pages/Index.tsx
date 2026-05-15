@@ -1,8 +1,19 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useUser } from '@/lib/auth';
 
 export default function Index() {
+  const user = useUser();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user?.id) {
+      navigate('/home');
+    }
+  }, [user?.id, navigate]);
+
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       <div className="flex-1 flex flex-col items-center justify-center px-5 max-w-sm w-full">

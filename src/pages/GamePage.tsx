@@ -5,6 +5,7 @@ import CalledNumbersGrid from '@/components/CalledNumbersGrid';
 import CartelaDetailModal from '@/components/CartelaDetailModal';
 import PublicCartelaModal from '@/components/PublicCartelaModal';
 import WinnerSummaryPanel, { FloatingBallsStack } from '@/components/WinnerSummaryPanel';
+import SettingsDrawer from '@/components/SettingsDrawer';
 import { supabase } from '@/integrations/supabase/client';
 import { useUser } from '@/lib/auth';
 import { useGamePresence } from '@/hooks/useGamePresence';
@@ -13,16 +14,11 @@ import { checkWin, getPatternCells } from '@/lib/winDetection';
 import { PATTERNS } from '@/lib/bingo';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { playDrawSound, playWinSound, playMarkSound, playClaimApprovedSound, playClaimRejectedSound, isMuted, setMuted } from '@/lib/sounds';
+import { playDrawSound, playWinSound, playMarkSound, playClaimApprovedSound, playClaimRejectedSound } from '@/lib/sounds';
 import { invokeWithRetry } from '@/lib/edgeFn';
-import { t, getLang, toggleLang } from '@/lib/i18n';
-import { useTheme } from '@/hooks/useTheme';
+import { t } from '@/lib/i18n';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Users, Eye, Hand, ShoppingCart, ChevronDown, ChevronUp,
-  Wallet, Settings, X, Volume2, VolumeX,
-  Moon, Sun, Globe, LogOut, User, Send, HelpCircle
-} from 'lucide-react';
+import { Eye, Hand, ChevronDown, ChevronUp, Wallet, Settings, X, CircleHelp as HelpCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 // ─── Pattern preview grid ───────────────────────────────────
@@ -64,352 +60,6 @@ function Confetti() {
   );
 }
 
-// ─── Cartela Shop with + Button ─────────────────────────────
-function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount, balance }: {
-  onBuy: () => void; cartelaPrice: number; gameStatus: string; prizeAmount: number; balance: number;
-}) {
-  const [cart, setCart] = useState<any[]>([]);
-  const [buying, setBuying] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const user = useUser();
-
-  const addRandomCartela = async () => {
-    setAdding(true);
-    const existingIds = cart.map(c => c.id);
-    let query = supabase.from('cartelas').select('*').eq('is_used', false).eq('banned_for_game', false);
-    if (existingIds.length > 0) {
-      // Exclude already-in-cart cartelas
-      for (const id of existingIds) {
-        query = query.neq('id', id);
-      }
-    }
-    const { data } = await query.limit(50);
-    if (data && data.length > 0) {
-      const random = data[Math.floor(Math.random() * data.length)];
-      setCart(prev => [...prev, random]);
-    } else {
-      toast.info('No more cartelas available');
-    }
-    setAdding(false);
-  };
-
-  const removeFromCart = (id: number) => {
-    setCart(prev => prev.filter(c => c.id !== id));
-  };
-
-  const [showDepositPrompt, setShowDepositPrompt] = useState(false);
-  const navigate = useNavigate();
-
-  const handleBuy = async () => {
-    if (!user?.id || cart.length === 0) return;
-    setBuying(true);
-    const { data, error } = await invokeWithRetry('purchase-cartela', {
-      body: { cartela_ids: cart.map(c => c.id) },
-    });
-    if (error || data?.error) {
-      const msg = data?.error || t('purchaseFailed');
-      if (msg.toLowerCase().includes('insufficient')) {
-        setShowDepositPrompt(true);
-      } else {
-        toast.error(msg);
-      }
-      setBuying(false);
-      setShowConfirm(false);
-      return;
-    }
-    setCart([]);
-    setBuying(false);
-    setShowConfirm(false);
-    toast.success(t('purchased'));
-    onBuy();
-  };
-
-  const cost = cart.length * cartelaPrice;
-
-  return (
-    <div className="space-y-3">
-      {/* Live prize pool */}
-      <motion.div
-        key={prizeAmount}
-        initial={{ scale: 1.1 }}
-        animate={{ scale: 1 }}
-        className="text-center py-2 px-3 rounded-xl bg-gradient-to-r from-primary/20 to-secondary/20 border border-primary/30"
-      >
-        <span className="text-xs text-muted-foreground">Live Prize Pool</span>
-        <div className="text-2xl font-display font-bold text-primary">🏆 {prizeAmount} ETB</div>
-      </motion.div>
-
-      <p className="text-xs text-muted-foreground text-center">{cartelaPrice} ETB each — tap + to get a random cartela</p>
-
-      {/* Cart items */}
-      {cart.length > 0 && (
-        <div className="grid grid-cols-2 gap-2">
-          {cart.map(c => (
-            <div key={c.id} className="relative">
-              <BingoCartela numbers={c.numbers as number[][]} size="xs" label={`#${c.id}`} selected />
-              <button
-                onClick={() => removeFromCart(c.id)}
-                className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Floating circle add button — bottom left */}
-      <button
-        onClick={addRandomCartela}
-        disabled={adding}
-        className="fixed bottom-20 left-4 z-40 w-14 h-14 rounded-full gradient-neon text-primary-foreground shadow-xl glow-neon flex items-center justify-center active:scale-90 transition-transform disabled:opacity-50"
-      >
-        {adding ? (
-          <span className="animate-spin w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full" />
-        ) : (
-          <span className="text-3xl font-bold leading-none">+</span>
-        )}
-      </button>
-
-      {/* Buy bar */}
-      {cart.length > 0 && (
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between px-1 text-xs">
-            <span className="text-muted-foreground">Cart: <span className="font-bold text-foreground">{cost} ETB</span></span>
-            <span className={cn('font-bold', balance >= cost ? 'text-primary' : 'text-destructive')}>
-              Balance: {balance} ETB {balance < cost ? '⚠️' : '✓'}
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => setCart([])}
-              className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold text-sm active:scale-95">
-              Clear ({cart.length})
-            </button>
-            <button onClick={() => setShowConfirm(true)}
-              className={cn('flex-1 py-3 rounded-xl font-bold text-sm active:scale-95',
-                balance >= cost ? 'gradient-neon text-primary-foreground glow-neon' : 'bg-destructive/80 text-destructive-foreground'
-              )}>
-              {balance >= cost ? `Buy ${cart.length} — ${cost} ETB` : `Need ${cost - balance} more ETB`}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Confirm dialog */}
-      <AnimatePresence>
-        {showConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4"
-            onClick={() => setShowConfirm(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-card border border-border rounded-xl p-4 max-w-sm w-full max-h-[70vh] overflow-y-auto space-y-3"
-            >
-              <h3 className="font-display font-bold text-foreground text-center">Confirm Purchase</h3>
-              <div className="grid grid-cols-3 gap-2">
-                {cart.map(c => (
-                  <div key={c.id} className="relative">
-                    <BingoCartela numbers={c.numbers as number[][]} size="xs" label={`#${c.id}`} />
-                    <button
-                      onClick={() => removeFromCart(c.id)}
-                      className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-[10px]"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="border-t border-border pt-2 flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">{cart.length} cartela(s)</span>
-                <span className="font-display font-bold text-primary text-lg">{cost} ETB</span>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => setShowConfirm(false)}
-                  className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold text-sm">
-                  Cancel
-                </button>
-                <button onClick={handleBuy} disabled={buying}
-                  className="flex-1 py-3 rounded-xl gradient-neon text-primary-foreground font-bold text-sm disabled:opacity-50 active:scale-95">
-                  {buying ? '...' : `Pay ${cost} ETB`}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {/* Insufficient balance modal */}
-      <AnimatePresence>
-        {showDepositPrompt && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4"
-            onClick={() => setShowDepositPrompt(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-card border border-border rounded-xl p-5 max-w-xs w-full text-center space-y-4"
-            >
-              <div className="text-4xl">💰</div>
-              <h3 className="font-display font-bold text-foreground text-lg">Insufficient Balance</h3>
-              <p className="text-sm text-muted-foreground">You don't have enough balance to buy these cartelas. Deposit now to continue playing!</p>
-              <div className="flex gap-2">
-                <button onClick={() => setShowDepositPrompt(false)}
-                  className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold text-sm">
-                  Cancel
-                </button>
-                <button onClick={() => { setShowDepositPrompt(false); navigate('/payment'); }}
-                  className="flex-1 py-3 rounded-xl gradient-neon text-primary-foreground font-bold text-sm active:scale-95 glow-neon">
-                  <Wallet className="w-4 h-4 inline mr-1" /> Deposit
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-// ─── Settings Drawer ────────────────────────────────────────
-function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [phone, setPhone] = useState('');
-  const [muted, setMutedLocal] = useState(isMuted());
-  const [syncMarks, setSyncMarks] = useState<boolean>(() => localStorage.getItem('bingo-sync-marks') !== '0');
-  const { theme, toggle: toggleTheme } = useTheme();
-  const [, setTick] = useState(0);
-  const user = useUser();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!user?.id || !open) return;
-    supabase.from('profiles').select('phone').eq('id', user.id).single()
-      .then(({ data }) => {
-        if (data) setPhone(data.phone || '');
-      });
-  }, [user?.id, open]);
-
-  const handleToggleMute = () => {
-    const next = !muted;
-    setMuted(next);
-    setMutedLocal(next);
-  };
-
-  const handleToggleSync = () => {
-    const next = !syncMarks;
-    setSyncMarks(next);
-    localStorage.setItem('bingo-sync-marks', next ? '1' : '0');
-  };
-
-  const handleToggleLang = () => {
-    toggleLang();
-    setTick(t => t + 1);
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    toast.success('Logged out');
-    navigate('/login');
-  };
-
-  if (!open) return null;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-        onClick={e => e.stopPropagation()}
-        className="absolute right-0 top-0 bottom-0 w-72 bg-card border-l border-border p-4 space-y-5 overflow-y-auto"
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="font-display font-bold text-foreground">Settings</h2>
-          <button onClick={onClose} className="p-2 rounded-lg bg-muted text-muted-foreground"><X className="w-4 h-4" /></button>
-        </div>
-
-        {/* Profile — phone only, locked */}
-        <div className="space-y-2">
-          <label className="text-xs text-muted-foreground flex items-center gap-1"><User className="w-3 h-3" /> Phone (your profile)</label>
-          <div className="flex items-center gap-2 px-3 py-3 rounded-lg bg-muted text-foreground text-sm font-medium">
-            <span>📱 {phone || 'Not set'}</span>
-            <span className="ml-auto text-[10px] text-muted-foreground">locked</span>
-          </div>
-        </div>
-
-        {/* Sync marks across cards */}
-        <button onClick={handleToggleSync}
-          className="w-full flex items-center justify-between px-3 py-3 rounded-lg bg-muted text-foreground text-sm">
-          <span className="flex flex-col items-start">
-            <span>Mark across cards</span>
-            <span className="text-[10px] text-muted-foreground">Tap a number → marks it on every card that has it</span>
-          </span>
-          <span className={cn('text-xs font-bold', syncMarks ? 'text-primary' : 'text-muted-foreground')}>
-            {syncMarks ? 'ON' : 'OFF'}
-          </span>
-        </button>
-
-        {/* Sound */}
-        <button onClick={handleToggleMute}
-          className="w-full flex items-center justify-between px-3 py-3 rounded-lg bg-muted text-foreground text-sm">
-          <span className="flex items-center gap-2">
-            {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-            Sound
-          </span>
-          <span className={cn('text-xs font-bold', muted ? 'text-destructive' : 'text-primary')}>
-            {muted ? 'OFF' : 'ON'}
-          </span>
-        </button>
-
-        {/* Theme */}
-        <button onClick={toggleTheme}
-          className="w-full flex items-center justify-between px-3 py-3 rounded-lg bg-muted text-foreground text-sm">
-          <span className="flex items-center gap-2">
-            {theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-            Theme
-          </span>
-          <span className="text-xs font-bold text-primary">{theme === 'dark' ? 'Dark' : 'Light'}</span>
-        </button>
-
-        {/* Language */}
-        <button onClick={handleToggleLang}
-          className="w-full flex items-center justify-between px-3 py-3 rounded-lg bg-muted text-foreground text-sm">
-          <span className="flex items-center gap-2">
-            <Globe className="w-4 h-4" />
-            Language
-          </span>
-          <span className="text-xs font-bold text-primary">{getLang() === 'ti' ? 'ትግርኛ' : 'English'}</span>
-        </button>
-
-        {/* Support */}
-        <a
-          href="https://t.me/+251978187178"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-full flex items-center gap-2 px-3 py-3 rounded-lg bg-primary/10 text-primary text-sm font-medium"
-        >
-          <Send className="w-4 h-4" />
-          Telegram Support
-        </a>
-
-        {/* Logout */}
-        <button onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 px-3 py-3 rounded-lg bg-destructive/10 text-destructive text-sm font-bold">
-          <LogOut className="w-4 h-4" />
-          Sign Out
-        </button>
-      </motion.div>
-    </motion.div>
-  );
-}
-
 // ─── Main Game Page ─────────────────────────────────────────
 type GameResult = {
   type: 'winner' | 'split' | 'disqualified';
@@ -436,7 +86,6 @@ export default function GamePage() {
   const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isSpectator, setIsSpectator] = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
-  const [showShop, setShowShop] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [displayName, setDisplayName] = useState<string>('');
   const [balance, setBalance] = useState(0);
@@ -656,7 +305,6 @@ export default function GamePage() {
             setClaimedCartelas(new Set());
             setHasPendingClaim(false);
             setWinnerCartelaIds([]);
-            setShowShop(true);
             setNextGameCountdown(0);
             setSoldCount(0);
             setPublicBannedIds([]);
@@ -679,7 +327,6 @@ export default function GamePage() {
           }
           if (game.status === 'active') {
             setBuyingCountdown(0);
-            setShowShop(false);
             if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
             // Re-fetch drawn numbers to ensure sync
             supabase.from('game_numbers').select('number').eq('game_id', 'current').order('id', { ascending: true })
@@ -950,49 +597,6 @@ export default function GamePage() {
         </div>
       </header>
 
-      {/* Buying state with countdown */}
-      {showBuyPrompt && !isGameActive && (
-        <div className="px-3 pt-3">
-          <div className="p-4 rounded-xl bg-card border border-border text-center mb-3">
-            {/* Game info */}
-            <div className="flex items-center justify-center gap-3 mb-2 text-xs text-muted-foreground">
-              <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-display font-bold">Game #{sessionNumber}</span>
-              <span className="flex items-center gap-1">🎯 {gamePattern}</span>
-              <span className="flex items-center gap-1">🎫 {cartelaPrice} ETB</span>
-            </div>
-            {gameStatus === 'buying' && buyingCountdown > 0 && (
-              <div className="mb-2">
-                <div className="text-3xl font-display font-bold text-primary">
-                  {Math.floor(buyingCountdown / 60)}:{String(buyingCountdown % 60).padStart(2, '0')}
-                </div>
-                <p className="text-xs text-muted-foreground">{t('buying')} — game starts when timer ends</p>
-              </div>
-            )}
-            <p className="text-sm text-muted-foreground mb-3">
-              {gameStatus === 'buying' && buyingCountdown <= 0
-                ? 'Starting soon...'
-                : gameStatus === 'won' ? (nextGameCountdown > 0 ? `${t('nextGameIn')} ${nextGameCountdown} ${t('seconds')}` : t('roundOver'))
-                : gameStatus !== 'buying' ? t('waitingForGame') : null}
-            </p>
-            {(gameStatus === 'buying' || gameStatus === 'waiting') && (
-              <button onClick={() => setShowShop(!showShop)}
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl gradient-neon text-primary-foreground text-sm font-bold active:scale-95 shadow-lg glow-neon">
-                <ShoppingCart className="w-5 h-5" />
-                {showShop ? t('hideShop') : t('buyCartelas')}
-              </button>
-            )}
-          </div>
-          {showShop && (
-            <CartelaShop
-              onBuy={refreshGameData}
-              cartelaPrice={cartelaPrice}
-              gameStatus={gameStatus}
-              prizeAmount={prizeAmount}
-              balance={balance}
-            />
-          )}
-        </div>
-      )}
 
       {/* ACTIVE GAME — redesigned to match reference UI */}
       {isGameActive && (
