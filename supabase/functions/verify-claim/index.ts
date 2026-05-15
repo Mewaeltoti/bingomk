@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 type PatternName =
   | "Full House"
@@ -20,8 +20,8 @@ type PatternName =
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -138,12 +138,12 @@ async function archiveAndFinalizeGame(supabase: any, payload: {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: authError } = await userClient.auth.getClaims(token);
     if (authError || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const userId = claimsData.claims.sub as string;
 
@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
     if (action === "verify_single") {
       const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle();
       if (!roleData) {
-        return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       return await verifySingle(supabase, claim_id, is_valid);
     }
@@ -174,9 +174,9 @@ Deno.serve(async (req) => {
       return await submitClaim(supabase, userId, cartela_id);
     }
 
-    return new Response(JSON.stringify({ error: "Invalid action" }), { status: 400, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: "Invalid action" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
 
@@ -188,13 +188,13 @@ Deno.serve(async (req) => {
 async function submitClaim(supabase: any, userId: string, cartelaId: number) {
   const { data: game } = await supabase.from("games").select("pattern, prize_amount, session_number, status").eq("id", "current").single();
   if (!game || game.status !== "active") {
-    return new Response(JSON.stringify({ error: "Game is not active" }), { status: 400, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: "Game is not active" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   // Check if there's already a confirmed winner
   const { data: existingWinner } = await supabase.from("bingo_claims").select("id").eq("game_id", "current").eq("is_valid", true).limit(1);
   if (existingWinner && existingWinner.length > 0) {
-    return new Response(JSON.stringify({ error: "A winner has already been confirmed" }), { status: 400, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: "A winner has already been confirmed" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   const { data: cartela } = await supabase
@@ -204,11 +204,11 @@ async function submitClaim(supabase: any, userId: string, cartelaId: number) {
     .maybeSingle();
 
   if (!cartela || cartela.owner_id !== userId) {
-    return new Response(JSON.stringify({ error: "Cartela not found" }), { status: 404, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: "Cartela not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   if (cartela.banned_for_game) {
-    return new Response(JSON.stringify({ error: "This cartela is banned for this game" }), { status: 400, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: "This cartela is banned for this game" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   const { data: nums } = await supabase.from("game_numbers").select("number").eq("game_id", "current").order("id", { ascending: true });
@@ -226,7 +226,7 @@ async function submitClaim(supabase: any, userId: string, cartelaId: number) {
   if (existingClaims && existingClaims.length > 0) {
     const firstClaimDrawnCount = (existingClaims[0] as any).strike_count;
     if (firstClaimDrawnCount > 0 && drawnCount > firstClaimDrawnCount) {
-      return new Response(JSON.stringify({ error: "Too late — numbers were drawn after the first claim" }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "Too late — numbers were drawn after the first claim" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
   }
 
@@ -270,7 +270,7 @@ async function submitClaim(supabase: any, userId: string, cartelaId: number) {
 async function verifySingle(supabase: any, claimId: string, isValid: boolean) {
   const { data: claim } = await supabase.from("bingo_claims").select("*").eq("id", claimId).single();
   if (!claim) {
-    return new Response(JSON.stringify({ error: "Claim not found" }), { status: 404, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: "Claim not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   if (!isValid) {
