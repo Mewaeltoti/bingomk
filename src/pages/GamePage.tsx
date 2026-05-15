@@ -21,7 +21,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Eye, Hand, ShoppingCart, ChevronDown, ChevronUp,
   Wallet, Settings, X, Volume2, VolumeX,
-  Moon, Sun, Globe, LogOut, User, Send
+  Moon, Sun, Globe, LogOut, User, Send, HelpCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -277,35 +277,32 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount, balance }: 
 
 // ─── Settings Drawer ────────────────────────────────────────
 function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [displayName, setDisplayName] = useState('');
   const [phone, setPhone] = useState('');
   const [muted, setMutedLocal] = useState(isMuted());
+  const [syncMarks, setSyncMarks] = useState<boolean>(() => localStorage.getItem('bingo-sync-marks') !== '0');
   const { theme, toggle: toggleTheme } = useTheme();
   const [, setTick] = useState(0);
   const user = useUser();
   const navigate = useNavigate();
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!user?.id || !open) return;
-    supabase.from('profiles').select('display_name, phone').eq('id', user.id).single()
+    supabase.from('profiles').select('phone').eq('id', user.id).single()
       .then(({ data }) => {
-        if (data) { setDisplayName(data.display_name || ''); setPhone(data.phone || ''); }
+        if (data) setPhone(data.phone || '');
       });
   }, [user?.id, open]);
-
-  const handleSaveName = async () => {
-    if (!user?.id) return;
-    setSaving(true);
-    await supabase.from('profiles').update({ display_name: displayName }).eq('id', user.id);
-    setSaving(false);
-    toast.success('Name updated!');
-  };
 
   const handleToggleMute = () => {
     const next = !muted;
     setMuted(next);
     setMutedLocal(next);
+  };
+
+  const handleToggleSync = () => {
+    const next = !syncMarks;
+    setSyncMarks(next);
+    localStorage.setItem('bingo-sync-marks', next ? '1' : '0');
   };
 
   const handleToggleLang = () => {
@@ -338,25 +335,26 @@ function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () => void 
           <button onClick={onClose} className="p-2 rounded-lg bg-muted text-muted-foreground"><X className="w-4 h-4" /></button>
         </div>
 
-        {/* Profile */}
+        {/* Profile — phone only, locked */}
         <div className="space-y-2">
-          <label className="text-xs text-muted-foreground flex items-center gap-1"><User className="w-3 h-3" /> Display Name</label>
-          <div className="flex gap-2">
-            <input
-              type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
-              className="flex-1 px-3 py-2 rounded-lg bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Your name"
-            />
-            <button onClick={handleSaveName} disabled={saving}
-              className="px-3 py-2 rounded-lg gradient-neon text-primary-foreground text-xs font-bold disabled:opacity-50">
-              {saving ? '...' : 'Save'}
-            </button>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 text-muted-foreground text-xs">
+          <label className="text-xs text-muted-foreground flex items-center gap-1"><User className="w-3 h-3" /> Phone (your profile)</label>
+          <div className="flex items-center gap-2 px-3 py-3 rounded-lg bg-muted text-foreground text-sm font-medium">
             <span>📱 {phone || 'Not set'}</span>
-            <span className="text-[10px]">(locked)</span>
+            <span className="ml-auto text-[10px] text-muted-foreground">locked</span>
           </div>
         </div>
+
+        {/* Sync marks across cards */}
+        <button onClick={handleToggleSync}
+          className="w-full flex items-center justify-between px-3 py-3 rounded-lg bg-muted text-foreground text-sm">
+          <span className="flex flex-col items-start">
+            <span>Mark across cards</span>
+            <span className="text-[10px] text-muted-foreground">Tap a number → marks it on every card that has it</span>
+          </span>
+          <span className={cn('text-xs font-bold', syncMarks ? 'text-primary' : 'text-muted-foreground')}>
+            {syncMarks ? 'ON' : 'OFF'}
+          </span>
+        </button>
 
         {/* Sound */}
         <button onClick={handleToggleMute}
@@ -453,6 +451,7 @@ export default function GamePage() {
   const [activeClaimId, setActiveClaimId] = useState<number | null>(null);
   const [activeWinnerId, setActiveWinnerId] = useState<number | null>(null);
   const [publicModal, setPublicModal] = useState<{ id: number; status: 'banned' | 'claimed' | 'winner' } | null>(null);
+  const [showPatternHelp, setShowPatternHelp] = useState(false);
   const [phone, setPhone] = useState<string>('');
   const user = useUser();
   const navigate = useNavigate();
@@ -804,17 +803,23 @@ export default function GamePage() {
 
   const handleMarkCell = useCallback((cartelaId: number, row: number, col: number) => {
     playMarkSound();
-    // Find the tapped number, then toggle it across every owned cartela that has it.
     const sourceCartela = playerCartelas.find(c => c.id === cartelaId);
     const tappedNumber = sourceCartela?.numbers?.[row]?.[col];
     if (tappedNumber == null) return;
 
-    // Determine new marked state from the source cell so all cards stay in sync.
-    const sourceMarked = markedMap.get(cartelaId)?.has(`${row}-${col}`) ?? false;
+    const syncAcross = localStorage.getItem('bingo-sync-marks') !== '0';
+    const sourceKey = `${row}-${col}`;
+    const sourceMarked = markedMap.get(cartelaId)?.has(sourceKey) ?? false;
     const shouldMark = !sourceMarked;
 
     setMarkedMap(prev => {
       const next = new Map(prev);
+      if (!syncAcross) {
+        const cells = new Set(next.get(cartelaId) || []);
+        if (shouldMark) cells.add(sourceKey); else cells.delete(sourceKey);
+        next.set(cartelaId, cells);
+        return next;
+      }
       for (const c of playerCartelas) {
         const grid = c.numbers as number[][];
         if (!grid) continue;
@@ -822,11 +827,10 @@ export default function GamePage() {
         let touched = false;
         for (let r = 0; r < 5; r++) {
           for (let col2 = 0; col2 < 5; col2++) {
-            if (r === 2 && col2 === 2) continue; // FREE
+            if (r === 2 && col2 === 2) continue;
             if (grid[r]?.[col2] === tappedNumber) {
               const k = `${r}-${col2}`;
-              if (shouldMark) cells.add(k);
-              else cells.delete(k);
+              if (shouldMark) cells.add(k); else cells.delete(k);
               touched = true;
             }
           }
@@ -914,6 +918,13 @@ export default function GamePage() {
           <span className="shrink-0 text-[10px] font-display font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded leading-none">
             #{sessionNumber}
           </span>
+          <button
+            onClick={() => setShowPatternHelp(true)}
+            className="shrink-0 p-1 rounded-full bg-primary/10 text-primary active:scale-90"
+            aria-label="How to play"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
           {isSpectator && <span className="shrink-0 text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground"><Eye className="w-3 h-3 inline" /></span>}
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -1198,6 +1209,62 @@ export default function GamePage() {
             drawnNumbers={drawnSet}
             onClose={() => setPublicModal(null)}
           />
+        )}
+      </AnimatePresence>
+      {/* Pattern help modal */}
+      <AnimatePresence>
+        {showPatternHelp && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-background/85 backdrop-blur-sm p-4"
+            onClick={() => setShowPatternHelp(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="font-display font-bold text-foreground text-lg">How to win</h3>
+                <button onClick={() => setShowPatternHelp(false)} className="p-1.5 rounded-lg bg-muted text-muted-foreground">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="text-center space-y-2">
+                <div className="text-xs text-muted-foreground">Winning pattern this round</div>
+                <div className="font-display font-bold text-primary text-xl">{gamePattern}</div>
+                <div className="flex justify-center py-2">
+                  <div className="grid grid-cols-5 gap-1 p-3 rounded-xl bg-muted/40 border border-border">
+                    {getPatternCells(gamePattern).flat().map((on, i) => (
+                      <div
+                        key={i}
+                        className={cn(
+                          'w-8 h-8 rounded-md flex items-center justify-center text-[10px] font-bold',
+                          on ? 'bg-primary text-primary-foreground shadow' : 'bg-card text-muted-foreground border border-border'
+                        )}
+                      >
+                        {i === 12 ? 'F' : ''}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Mark the highlighted cells on your cartela to win.
+                </p>
+              </div>
+
+              <div className="space-y-2 text-sm text-foreground">
+                <p className="font-bold">How to play</p>
+                <ol className="list-decimal pl-5 space-y-1 text-xs text-muted-foreground">
+                  <li>Buy one or more cartelas during the buying phase.</li>
+                  <li>When numbers are called, tap the matching cells on your cartela to mark them.</li>
+                  <li>The center <span className="font-bold text-foreground">F</span> cell is free.</li>
+                  <li>When your marked cells match the pattern above, tap <span className="font-bold text-primary">BINGO!</span></li>
+                </ol>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
       </PullToRefresh>

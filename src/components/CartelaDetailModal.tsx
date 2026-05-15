@@ -61,11 +61,6 @@ export default function CartelaDetailModal({
           {phone && (
             <div className="text-sm mt-0.5 opacity-95">Phone: {phone}</div>
           )}
-          {lastDrawn != null && (
-            <div className="mt-2 inline-block bg-amber-400 text-rose-900 font-display font-bold text-sm px-3 py-1 rounded-md shadow">
-              Last number: {lastDrawn}
-            </div>
-          )}
         </div>
 
         {/* BINGO header pills */}
@@ -94,9 +89,7 @@ export default function CartelaDetailModal({
                   const num = numbers[row]?.[col] ?? 0;
                   const isFree = row === 2 && col === 2;
                   const isMarked = isFree || markedCells.has(`${row}-${col}`);
-                  const isDrawn = drawnNumbers.has(num);
-                  const isLast = !isFree && lastDrawn != null && num === lastDrawn;
-                  const isClickable = onMarkCell && isDrawn && !isFree;
+                  const isClickable = !!onMarkCell && !isFree;
 
                   return (
                     <button
@@ -111,14 +104,12 @@ export default function CartelaDetailModal({
                         isClickable && 'active:scale-90 cursor-pointer',
                         isFree
                           ? 'bg-orange-500 text-white text-sm'
-                          : isLast
-                          ? 'bg-orange-500 text-white ring-4 ring-rose-500 shadow-lg'
                           : isMarked
                           ? 'bg-emerald-500 text-white'
                           : 'bg-white text-gray-800 border border-gray-200'
                       )}
                     >
-                      {isFree ? 'FREE' : num}
+                      {isFree ? 'F' : num}
                     </button>
                   );
                 })}
