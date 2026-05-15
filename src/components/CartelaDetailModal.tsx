@@ -61,11 +61,6 @@ export default function CartelaDetailModal({
           {phone && (
             <div className="text-sm mt-0.5 opacity-95">Phone: {phone}</div>
           )}
-          {lastDrawn != null && (
-            <div className="mt-2 inline-block bg-amber-400 text-rose-900 font-display font-bold text-sm px-3 py-1 rounded-md shadow">
-              Last number: {lastDrawn}
-            </div>
-          )}
         </div>
 
         {/* BINGO header pills */}
