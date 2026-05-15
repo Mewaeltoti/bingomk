@@ -21,7 +21,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Eye, Hand, ShoppingCart, ChevronDown, ChevronUp,
   Wallet, Settings, X, Volume2, VolumeX,
-  Moon, Sun, Globe, LogOut, User, Send
+  Moon, Sun, Globe, LogOut, User, Send, HelpCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
