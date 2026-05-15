@@ -20,13 +20,12 @@ interface BingoCartelaProps {
   selected?: boolean;
   label?: string;
   banned?: boolean;
-  /** Last drawn number — gets a special highlight ring */
+  /** Last drawn number — kept for API compat, no longer rendered as a hint */
   lastDrawn?: number | null;
 }
 
 export default function BingoCartela({
   numbers,
-  drawnNumbers = new Set(),
   markedCells = new Set(),
   onMarkCell,
   size = 'md',
@@ -34,9 +33,7 @@ export default function BingoCartela({
   selected,
   label,
   banned,
-  lastDrawn = null,
 }: BingoCartelaProps) {
-  // Use aspect-square so cells form a perfect square grid regardless of width.
   const cellText =
     size === 'xs' ? 'text-[9px]' :
     size === 'sm' ? 'text-xs' :
@@ -49,11 +46,10 @@ export default function BingoCartela({
     size === 'lg' ? 'text-base py-2' :
     'text-sm py-1.5';
 
-  const handleCellClick = (num: number, row: number, col: number, e: React.MouseEvent) => {
+  const handleCellClick = (row: number, col: number, e: React.MouseEvent) => {
     e.stopPropagation();
     if (row === 2 && col === 2) return;
     if (!onMarkCell) return;
-    if (!drawnNumbers.has(num)) return;
     onMarkCell(row, col);
   };
 
@@ -61,7 +57,6 @@ export default function BingoCartela({
     <div
       className={cn(
         'relative p-2 transition-all duration-200 rounded-2xl',
-        // Clean white card look (matches reference screenshots)
         'bg-card border shadow-sm',
         selected ? 'border-primary ring-2 ring-primary/40' : 'border-border',
         banned && 'opacity-50 grayscale',
@@ -75,7 +70,6 @@ export default function BingoCartela({
         </div>
       )}
 
-      {/* BINGO Header */}
       <div className="grid grid-cols-5 gap-1 mb-1.5">
         {BINGO_LETTERS.map((l, i) => (
           <div
@@ -91,35 +85,30 @@ export default function BingoCartela({
         ))}
       </div>
 
-      {/* Number grid — perfect-square cells */}
       <div className="grid grid-cols-5 gap-1">
         {Array.from({ length: 5 }, (_, row) => (
           Array.from({ length: 5 }, (_, col) => {
             const num = numbers[row]?.[col] ?? 0;
             const isFree = row === 2 && col === 2;
             const isMarked = isFree || markedCells.has(`${row}-${col}`);
-            const isDrawn = drawnNumbers.has(num);
-            const isLast = !isFree && lastDrawn != null && num === lastDrawn;
-            const isClickable = onMarkCell && isDrawn && !isFree;
+            const isClickable = !!onMarkCell && !isFree;
 
             return (
               <div
                 key={`${row}-${col}`}
-                onClick={(e) => handleCellClick(num, row, col, e)}
+                onClick={(e) => handleCellClick(row, col, e)}
                 className={cn(
                   'relative aspect-square w-full flex items-center justify-center font-display font-bold rounded-md transition-all',
                   cellText,
                   isClickable && 'cursor-pointer active:scale-90',
                   isFree
                     ? 'bg-orange-500 text-white shadow-md'
-                    : isLast
-                    ? 'bg-orange-500 text-white shadow-[0_0_0_3px_hsl(0_84%_60%)] ring-2 ring-rose-500'
                     : isMarked
                     ? 'bg-emerald-500 text-white shadow-md'
                     : 'bg-muted/60 text-foreground border border-border'
                 )}
               >
-                {isFree ? 'FREE' : num}
+                {isFree ? 'F' : num}
               </div>
             );
           })
