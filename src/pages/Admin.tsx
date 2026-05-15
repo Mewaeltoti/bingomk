@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import PageShell from '@/components/PageShell';
-import { Users, CreditCard, Gamepad2, Check, X, AlertTriangle, Plus, Minus, Pause, Play, Square, ArrowUpCircle, LogOut, KeyRound, MessageSquare, Sparkles } from 'lucide-react';
+import { Users, CreditCard, Gamepad2, Check, X, TriangleAlert as AlertTriangle, Plus, Minus, Pause, Play, Square, CircleArrowUp as ArrowUpCircle, LogOut, KeyRound, MessageSquare, Sparkles } from 'lucide-react';
 import { parseBankSms, referencesMatch, type ParsedSms } from '@/lib/smsParser';
 import { PATTERNS } from '@/lib/bingo';
 import { getBingoLetter } from '@/lib/bingoEngine';
@@ -202,6 +202,49 @@ export default function Admin() {
       .then(({ data }) => setPlayers(data || []));
   }, [tab]);
 
+  // Realtime: deposits, withdrawals, players, cartela count
+  useEffect(() => {
+    const channel = supabase
+      .channel('admin-transactions')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'deposits' },
+        async () => {
+          if (tab !== 'deposits') return;
+          const { data } = await supabase.from('deposits').select('*').order('created_at', { ascending: false });
+          setDeposits(await enrichWithProfiles(data || []));
+        }
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawals' },
+        async () => {
+          if (tab !== 'withdrawals') return;
+          const { data } = await (supabase.from('withdrawals' as any) as any).select('*').order('created_at', { ascending: false });
+          setWithdrawals(await enrichWithProfiles(data || []));
+        }
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' },
+        async () => {
+          if (tab !== 'players') return;
+          const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+          setPlayers(data || []);
+        }
+      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cartelas' },
+        async () => {
+          const { count } = await supabase.from('cartelas').select('id', { count: 'exact', head: true })
+            .eq('is_used', true).not('owner_id', 'is', null);
+          setBoughtCount(count || 0);
+        }
+      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'cartelas' },
+        async () => {
+          const { count } = await supabase.from('cartelas').select('id', { count: 'exact', head: true })
+            .eq('is_used', true).not('owner_id', 'is', null);
+          setBoughtCount(count || 0);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [tab]);
+
   // Auto-draw is now server-side — sync UI state from DB
   useEffect(() => {
     // Listen for game changes to sync autoDraw state
@@ -248,11 +291,6 @@ export default function Admin() {
     // Start countdown
     buyingTimerRef.current = setInterval(() => {
       setBuyingCountdown(prev => {
-        if (prev % 10 === 0) {
-          supabase.from('cartelas').select('id', { count: 'exact', head: true })
-            .eq('is_used', true).not('owner_id', 'is', null)
-            .then(({ count }) => setBoughtCount(count || 0));
-        }
         if (prev <= 1) {
           if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
           buyingTimerRef.current = null;

@@ -28,6 +28,35 @@ export default function Dashboard() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Realtime: balance changes, cartela ownership changes, deposit status changes
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel('dashboard-realtime')
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'profiles',
+        filter: `id=eq.${user.id}`,
+      }, (payload: any) => {
+        if (payload.new?.balance !== undefined) setBalance(payload.new.balance);
+      })
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'cartelas',
+        filter: `owner_id=eq.${user.id}`,
+      }, () => {
+        supabase.from('cartelas').select('*').eq('owner_id', user!.id).order('id', { ascending: true })
+          .then(({ data }) => setMyCartelas(data || []));
+      })
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'deposits',
+        filter: `user_id=eq.${user.id}`,
+      }, () => {
+        supabase.from('deposits').select('*').eq('user_id', user!.id).order('created_at', { ascending: false }).limit(10)
+          .then(({ data }) => setDeposits(data || []));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
+
   return (
     <PageShell title="My Wallet">
       <PullToRefresh onRefresh={loadData}>
