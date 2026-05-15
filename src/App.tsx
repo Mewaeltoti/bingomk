@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { RequireAuth, RequireAdmin } from "./components/AuthGuard";
 import { useGameNotifications } from "./hooks/useGameNotifications";
 import InstallPrompt from "./components/InstallPrompt";
+import OfflineIndicator from "./components/OfflineIndicator";
 import Index from "./pages/Index";
 import Home from "./pages/Home";
 import GamePage from "./pages/GamePage";
@@ -45,6 +46,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <OfflineIndicator />
       <BrowserRouter>
         <AppContent />
       </BrowserRouter>
