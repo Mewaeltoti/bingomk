@@ -11,7 +11,11 @@ export default function PageShell({ children, title, whiteBg, noPadding, showBac
         <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
           <div className="flex items-center gap-2">
             {showBack && (
-              <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:text-foreground">
+              <button 
+                onClick={() => navigate(-1)} 
+                className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                aria-label="Go back"
+              >
                 <ArrowLeft className="w-5 h-5" />
               </button>
             )}
@@ -20,7 +24,7 @@ export default function PageShell({ children, title, whiteBg, noPadding, showBac
           <ThemeToggle />
         </header>
       )}
-      <main className={noPadding ? '' : 'px-3 py-3'}>{children}</main>
+      <main className={noPadding ? '' : 'px-4 py-4'}>{children}</main>
     </div>
   );
 }

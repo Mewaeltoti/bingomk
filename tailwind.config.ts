@@ -58,6 +58,15 @@ export default {
           purple: "hsl(var(--neon-purple))",
           yellow: "hsl(var(--neon-yellow))",
         },
+        bingo: {
+          b: "hsl(var(--bingo-b))",
+          i: "hsl(var(--bingo-i))",
+          n: "hsl(var(--bingo-n))",
+          g: "hsl(var(--bingo-g))",
+          o: "hsl(var(--bingo-o))",
+          marked: "hsl(var(--bingo-marked))",
+          free: "hsl(var(--bingo-free))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
