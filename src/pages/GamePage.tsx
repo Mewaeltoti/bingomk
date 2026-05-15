@@ -453,6 +453,7 @@ export default function GamePage() {
   const [activeClaimId, setActiveClaimId] = useState<number | null>(null);
   const [activeWinnerId, setActiveWinnerId] = useState<number | null>(null);
   const [publicModal, setPublicModal] = useState<{ id: number; status: 'banned' | 'claimed' | 'winner' } | null>(null);
+  const [showPatternHelp, setShowPatternHelp] = useState(false);
   const [phone, setPhone] = useState<string>('');
   const user = useUser();
   const navigate = useNavigate();
