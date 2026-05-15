@@ -804,17 +804,23 @@ export default function GamePage() {
 
   const handleMarkCell = useCallback((cartelaId: number, row: number, col: number) => {
     playMarkSound();
-    // Find the tapped number, then toggle it across every owned cartela that has it.
     const sourceCartela = playerCartelas.find(c => c.id === cartelaId);
     const tappedNumber = sourceCartela?.numbers?.[row]?.[col];
     if (tappedNumber == null) return;
 
-    // Determine new marked state from the source cell so all cards stay in sync.
-    const sourceMarked = markedMap.get(cartelaId)?.has(`${row}-${col}`) ?? false;
+    const syncAcross = localStorage.getItem('bingo-sync-marks') !== '0';
+    const sourceKey = `${row}-${col}`;
+    const sourceMarked = markedMap.get(cartelaId)?.has(sourceKey) ?? false;
     const shouldMark = !sourceMarked;
 
     setMarkedMap(prev => {
       const next = new Map(prev);
+      if (!syncAcross) {
+        const cells = new Set(next.get(cartelaId) || []);
+        if (shouldMark) cells.add(sourceKey); else cells.delete(sourceKey);
+        next.set(cartelaId, cells);
+        return next;
+      }
       for (const c of playerCartelas) {
         const grid = c.numbers as number[][];
         if (!grid) continue;
@@ -822,11 +828,10 @@ export default function GamePage() {
         let touched = false;
         for (let r = 0; r < 5; r++) {
           for (let col2 = 0; col2 < 5; col2++) {
-            if (r === 2 && col2 === 2) continue; // FREE
+            if (r === 2 && col2 === 2) continue;
             if (grid[r]?.[col2] === tappedNumber) {
               const k = `${r}-${col2}`;
-              if (shouldMark) cells.add(k);
-              else cells.delete(k);
+              if (shouldMark) cells.add(k); else cells.delete(k);
               touched = true;
             }
           }
