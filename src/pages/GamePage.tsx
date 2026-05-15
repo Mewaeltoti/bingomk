@@ -277,35 +277,32 @@ function CartelaShop({ onBuy, cartelaPrice, gameStatus, prizeAmount, balance }: 
 
 // ─── Settings Drawer ────────────────────────────────────────
 function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [displayName, setDisplayName] = useState('');
   const [phone, setPhone] = useState('');
   const [muted, setMutedLocal] = useState(isMuted());
+  const [syncMarks, setSyncMarks] = useState<boolean>(() => localStorage.getItem('bingo-sync-marks') !== '0');
   const { theme, toggle: toggleTheme } = useTheme();
   const [, setTick] = useState(0);
   const user = useUser();
   const navigate = useNavigate();
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!user?.id || !open) return;
-    supabase.from('profiles').select('display_name, phone').eq('id', user.id).single()
+    supabase.from('profiles').select('phone').eq('id', user.id).single()
       .then(({ data }) => {
-        if (data) { setDisplayName(data.display_name || ''); setPhone(data.phone || ''); }
+        if (data) setPhone(data.phone || '');
       });
   }, [user?.id, open]);
-
-  const handleSaveName = async () => {
-    if (!user?.id) return;
-    setSaving(true);
-    await supabase.from('profiles').update({ display_name: displayName }).eq('id', user.id);
-    setSaving(false);
-    toast.success('Name updated!');
-  };
 
   const handleToggleMute = () => {
     const next = !muted;
     setMuted(next);
     setMutedLocal(next);
+  };
+
+  const handleToggleSync = () => {
+    const next = !syncMarks;
+    setSyncMarks(next);
+    localStorage.setItem('bingo-sync-marks', next ? '1' : '0');
   };
 
   const handleToggleLang = () => {
@@ -338,25 +335,26 @@ function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () => void 
           <button onClick={onClose} className="p-2 rounded-lg bg-muted text-muted-foreground"><X className="w-4 h-4" /></button>
         </div>
 
-        {/* Profile */}
+        {/* Profile — phone only, locked */}
         <div className="space-y-2">
-          <label className="text-xs text-muted-foreground flex items-center gap-1"><User className="w-3 h-3" /> Display Name</label>
-          <div className="flex gap-2">
-            <input
-              type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
-              className="flex-1 px-3 py-2 rounded-lg bg-muted text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Your name"
-            />
-            <button onClick={handleSaveName} disabled={saving}
-              className="px-3 py-2 rounded-lg gradient-neon text-primary-foreground text-xs font-bold disabled:opacity-50">
-              {saving ? '...' : 'Save'}
-            </button>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 text-muted-foreground text-xs">
+          <label className="text-xs text-muted-foreground flex items-center gap-1"><User className="w-3 h-3" /> Phone (your profile)</label>
+          <div className="flex items-center gap-2 px-3 py-3 rounded-lg bg-muted text-foreground text-sm font-medium">
             <span>📱 {phone || 'Not set'}</span>
-            <span className="text-[10px]">(locked)</span>
+            <span className="ml-auto text-[10px] text-muted-foreground">locked</span>
           </div>
         </div>
+
+        {/* Sync marks across cards */}
+        <button onClick={handleToggleSync}
+          className="w-full flex items-center justify-between px-3 py-3 rounded-lg bg-muted text-foreground text-sm">
+          <span className="flex flex-col items-start">
+            <span>Mark across cards</span>
+            <span className="text-[10px] text-muted-foreground">Tap a number → marks it on every card that has it</span>
+          </span>
+          <span className={cn('text-xs font-bold', syncMarks ? 'text-primary' : 'text-muted-foreground')}>
+            {syncMarks ? 'ON' : 'OFF'}
+          </span>
+        </button>
 
         {/* Sound */}
         <button onClick={handleToggleMute}
