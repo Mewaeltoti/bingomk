@@ -920,6 +920,13 @@ export default function GamePage() {
           <span className="shrink-0 text-[10px] font-display font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded leading-none">
             #{sessionNumber}
           </span>
+          <button
+            onClick={() => setShowPatternHelp(true)}
+            className="shrink-0 p-1 rounded-full bg-primary/10 text-primary active:scale-90"
+            aria-label="How to play"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
           {isSpectator && <span className="shrink-0 text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground"><Eye className="w-3 h-3 inline" /></span>}
         </div>
         <div className="flex shrink-0 items-center gap-1">
