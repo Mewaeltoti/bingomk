@@ -42,6 +42,15 @@
     --neon-purple: 260 60% 55%;
     --neon-yellow: 35 90% 50%;
 
+    /* Bingo card header colors */
+    --bingo-b: 160 84% 39%;
+    --bingo-i: 350 89% 60%;
+    --bingo-n: 174 72% 40%;
+    --bingo-g: 217 91% 60%;
+    --bingo-o: 25 95% 53%;
+    --bingo-marked: 160 84% 39%;
+    --bingo-free: 25 95% 53%;
+
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 220 20% 10%;
     --sidebar-primary: 160 80% 42%;
@@ -82,6 +91,15 @@
     --ring: 160 100% 50%;
 
     --radius: 0.75rem;
+
+    /* Bingo card header colors - dark mode */
+    --bingo-b: 160 100% 45%;
+    --bingo-i: 350 100% 65%;
+    --bingo-n: 174 80% 45%;
+    --bingo-g: 217 100% 65%;
+    --bingo-o: 25 100% 55%;
+    --bingo-marked: 160 100% 45%;
+    --bingo-free: 25 100% 55%;
 
     --sidebar-background: 230 18% 9%;
     --sidebar-foreground: 0 0% 93%;
@@ -131,6 +149,26 @@
   .glow-gold {
     box-shadow: 0 0 15px hsl(var(--primary) / 0.3), 0 0 45px hsl(var(--primary) / 0.1);
   }
+  
+  /* Interactive element focus states */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+  
+  /* Empty state styling */
+  .empty-state {
+    @apply flex flex-col items-center justify-center py-12 px-4 text-center;
+  }
+  .empty-state-icon {
+    @apply w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4 text-muted-foreground;
+  }
+  .empty-state-title {
+    @apply font-display font-bold text-lg text-foreground mb-2;
+  }
+  .empty-state-text {
+    @apply text-sm text-muted-foreground max-w-xs;
+  }
+  
   .bingo-cell {
     @apply flex items-center justify-center font-display font-bold text-sm aspect-square transition-all duration-200;
   }
@@ -145,5 +183,27 @@
   .bingo-cell-free {
     background: hsl(var(--secondary));
     color: white;
+  }
+}
+
+/* Reduced motion support - respect user preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .animate-pulse {
+    animation: none !important;
+  }
+  
+  .glow-neon,
+  .glow-pink,
+  .glow-gold {
+    box-shadow: none !important;
   }
 }

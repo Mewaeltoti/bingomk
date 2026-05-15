@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { RequireAuth, RequireAdmin } from "./components/AuthGuard";
 import { useGameNotifications } from "./hooks/useGameNotifications";
 import InstallPrompt from "./components/InstallPrompt";
+import OfflineIndicator from "./components/OfflineIndicator";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Index from "./pages/Index";
 import Home from "./pages/Home";
 import GamePage from "./pages/GamePage";
@@ -22,7 +24,7 @@ const queryClient = new QueryClient();
 function AppContent() {
   useGameNotifications();
   return (
-    <>
+    <ErrorBoundary>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
@@ -36,7 +38,7 @@ function AppContent() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       <InstallPrompt />
-    </>
+    </ErrorBoundary>
   );
 }
 
@@ -45,6 +47,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <OfflineIndicator />
       <BrowserRouter>
         <AppContent />
       </BrowserRouter>

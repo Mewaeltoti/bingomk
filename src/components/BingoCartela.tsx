@@ -1,13 +1,13 @@
 import { BINGO_LETTERS } from '@/lib/bingo';
 import { cn } from '@/lib/utils';
 
-// Bold, professional bingo header colors — match reference UI exactly.
+// Bingo header colors using design tokens for theme consistency
 const HEADER_COLORS = [
-  'bg-emerald-500 text-white',  // B
-  'bg-rose-500 text-white',     // I
-  'bg-teal-500 text-white',     // N
-  'bg-blue-500 text-white',     // G
-  'bg-orange-500 text-white',   // O
+  'bg-bingo-b text-white',   // B
+  'bg-bingo-i text-white',   // I
+  'bg-bingo-n text-white',   // N
+  'bg-bingo-g text-white',   // G
+  'bg-bingo-o text-white',   // O
 ];
 
 interface BingoCartelaProps {
@@ -102,9 +102,9 @@ export default function BingoCartela({
                   cellText,
                   isClickable && 'cursor-pointer active:scale-90',
                   isFree
-                    ? 'bg-orange-500 text-white shadow-md'
+                    ? 'bg-bingo-free text-white shadow-md'
                     : isMarked
-                    ? 'bg-emerald-500 text-white shadow-md'
+                    ? 'bg-bingo-marked text-white shadow-md'
                     : 'bg-muted/60 text-foreground border border-border'
                 )}
               >
