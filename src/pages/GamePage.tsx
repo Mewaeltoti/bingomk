@@ -26,7 +26,9 @@ import { cn } from '@/lib/utils';
 import { playDrawSound, playWinSound, playMarkSound, playClaimApprovedSound, playClaimRejectedSound } from '@/lib/sounds';
 import { invokeWithRetry } from '@/lib/edgeFn';
 import { t } from '@/lib/i18n';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { Hand, Eye, X } from 'lucide-react';
 
 // ─── Main Game Page ─────────────────────────────────────────
 type GameResult = {
@@ -202,7 +204,6 @@ export default function GamePage() {
           const elapsed = Math.floor((Date.now() - createdAt) / 1000);
           const remaining = Math.max(0, 120 - elapsed);
           setBuyingCountdown(remaining);
-          setShowShop(true);
           if (remaining > 0) {
             if (buyingTimerRef.current) clearInterval(buyingTimerRef.current);
             buyingTimerRef.current = setInterval(() => {
